@@ -9,7 +9,7 @@ class Decision(Enum):
 @dataclass
 class DecisionConfig:
     # Speaker verification thresholds
-    voice_accept: float = 0.45
+    voice_accept: float = 0.50
     voice_repeat: float = 0.30
 
     # Absolute minimum speaker score    

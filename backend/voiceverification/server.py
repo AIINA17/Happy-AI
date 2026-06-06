@@ -8,6 +8,7 @@ import asyncio
 import os
 import time
 from datetime import datetime, timezone
+import traceback
 
 import librosa
 import numpy as np
@@ -23,15 +24,15 @@ from livekit.api import (
 )
 from pydantic import BaseModel
 
-from auth.auth_utils import get_user_id_from_request
-from core.behavior_profile import BehaviorProfile
-from db.behavior_repo import load_behavior_profile, save_behavior_profile
-from db.connection import get_supabase
-from db.conversation_sessions import update_conversation_session_label
-from db.speaker_repo import count_enrollments, load_all_embeddings, save_embedding
-from models.speaker_verifier import SpeakerVerifier
-from services.biometric_service import BiometricService
-from utils.audio import normalize_audio, save_audio
+from voiceverification.auth.auth_utils import get_user_id_from_request
+from voiceverification.core.behavior_profile import BehaviorProfile
+from voiceverification.db.behavior_repo import load_behavior_profile, save_behavior_profile
+from voiceverification.db.connection import get_supabase
+from voiceverification.db.conversation_sessions import update_conversation_session_label
+from voiceverification.db.speaker_repo import count_enrollments, load_all_embeddings, save_embedding
+from voiceverification.models.speaker_verifier import SpeakerVerifier
+from voiceverification.services.biometric_service import BiometricService
+from voiceverification.utils.audio import normalize_audio, save_audio
 
 # Environment setup
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -131,8 +132,11 @@ async def verify_voice(request: Request, audio: UploadFile = File(...)):
             "reason": "No enrollment profile found for user."
         }
     
-    wav_path = save_audio(audio)
-    normalize_audio(wav_path)
+    try:
+        wav_path = save_audio(audio)
+        normalize_audio(wav_path)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid/unsupported audio upload: {e}")
 
     try:
         bio = get_biometric()
@@ -173,6 +177,15 @@ async def verify_voice(request: Request, audio: UploadFile = File(...)):
             "matched_label": matched_label,
         }
 
+    except HTTPException:
+        raise
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=500,
+            detail=f"verify-voice failed: {type(e).__name__}: {e}",
+        )
+
     finally:
         if os.path.exists(wav_path):
             os.remove(wav_path)
@@ -203,8 +216,11 @@ async def enroll_voice(
             detail="Maximum enrollment reached (3)."
         )
 
-    wav_path = save_audio(audio)
-    normalize_audio(wav_path)
+    try:
+        wav_path = save_audio(audio)
+        normalize_audio(wav_path)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid/unsupported audio upload: {e}")
 
     try:
         verifier = SpeakerVerifier()
@@ -253,6 +269,15 @@ async def enroll_voice(
             "message": "Voice enrollment successful",
             "label": label
         }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=500,
+            detail=f"enroll-voice failed: {type(e).__name__}: {e}",
+        )
 
     finally:
         if os.path.exists(wav_path):

@@ -19,7 +19,7 @@ Folder ini berisi aplikasi web Next.js untuk voice shopping assistant yang terle
 Dari root project:
 
 ```bash
-cd integrate
+cd HAPPY-AI
 docker-compose up --build frontend
 ```
 

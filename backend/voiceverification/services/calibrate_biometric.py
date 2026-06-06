@@ -1,11 +1,11 @@
 import os
 import librosa
 
-from core.pitch import pitch_similarity
-from core.speaking_rate import speaking_rate_similarity
-from core.fusion import fuse
-from models.speaker_verifier import SpeakerVerifier
-from core.calibration import find_eer_threshold
+from voiceverification.core.pitch import pitch_similarity
+from voiceverification.core.speaking_rate import speaking_rate_similarity
+from voiceverification.core.fusion import fuse
+from voiceverification.models.speaker_verifier import SpeakerVerifier
+from voiceverification.core.calibration import find_eer_threshold
 
 
 def calibrate_biometric(genuine_dir, impostor_dir, enroll_path):
@@ -60,7 +60,7 @@ if __name__ == "__main__":
 
     if len(sys.argv) != 4:
         print("Usage:")
-        print("  python -m services.calibrate_biometric <genuine_dir> <impostor_dir> <enroll_path>")
+        print("  python -m voiceverification.services.calibrate_biometric <genuine_dir> <impostor_dir> <enroll_path>")
         sys.exit(1)
 
     genuine_dir = sys.argv[1]

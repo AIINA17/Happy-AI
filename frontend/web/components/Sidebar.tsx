@@ -2,7 +2,14 @@
 
 // Application sidebar with logo, enrollment controls, and recent sessions.
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    useSyncExternalStore,
+} from "react";
 import Image from "next/image";
 import { MdDelete, MdModeEdit } from "react-icons/md";
 import {
@@ -23,8 +30,212 @@ interface ConversationSession {
     created_at: string;
 }
 
-let cachedSessions: ConversationSession[] = [];
-let cachedLoaded = false;
+interface SessionsStoreState {
+    sessions: ConversationSession[];
+    loaded: boolean;
+    loading: boolean;
+    tokenKey: string | null;
+}
+
+const INITIAL_SESSIONS_STORE_STATE: SessionsStoreState = {
+    sessions: [],
+    loaded: false,
+    loading: false,
+    tokenKey: null,
+};
+
+let sessionsStoreState: SessionsStoreState = {
+    ...INITIAL_SESSIONS_STORE_STATE,
+};
+
+const sessionsStoreListeners = new Set<() => void>();
+
+function emitSessionsStoreChange() {
+    for (const listener of sessionsStoreListeners) listener();
+}
+
+function subscribeSessionsStore(listener: () => void) {
+    sessionsStoreListeners.add(listener);
+    return () => sessionsStoreListeners.delete(listener);
+}
+
+function getSessionsStoreSnapshot() {
+    return sessionsStoreState;
+}
+
+function getSessionsStoreServerSnapshot() {
+    return INITIAL_SESSIONS_STORE_STATE;
+}
+
+function setSessionsStoreState(
+    updater:
+        | SessionsStoreState
+        | ((prev: SessionsStoreState) => SessionsStoreState),
+) {
+    sessionsStoreState =
+        typeof updater === "function"
+            ? (updater as (prev: SessionsStoreState) => SessionsStoreState)(
+                  sessionsStoreState,
+              )
+            : updater;
+    emitSessionsStoreChange();
+}
+
+function resetSessionsStore() {
+    sessionsStoreState = {
+        ...INITIAL_SESSIONS_STORE_STATE,
+    };
+    emitSessionsStoreChange();
+}
+
+function normalizePublicServerUrl(raw: string | undefined) {
+    const trimmed = raw?.trim();
+    if (!trimmed) return null;
+
+    const normalized = trimmed.replace(/\/+$/, "");
+    if (normalized.startsWith("/")) {
+        if (typeof window === "undefined") return null;
+        return `${window.location.origin}${normalized}`;
+    }
+
+    try {
+        // Validate absolute URL
+        new URL(normalized);
+        return normalized;
+    } catch {
+        return null;
+    }
+}
+
+function logFetchHint(params: {
+    endpoint: string;
+    baseUrl: string;
+    err: unknown;
+}) {
+    const { endpoint, baseUrl, err } = params;
+
+    if (typeof window !== "undefined") {
+        try {
+            const apiUrl = new URL(baseUrl);
+            if (
+                window.location.protocol === "https:" &&
+                apiUrl.protocol === "http:"
+            ) {
+                console.error(
+                    `[Sidebar] Mixed content: page is HTTPS but API is HTTP. '${endpoint}' will be blocked by the browser. Use an https:// API URL or serve the site over http:// during dev.`,
+                    err,
+                );
+                return;
+            }
+
+            if (apiUrl.hostname === "backend") {
+                console.error(
+                    `[Sidebar] API hostname is 'backend' (Docker service name). Browsers usually can't resolve that. Set NEXT_PUBLIC_SERVER_URL to something reachable from the browser, e.g. 'http://localhost:8000'.`,
+                    err,
+                );
+                return;
+            }
+        } catch {
+            // ignore
+        }
+    }
+
+    console.error(
+        `[Sidebar] Failed to fetch '${endpoint}'. Check NEXT_PUBLIC_SERVER_URL and backend CORS settings.`,
+        err,
+    );
+}
+
+async function refreshSessionsStore(params: {
+    token: string;
+    serverUrl: string | undefined;
+}) {
+    const { token, serverUrl } = params;
+    if (!serverUrl) return;
+
+    const baseUrl = serverUrl.replace(/\/+$/, "");
+
+    setSessionsStoreState((prev) => ({
+        ...prev,
+        loading: true,
+        tokenKey: token,
+    }));
+
+    try {
+        const res = await fetch(`${baseUrl}/logs/sessions`, {
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
+        });
+
+        const rawText = await res.text().catch(() => "");
+        const data: unknown = (() => {
+            if (!rawText) return null;
+            try {
+                return JSON.parse(rawText) as unknown;
+            } catch {
+                return rawText;
+            }
+        })();
+
+        const dataObj =
+            typeof data === "object" && data !== null
+                ? (data as Record<string, unknown>)
+                : null;
+
+        if (res.ok && dataObj?.status === "OK") {
+            const sessionsValue = dataObj.sessions;
+            const newSessions: ConversationSession[] = Array.isArray(
+                sessionsValue,
+            )
+                ? (sessionsValue as ConversationSession[])
+                : [];
+            setSessionsStoreState((prev) => ({
+                ...prev,
+                sessions: newSessions,
+                loaded: true,
+            }));
+            return;
+        }
+
+        if (res.status === 401) {
+            const detail = (() => {
+                if (!dataObj) return undefined;
+                const maybeDetail = dataObj.detail ?? dataObj.message;
+                return typeof maybeDetail === "string"
+                    ? maybeDetail
+                    : undefined;
+            })();
+            console.warn(
+                "[Sidebar] Unauthorized (401) fetching sessions.",
+                detail ? `Detail: ${detail}` : "",
+            );
+            console.warn(
+                "[Sidebar] Common causes: (1) Frontend is logged into a different Supabase project than the backend's SUPABASE_URL, or (2) backend is missing/incorrect SUPABASE_SERVICE_ROLE_KEY env vars.",
+            );
+
+            setSessionsStoreState((prev) => ({
+                ...prev,
+                sessions: [],
+                loaded: true,
+            }));
+            return;
+        }
+
+        console.error("[Sidebar] Fetch sessions failed:", res.status, data);
+        setSessionsStoreState((prev) => ({
+            ...prev,
+            loaded: true,
+        }));
+    } catch (error) {
+        logFetchHint({ endpoint: "/logs/sessions", baseUrl, err: error });
+    } finally {
+        setSessionsStoreState((prev) => ({
+            ...prev,
+            loading: false,
+        }));
+    }
+}
 
 interface SidebarProps {
     isLoggedIn: boolean;
@@ -53,10 +264,6 @@ export default function Sidebar({
 }: SidebarProps) {
     const [showUserMenu, setShowUserMenu] = useState(false);
     const [showEnrollmentList, setShowEnrollmentList] = useState(false);
-    const [sessions, setSessions] = useState<ConversationSession[]>(
-        () => cachedSessions,
-    );
-    const [loading, setLoading] = useState(!cachedLoaded);
     const [isCollapsed, setIsCollapsed] = useState(false);
 
     const [showLogoutDialog, setShowLogoutDialog] = useState(false);
@@ -71,6 +278,26 @@ export default function Sidebar({
     const sidebarRef = useRef<HTMLElement>(null);
 
     const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL;
+    const apiBaseUrl = useMemo(
+        () => normalizePublicServerUrl(SERVER_URL) ?? undefined,
+        [SERVER_URL],
+    );
+
+    const sessionsStore = useSyncExternalStore(
+        subscribeSessionsStore,
+        getSessionsStoreSnapshot,
+        getSessionsStoreServerSnapshot,
+    );
+    const displayedSessions =
+        isLoggedIn && token && sessionsStore.tokenKey === token
+            ? sessionsStore.sessions
+            : [];
+    const loading =
+        isLoggedIn &&
+        !!token &&
+        sessionsStore.tokenKey === token &&
+        sessionsStore.loading &&
+        !sessionsStore.loaded;
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -91,59 +318,55 @@ export default function Sidebar({
 
     const loadSessions = useCallback(async () => {
         if (!token) return;
-
-        setLoading(true);
-        try {
-            const res = await fetch(`${SERVER_URL}/logs/sessions`, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
-            });
-
-            const data = await res.json();
-
-            if (data.status === "OK") {
-                const newSessions: ConversationSession[] = data.sessions || [];
-                setSessions(newSessions);
-                cachedSessions = newSessions;
-                cachedLoaded = true;
-            }
-        } catch (error) {
-            console.error("Error fetching sessions:", error);
-        } finally {
-            setLoading(false);
+        if (!apiBaseUrl) {
+            console.error(
+                "[Sidebar] NEXT_PUBLIC_SERVER_URL is missing/invalid; skipping sessions fetch.",
+            );
+            return;
         }
-    }, [SERVER_URL, token]);
+        await refreshSessionsStore({ token, serverUrl: apiBaseUrl });
+    }, [apiBaseUrl, token]);
 
     useEffect(() => {
         if (!isLoggedIn || !token) return;
-        if (cachedLoaded && cachedSessions.length > 0) {
-            setSessions(cachedSessions);
-            setLoading(false);
-            return;
-        }
+        if (sessionsStore.loading) return;
+        if (sessionsStore.loaded && sessionsStore.tokenKey === token) return;
 
-        loadSessions();
-    }, [isLoggedIn, token, loadSessions]);
+        void loadSessions();
+    }, [
+        isLoggedIn,
+        token,
+        sessionsStore.loading,
+        sessionsStore.loaded,
+        sessionsStore.tokenKey,
+        loadSessions,
+    ]);
 
     // Explicit refresh trigger from parent (e.g., when a call is ended)
     useEffect(() => {
         if (!isLoggedIn || !token) return;
         if (refreshKey === undefined) return;
-        loadSessions();
-    }, [refreshKey, isLoggedIn, token, loadSessions]);
+        if (sessionsStore.loading) return;
+        void loadSessions();
+    }, [refreshKey, isLoggedIn, token, sessionsStore.loading, loadSessions]);
 
     const handleNewChat = () => {
         onNewChat?.();
-        loadSessions();
+        void loadSessions();
     };
 
     const handleRename = async (sessionId: string, newLabel: string) => {
         if (!token) return;
+        if (!apiBaseUrl) {
+            alert(
+                "Server URL belum dikonfigurasi. Set NEXT_PUBLIC_SERVER_URL (contoh: http://localhost:8000) di frontend/web/.env",
+            );
+            return;
+        }
 
         try {
             const res = await fetch(
-                `${SERVER_URL}/conversation-sessions/${sessionId}/label`,
+                `${apiBaseUrl}/conversation-sessions/${sessionId}/label`,
                 {
                     method: "PATCH",
                     headers: {
@@ -157,15 +380,14 @@ export default function Sidebar({
             const data = await res.json();
 
             if (data.status === "OK") {
-                setSessions((prev) => {
-                    const updated = prev.map((session) =>
+                setSessionsStoreState((prev) => ({
+                    ...prev,
+                    sessions: prev.sessions.map((session) =>
                         session.id === sessionId
                             ? { ...session, label: newLabel }
                             : session,
-                    );
-                    cachedSessions = updated;
-                    return updated;
-                });
+                    ),
+                }));
             }
         } catch (error) {
             console.error("Error renaming session:", error);
@@ -182,11 +404,17 @@ export default function Sidebar({
 
     const handleDelete = async () => {
         if (!token || !deleteDialog.sessionId) return;
+        if (!apiBaseUrl) {
+            alert(
+                "Server URL belum dikonfigurasi. Set NEXT_PUBLIC_SERVER_URL (contoh: http://localhost:8000) di frontend/web/.env",
+            );
+            return;
+        }
 
         setIsDeleting(true);
         try {
             const res = await fetch(
-                `${SERVER_URL}/conversation-sessions/${deleteDialog.sessionId}`,
+                `${apiBaseUrl}/conversation-sessions/${deleteDialog.sessionId}`,
                 {
                     method: "DELETE",
                     headers: {
@@ -198,13 +426,12 @@ export default function Sidebar({
             const data = await res.json();
 
             if (res.ok && data.status === "OK") {
-                setSessions((prev) => {
-                    const updated = prev.filter(
+                setSessionsStoreState((prev) => ({
+                    ...prev,
+                    sessions: prev.sessions.filter(
                         (session) => session.id !== deleteDialog.sessionId,
-                    );
-                    cachedSessions = updated;
-                    return updated;
-                });
+                    ),
+                }));
 
                 if (currentSessionId === deleteDialog.sessionId) {
                     onNewChat?.();
@@ -235,8 +462,7 @@ export default function Sidebar({
 
     const confirmLogout = () => {
         setShowLogoutDialog(false);
-        cachedSessions = [];
-        cachedLoaded = false;
+        resetSessionsStore();
         onLogout();
     };
 
@@ -255,7 +481,7 @@ export default function Sidebar({
                 isOpen={deleteDialog.isOpen}
                 type="delete"
                 title="Delete Chat?"
-                message="This will delete"
+                message="This will delete "
                 highlightText={deleteDialog.sessionLabel}
                 confirmText="Delete"
                 cancelText="Cancel"
@@ -392,12 +618,12 @@ export default function Sidebar({
                                 <div className="text-(--text-muted) text-sm py-4">
                                     Loading...
                                 </div>
-                            ) : sessions.length === 0 ? (
+                            ) : displayedSessions.length === 0 ? (
                                 <div className="text-(--text-muted) text-sm py-4">
                                     Belum ada chat
                                 </div>
                             ) : (
-                                sessions.map((session) => (
+                                displayedSessions.map((session) => (
                                     <SessionItem
                                         key={session.id}
                                         session={session}

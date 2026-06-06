@@ -4,12 +4,12 @@ import numpy as np
 
 from typing import List, Optional
 
-from core.behavior_profile import BehaviorProfile
-from models.speaker_verifier import SpeakerVerifier
-from core.asvspoof import compute_score
-from core.decision_engine import decide, Decision
-from core.trusted_update import TrustedUpdatePolicy
-from core.behavior_scoring import compute_behavior_score
+from voiceverification.core.behavior_profile import BehaviorProfile
+from voiceverification.models.speaker_verifier import SpeakerVerifier
+from voiceverification.core.asvspoof import compute_score
+from voiceverification.core.decision_engine import decide, Decision
+from voiceverification.core.trusted_update import TrustedUpdatePolicy
+from voiceverification.core.behavior_scoring import compute_behavior_score
 
 
 
@@ -88,7 +88,11 @@ class BiometricService:
                     n_samples=behavior_profile.n_samples,
                     z_pitch=z_pitch,
                     z_rate=z_rate,
-                    last_update_time=behavior_profile.last_update_ts,
+                    last_update_time=(
+                        behavior_profile.last_update_ts.timestamp()
+                        if behavior_profile.last_update_ts is not None
+                        else None
+                    ),
                     is_retry=is_retry,
                 ):
                     behavior_profile.update(pitch, rate, datetime.now(timezone.utc))

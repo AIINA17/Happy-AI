@@ -2,11 +2,73 @@
 
 // Custom hook encapsulating LiveKit room join, audio recording, and verification.
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Room, RoomEvent, Track, createLocalAudioTrack } from "livekit-client";
 
 import { supabase } from "@/lib/supabase";
 import { Product, VerificationResult } from "@/types";
+
+function normalizePublicServerUrl(raw: string | undefined) {
+    const trimmed = raw?.trim();
+    if (!trimmed) return null;
+
+    const normalized = trimmed.replace(/\/+$/, "");
+    if (normalized.startsWith("/")) {
+        if (typeof window === "undefined") return null;
+        return `${window.location.origin}${normalized}`;
+    }
+
+    try {
+        new URL(normalized);
+        return normalized;
+    } catch {
+        return null;
+    }
+}
+
+function buildApiUrl(baseUrl: string | null, path: string) {
+    if (!baseUrl) return null;
+    const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+    return `${baseUrl}${normalizedPath}`;
+}
+
+function logFetchHint(params: {
+    endpoint: string;
+    baseUrl: string | null;
+    err: unknown;
+}) {
+    const { endpoint, baseUrl, err } = params;
+
+    if (typeof window !== "undefined" && baseUrl) {
+        try {
+            const apiUrl = new URL(baseUrl);
+            if (
+                window.location.protocol === "https:" &&
+                apiUrl.protocol === "http:"
+            ) {
+                console.error(
+                    `[useLiveKit] Mixed content: page is HTTPS but API is HTTP. '${endpoint}' will be blocked by the browser. Use an https:// API URL or serve the site over http:// during dev.`,
+                    err,
+                );
+                return;
+            }
+            if (apiUrl.hostname === "backend") {
+                console.error(
+                    `[useLiveKit] API hostname is 'backend' (Docker service name). Browsers usually can't resolve that. Set NEXT_PUBLIC_SERVER_URL to something reachable from the browser, e.g. 'http://localhost:8000'.`,
+                    err,
+                );
+                return;
+            }
+        } catch {
+            // ignore
+        }
+    }
+
+    console.error(
+        `[useLiveKit] Failed to fetch '${endpoint}'. Check NEXT_PUBLIC_SERVER_URL and backend CORS settings.`,
+        err,
+    );
+}
 
 type UiState =
     | "IDLE"
@@ -51,8 +113,13 @@ export function useLiveKit({
     const [uiState, setUiState] = useState<UiState>("IDLE");
     const [isAgentSpeaking, setIsAgentSpeaking] = useState(false);
 
-    const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL!;
+    const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL;
     const LIVEKIT_URL = process.env.NEXT_PUBLIC_LIVEKIT_URL!;
+
+    const apiBaseUrl = useMemo(
+        () => normalizePublicServerUrl(SERVER_URL),
+        [SERVER_URL],
+    );
 
     const onMessageRef = useRef(onMessage);
     const onVerifyStatusRef = useRef(onVerifyStatus);
@@ -108,17 +175,17 @@ export function useLiveKit({
             return;
         }
 
-        if (msg.type === "PRODUCT_CARDS") {
+        if (msg.type === "PRODUCT_CARDS" && msg.products) {
             onProductCardsRef.current?.(msg.products);
             return;
         }
 
-        if (msg.type === "AGENT_MESSAGE") {
+        if (msg.type === "AGENT_MESSAGE" && msg.text) {
             onMessageRef.current("assistant", msg.text);
             return;
         }
 
-        if (msg.type === "USER_MESSAGE") {
+        if (msg.type === "USER_MESSAGE" && msg.text) {
             onMessageRef.current("user", msg.text);
         }
     });
@@ -228,13 +295,41 @@ export function useLiveKit({
         const form = new FormData();
         form.append("audio", blob, "voice.webm");
 
-        const res = await fetch(`${SERVER_URL}/verify-voice`, {
-            method: "POST",
-            headers: { Authorization: `Bearer ${accessToken}` },
-            body: form,
-        });
+        const url = buildApiUrl(apiBaseUrl, "/verify-voice");
+        if (!url) {
+            onVerifyStatusRef.current(
+                "❌ Server URL belum dikonfigurasi (NEXT_PUBLIC_SERVER_URL)",
+            );
+            setUiState("CHATTING");
+            return;
+        }
 
-        const result: VerificationResult = await res.json();
+        let res: Response;
+        try {
+            res = await fetch(url, {
+                method: "POST",
+                headers: { Authorization: `Bearer ${accessToken}` },
+                body: form,
+            });
+        } catch (err) {
+            logFetchHint({
+                endpoint: "/verify-voice",
+                baseUrl: apiBaseUrl,
+                err,
+            });
+            onVerifyStatusRef.current("❌ Gagal konek server verifikasi");
+            setUiState("CHATTING");
+            return;
+        }
+
+        const result: VerificationResult = await res.json().catch(
+            () =>
+                ({
+                    status: "DENIED",
+                    score: null,
+                    reason: "Invalid response from server",
+                }) as VerificationResult,
+        );
         onScoreRef.current(result.score ?? null);
 
         const status = result.status as VerificationStatus;
@@ -280,13 +375,36 @@ export function useLiveKit({
                 return;
             }
 
-            const res = await fetch(`${SERVER_URL}/join-token`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${accessToken}`,
-                },
-            });
+            const url = buildApiUrl(apiBaseUrl, "/join-token");
+            if (!url) {
+                onRoomStatusRef.current(
+                    "❌ Server URL belum dikonfigurasi (NEXT_PUBLIC_SERVER_URL)",
+                );
+                setUiState("IDLE");
+                isJoiningRef.current = false;
+                return;
+            }
+
+            let res: Response;
+            try {
+                res = await fetch(url, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${accessToken}`,
+                    },
+                });
+            } catch (err) {
+                logFetchHint({
+                    endpoint: "/join-token",
+                    baseUrl: apiBaseUrl,
+                    err,
+                });
+                onRoomStatusRef.current("❌ Gagal konek server");
+                setUiState("IDLE");
+                isJoiningRef.current = false;
+                return;
+            }
 
             if (!res.ok) {
                 onRoomStatusRef.current("❌ Gagal ambil token");
@@ -313,8 +431,8 @@ export function useLiveKit({
                 roomRef.current = null;
             });
 
-            room.on(RoomEvent.DataReceived, (payload, _, __, topic) => {
-                handleAgentDataRef.current(payload, topic);
+            room.on(RoomEvent.DataReceived, (payload, _, __) => {
+                handleAgentDataRef.current(payload);
             });
 
             room.on(RoomEvent.TrackSubscribed, (track) => {

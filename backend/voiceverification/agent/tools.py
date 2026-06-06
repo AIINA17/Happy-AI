@@ -97,7 +97,7 @@ async def _send_product_cards_internal(products: list):
     Internal function untuk kirim product cards ke frontend dan DB.
     BUKAN @function_tool — tidak dipanggil langsung oleh LLM.
     """
-    from db.connection import get_supabase
+    from voiceverification.db.connection import get_supabase
 
     state = auth_state.get("agent_state", {})
     session_id = state.get("conversation_session_id")

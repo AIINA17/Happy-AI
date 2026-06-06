@@ -1,6 +1,6 @@
 import os
-from core.asvspoof import compute_score
-from core.calibration import find_eer_threshold
+from voiceverification.core.asvspoof import compute_score
+from voiceverification.core.calibration import find_eer_threshold
 
 
 def calibrate_spoof(genuine_dir, spoof_dir):
@@ -33,7 +33,7 @@ if __name__ == "__main__":
 
     if len(sys.argv) != 3:
         print("Usage:")
-        print("  python -m services.calibrate_spoof <genuine_dir> <spoof_dir>")
+        print("  python -m voiceverification.services.calibrate_spoof <genuine_dir> <spoof_dir>")
         sys.exit(1)
 
     genuine_dir = sys.argv[1]

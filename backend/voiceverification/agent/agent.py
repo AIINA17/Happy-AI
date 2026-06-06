@@ -16,8 +16,8 @@ from livekit import agents
 from livekit.agents import Agent, AgentServer, AgentSession, cli, room_io
 from livekit.plugins import google, noise_cancellation
 
-from agent.prompts import AGENT_INSTRUCTION, SESSION_INSTRUCTION
-from agent.tools import (
+from voiceverification.agent.prompts import AGENT_INSTRUCTION, SESSION_INSTRUCTION
+from voiceverification.agent.tools import (
     add_to_cart,
     auth_state,
     check_login_status,
@@ -40,8 +40,8 @@ from agent.tools import (
     web_search,
 )
 
-from db.conversation_logs import insert_conversation_log
-from db.conversation_sessions import create_conversation_session
+from voiceverification.db.conversation_logs import insert_conversation_log
+from voiceverification.db.conversation_sessions import create_conversation_session
 
 # ================= CONFIG =================
 SAMPLE_RATE = 16000

@@ -24,7 +24,7 @@ Backend ini adalah layanan FastAPI untuk verifikasi suara, anti-spoofing, dan ma
 Dari root project:
 
 ```bash
-cd integrate
+cd HAPPY-AI
 docker-compose up --build backend agent
 ```
 

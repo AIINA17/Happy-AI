@@ -12,6 +12,62 @@ import VerificationToast from "@/components/VerificationToast";
 import { supabase } from "@/lib/supabase";
 import { Message, Product } from "@/types";
 
+function normalizePublicServerUrl(raw: string | undefined) {
+    const trimmed = raw?.trim();
+    if (!trimmed) return null;
+
+    const normalized = trimmed.replace(/\/+$/, "");
+    if (normalized.startsWith("/")) {
+        if (typeof window === "undefined") return null;
+        return `${window.location.origin}${normalized}`;
+    }
+
+    try {
+        new URL(normalized);
+        return normalized;
+    } catch {
+        return null;
+    }
+}
+
+function logFetchHint(params: {
+    endpoint: string;
+    baseUrl: string | null;
+    err: unknown;
+}) {
+    const { endpoint, baseUrl, err } = params;
+
+    if (typeof window !== "undefined" && baseUrl) {
+        try {
+            const apiUrl = new URL(baseUrl);
+            if (
+                window.location.protocol === "https:" &&
+                apiUrl.protocol === "http:"
+            ) {
+                console.error(
+                    `[History] Mixed content: page is HTTPS but API is HTTP. '${endpoint}' will be blocked by the browser. Use an https:// API URL or serve the site over http:// during dev.`,
+                    err,
+                );
+                return;
+            }
+            if (apiUrl.hostname === "backend") {
+                console.error(
+                    `[History] API hostname is 'backend' (Docker service name). Browsers usually can't resolve that. Set NEXT_PUBLIC_SERVER_URL to something reachable from the browser, e.g. 'http://localhost:8000'.`,
+                    err,
+                );
+                return;
+            }
+        } catch {
+            // ignore
+        }
+    }
+
+    console.error(
+        `[History] Failed to fetch '${endpoint}'. Check NEXT_PUBLIC_SERVER_URL and backend CORS settings.`,
+        err,
+    );
+}
+
 export default function HistoryDetailPage() {
     const router = useRouter();
     const params = useParams<{ id: string }>();
@@ -46,6 +102,7 @@ export default function HistoryDetailPage() {
     );
 
     const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL;
+    const apiBaseUrl = normalizePublicServerUrl(SERVER_URL);
 
     useEffect(() => {
         const checkSession = async () => {
@@ -83,13 +140,13 @@ export default function HistoryDetailPage() {
 
     useEffect(() => {
         const loadSession = async () => {
-            if (!session?.access_token || !SERVER_URL || !sessionId) return;
+            if (!session?.access_token || !apiBaseUrl || !sessionId) return;
 
             setCurrentSessionId(sessionId);
 
             try {
                 const res = await fetch(
-                    `${SERVER_URL}/logs/sessions/${sessionId}`,
+                    `${apiBaseUrl}/logs/sessions/${sessionId}`,
                     {
                         headers: {
                             Authorization: `Bearer ${session.access_token}`,
@@ -121,12 +178,16 @@ export default function HistoryDetailPage() {
                 setProducts(allProducts);
                 setIsConnected(false); // pastikan selalu history mode
             } catch (error) {
-                console.error("Error loading session:", error);
+                logFetchHint({
+                    endpoint: "/logs/sessions/:id",
+                    baseUrl: apiBaseUrl,
+                    err: error,
+                });
             }
         };
 
         loadSession();
-    }, [SERVER_URL, session, sessionId]);
+    }, [apiBaseUrl, session, sessionId]);
 
     const clearVerificationResult = useCallback(() => {
         setVerificationResult({ status: null, score: null, reason: null });

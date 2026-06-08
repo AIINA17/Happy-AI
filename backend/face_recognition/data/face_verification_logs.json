@@ -1,0 +1,292 @@
+[
+  {
+    "user_id": "izz",
+    "image_filename": "WhatsApp Image 2026-06-06 at 18.46.31 (1).jpeg",
+    "verified": true,
+    "status": "VERIFIED",
+    "similarity": 0.7685316801071167,
+    "threshold": 0.45,
+    "error_message": null,
+    "timestamp": "2026-06-06T12:18:48.529650+00:00"
+  },
+  {
+    "user_id": "izz",
+    "image_filename": "WhatsApp Image 2026-06-06 at 18.46.31 (1).jpeg",
+    "verified": true,
+    "status": "VERIFIED",
+    "similarity": 0.7685316801071167,
+    "threshold": 0.45,
+    "error_message": null,
+    "timestamp": "2026-06-06T12:19:12.331319+00:00"
+  },
+  {
+    "user_id": "izz",
+    "image_filename": "HILrA4FXAAAx76L.jpeg",
+    "verified": false,
+    "status": "DENIED",
+    "similarity": -0.025738047435879707,
+    "threshold": 0.45,
+    "error_message": null,
+    "timestamp": "2026-06-06T12:19:47.073775+00:00"
+  },
+  {
+    "user_id": "izz",
+    "image_filename": "WhatsApp Image 2026-06-06 at 18.46.28.jpeg",
+    "verified": true,
+    "status": "VERIFIED",
+    "similarity": 1.0,
+    "threshold": 0.45,
+    "error_message": null,
+    "timestamp": "2026-06-06T12:20:11.320476+00:00"
+  },
+  {
+    "user_id": "izz",
+    "image_filename": "WhatsApp Image 2026-06-06 at 18.46.28 (1).jpeg",
+    "verified": true,
+    "status": "VERIFIED",
+    "similarity": 0.7018812894821167,
+    "threshold": 0.45,
+    "error_message": null,
+    "timestamp": "2026-06-06T12:22:51.085095+00:00"
+  },
+  {
+    "user_id": "izz",
+    "image_filename": "WhatsApp Image 2026-06-06 at 18.46.29.jpeg",
+    "verified": true,
+    "status": "VERIFIED",
+    "similarity": 0.7484068274497986,
+    "threshold": 0.45,
+    "error_message": null,
+    "timestamp": "2026-06-06T12:22:57.189091+00:00"
+  },
+  {
+    "user_id": "izz",
+    "image_filename": "WhatsApp Image 2026-06-06 at 18.46.29 (1).jpeg",
+    "verified": true,
+    "status": "VERIFIED",
+    "similarity": 0.7386770248413086,
+    "threshold": 0.45,
+    "error_message": null,
+    "timestamp": "2026-06-06T12:23:00.934307+00:00"
+  },
+  {
+    "user_id": "izz",
+    "image_filename": "WhatsApp Image 2026-06-06 at 18.46.30.jpeg",
+    "verified": true,
+    "status": "VERIFIED",
+    "similarity": 0.7438178062438965,
+    "threshold": 0.45,
+    "error_message": null,
+    "timestamp": "2026-06-06T12:23:04.784960+00:00"
+  },
+  {
+    "user_id": "izz",
+    "image_filename": "WhatsApp Image 2026-06-06 at 18.46.31.jpeg",
+    "verified": true,
+    "status": "VERIFIED",
+    "similarity": 0.7067291736602783,
+    "threshold": 0.45,
+    "error_message": null,
+    "timestamp": "2026-06-06T12:23:08.344633+00:00"
+  },
+  {
+    "user_id": "izz",
+    "image_filename": "WhatsApp Image 2026-06-06 at 18.46.31 (1).jpeg",
+    "verified": true,
+    "status": "VERIFIED",
+    "similarity": 0.7685316801071167,
+    "threshold": 0.45,
+    "error_message": null,
+    "timestamp": "2026-06-06T12:23:12.816342+00:00"
+  },
+  {
+    "user_id": "izz",
+    "image_filename": "captured_image.png",
+    "verified": true,
+    "status": "VERIFIED",
+    "similarity": 0.7922908663749695,
+    "threshold": 0.45,
+    "error_message": null,
+    "timestamp": "2026-06-06T12:23:51.415046+00:00"
+  },
+  {
+    "user_id": "izz",
+    "image_filename": "faiz.JPG",
+    "verified": true,
+    "status": "VERIFIED",
+    "similarity": 0.687609076499939,
+    "threshold": 0.45,
+    "error_message": null,
+    "timestamp": "2026-06-06T12:25:20.022044+00:00"
+  },
+  {
+    "user_id": "izz",
+    "image_filename": "WhatsApp Image 2026-06-03 at 11.45.04.jpeg",
+    "verified": false,
+    "status": "DENIED",
+    "similarity": 0.14595282077789307,
+    "threshold": 0.45,
+    "error_message": null,
+    "timestamp": "2026-06-06T12:34:07.341255+00:00"
+  },
+  {
+    "user_id": "izz",
+    "image_filename": "WhatsApp Image 2026-06-06 at 19.31.22.jpeg",
+    "verified": false,
+    "status": "DENIED",
+    "similarity": 0.14575347304344177,
+    "threshold": 0.45,
+    "error_message": null,
+    "timestamp": "2026-06-06T12:34:13.269755+00:00"
+  },
+  {
+    "user_id": "izz",
+    "image_filename": "WhatsApp Image 2026-06-06 at 19.31.22 (1).jpeg",
+    "verified": false,
+    "status": "DENIED",
+    "similarity": 0.10511279106140137,
+    "threshold": 0.45,
+    "error_message": null,
+    "timestamp": "2026-06-06T12:34:17.355302+00:00"
+  },
+  {
+    "user_id": "izz",
+    "image_filename": "WhatsApp Image 2026-06-06 at 19.31.23.jpeg",
+    "verified": false,
+    "status": "DENIED",
+    "similarity": 0.11779802292585373,
+    "threshold": 0.45,
+    "error_message": null,
+    "timestamp": "2026-06-06T12:34:21.050169+00:00"
+  },
+  {
+    "user_id": "izz",
+    "image_filename": "WhatsApp Image 2026-06-06 at 19.32.17.jpeg",
+    "verified": false,
+    "status": "DENIED",
+    "similarity": 0.043944887816905975,
+    "threshold": 0.45,
+    "error_message": null,
+    "timestamp": "2026-06-06T12:34:24.887330+00:00"
+  },
+  {
+    "user_id": "izz",
+    "image_filename": "me1.jpg",
+    "verified": true,
+    "status": "VERIFIED",
+    "similarity": 0.6867907047271729,
+    "threshold": 0.45,
+    "error_message": null,
+    "timestamp": "2026-06-06T12:34:31.214667+00:00"
+  },
+  {
+    "user_id": "izz",
+    "image_filename": "c4302812-43b0-4e36-9dc5-dfad43d2418f.jpg",
+    "verified": true,
+    "status": "VERIFIED",
+    "similarity": 0.6132946610450745,
+    "threshold": 0.45,
+    "error_message": null,
+    "timestamp": "2026-06-06T12:34:35.550949+00:00"
+  },
+  {
+    "user_id": "izz",
+    "image_filename": "faiz.JPG",
+    "verified": true,
+    "status": "VERIFIED",
+    "similarity": 0.687609076499939,
+    "threshold": 0.45,
+    "error_message": null,
+    "timestamp": "2026-06-06T12:34:39.607812+00:00"
+  },
+  {
+    "user_id": "izz",
+    "image_filename": "faiz1.JPG",
+    "verified": true,
+    "status": "VERIFIED",
+    "similarity": 0.6860233545303345,
+    "threshold": 0.45,
+    "error_message": null,
+    "timestamp": "2026-06-06T12:34:42.874206+00:00"
+  },
+  {
+    "user_id": "izz",
+    "image_filename": "is.jpeg",
+    "verified": true,
+    "status": "VERIFIED",
+    "similarity": 0.7140109539031982,
+    "threshold": 0.45,
+    "error_message": null,
+    "timestamp": "2026-06-06T12:34:46.131798+00:00"
+  },
+  {
+    "user_id": "izz",
+    "image_filename": "iz.jpeg",
+    "verified": true,
+    "status": "VERIFIED",
+    "similarity": 0.7350082397460938,
+    "threshold": 0.45,
+    "error_message": null,
+    "timestamp": "2026-06-06T12:34:50.546931+00:00"
+  },
+  {
+    "user_id": "izz",
+    "image_filename": "izz.jpeg",
+    "verified": true,
+    "status": "VERIFIED",
+    "similarity": 0.6334967613220215,
+    "threshold": 0.45,
+    "error_message": null,
+    "timestamp": "2026-06-06T12:34:53.943937+00:00"
+  },
+  {
+    "user_id": "jq",
+    "image_filename": "WhatsApp Image 2026-06-03 at 11.45.04.jpeg",
+    "verified": true,
+    "status": "VERIFIED",
+    "similarity": 0.7864859104156494,
+    "threshold": 0.45,
+    "error_message": null,
+    "timestamp": "2026-06-06T12:35:44.828781+00:00"
+  },
+  {
+    "user_id": "jq",
+    "image_filename": "WhatsApp Image 2026-06-06 at 19.31.22 (1).jpeg",
+    "verified": true,
+    "status": "VERIFIED",
+    "similarity": 0.795042097568512,
+    "threshold": 0.45,
+    "error_message": null,
+    "timestamp": "2026-06-06T12:35:49.636871+00:00"
+  },
+  {
+    "user_id": "jq",
+    "image_filename": "WhatsApp Image 2026-06-06 at 19.32.17.jpeg",
+    "verified": false,
+    "status": "DENIED",
+    "similarity": 0.12527066469192505,
+    "threshold": 0.45,
+    "error_message": null,
+    "timestamp": "2026-06-06T12:35:54.538210+00:00"
+  },
+  {
+    "user_id": "jq",
+    "image_filename": "me1.jpg",
+    "verified": false,
+    "status": "DENIED",
+    "similarity": 0.05843924358487129,
+    "threshold": 0.45,
+    "error_message": null,
+    "timestamp": "2026-06-06T12:36:00.216953+00:00"
+  },
+  {
+    "user_id": "izz",
+    "image_filename": "me1.jpg",
+    "verified": true,
+    "status": "VERIFIED",
+    "similarity": 0.6867907047271729,
+    "threshold": 0.45,
+    "error_message": null,
+    "timestamp": "2026-06-06T12:37:51.855872+00:00"
+  }
+]

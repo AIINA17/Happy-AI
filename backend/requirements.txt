@@ -13,7 +13,7 @@ langchain_community==0.4.1
 Requests==2.32.5
 python-dotenv==1.2.1
 
-# FastAPI Server (untuk voice verification endpoint)
+# FastAPI Server
 fastapi==0.128.0
 uvicorn[standard]
 python-multipart
@@ -31,14 +31,19 @@ sounddevice==0.5.3
 scikit-learn==1.3.2
 matplotlib==3.10.8
 
-
 # Speaker recognition
 speechbrain==0.5.16
 huggingface_hub==0.16.4
-
 webrtcvad==2.0.10
 
+# Database
 supabase==2.27.3
+
+# Face recognition
+insightface==0.7.3
+onnxruntime==1.20.1
+opencv-python==4.10.0.84
+# onnxruntime-gpu==1.20.1
 
 # Torch
 # ⚠ DO NOT install torch here

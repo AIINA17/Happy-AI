@@ -364,14 +364,35 @@ async def web_search(query: str) -> str:
 
 # ==================== AUTH TOOLS ====================
 
-@function_tool
-async def login(username: str, password: str) -> str:
-    """Login to the e-commerce website."""
+async def login_with_stored_credentials() -> str:
+    """
+    Log in to the e-commerce site using the caller's own linked account
+    (db/ecommerce_repo.py), never credentials typed/spoken in conversation.
+
+    Shared by the login() tool and by agent.py's auto-login-after-voice-
+    verification hook, so both paths behave identically.
+    """
     global auth_state
+
+    state = auth_state.get("agent_state") or {}
+    user_id = state.get("user_id")
+
+    if not user_id:
+        return "Gue belum tau siapa lo — coba mulai ulang percakapannya."
+
+    from db.ecommerce_repo import load_ecommerce_account
+
+    account = load_ecommerce_account(user_id)
+    if account is None:
+        return (
+            "Lo belum nyambungin akun e-commerce lo. "
+            "Buka menu akun di aplikasi buat daftarin username & password dulu ya."
+        )
+
     try:
         response = requests.post(
             f"{BASE_URL}/api/auth/token",
-            json={"username": username, "password": password},
+            json={"username": account["username"], "password": account["password"]},
             headers={"Content-Type": "application/json"},
             timeout=10
         )
@@ -387,7 +408,7 @@ async def login(username: str, password: str) -> str:
                 auth_state["is_logged_in"] = True
                 return f"Login berhasil! Selamat datang {auth_state['username']}."
 
-        return "Login gagal. Username atau password salah."
+        return "Login gagal — akun e-commerce yang lo hubungkan sepertinya udah gak valid lagi."
 
     except Exception as e:
         logging.error(f"Login error: {e}")
@@ -395,29 +416,30 @@ async def login(username: str, password: str) -> str:
 
 
 @function_tool
-async def register(username: str, password: str) -> str:
-    """Register a new account on the e-commerce website."""
-    try:
-        response = requests.post(
-            f"{BASE_URL}/api/auth/register",
-            json={"username": username, "password": password},
-            headers={"Content-Type": "application/json"},
-            timeout=10
-        )
+async def login() -> str:
+    """
+    Log in to the e-commerce website using the user's own linked account.
 
-        if response.status_code in [200, 201]:
-            return f"Registrasi berhasil! Silakan login dengan username: {username}"
-        else:
-            return "Registrasi gagal. Username mungkin sudah dipakai."
+    ⚠️ This action requires voice verification for security.
+    """
+    voice_error = require_voice_verification("login")
+    if voice_error:
+        return voice_error
 
-    except Exception as e:
-        logging.error(f"Register error: {e}")
-        return f"Registration error: {str(e)}"
+    return await login_with_stored_credentials()
 
 
 @function_tool
 async def logout() -> str:
-    """Logout from the e-commerce website."""
+    """
+    Logout from the e-commerce website.
+
+    ⚠️ This action requires voice verification for security.
+    """
+    voice_error = require_voice_verification("logout")
+    if voice_error:
+        return voice_error
+
     global auth_state
     auth_state["token"] = None
     auth_state["user_id"] = None
@@ -467,7 +489,15 @@ async def check_voice_status() -> str:
 
 @function_tool
 async def get_shopkupay_balance() -> str:
-    """Get user's ShopKuPay balance/saldo."""
+    """
+    Get user's ShopKuPay balance/saldo.
+
+    ⚠️ This action requires voice verification for security.
+    """
+    voice_error = require_voice_verification("cek saldo ShopKuPay")
+    if voice_error:
+        return voice_error
+
     if not auth_state["is_logged_in"]:
         return "Lo harus login dulu buat cek saldo ShopKuPay."
 
@@ -495,7 +525,15 @@ async def get_shopkupay_balance() -> str:
 
 @function_tool
 async def add_to_cart(product_id: int, quantity: int = 1) -> str:
-    """Add a product to the shopping cart. Requires login first."""
+    """
+    Add a product to the shopping cart. Requires login first.
+
+    ⚠️ This action requires voice verification for security.
+    """
+    voice_error = require_voice_verification("nambahin ke keranjang")
+    if voice_error:
+        return voice_error
+
     if not auth_state["is_logged_in"]:
         return "Lo harus login dulu sebelum bisa nambahin ke keranjang."
 
@@ -566,7 +604,15 @@ async def get_cart() -> str:
 
 @function_tool
 async def remove_from_cart(cart_id: int) -> str:
-    """Remove an item from the cart using cart_id."""
+    """
+    Remove an item from the cart using cart_id.
+
+    ⚠️ This action requires voice verification for security.
+    """
+    voice_error = require_voice_verification("hapus item dari keranjang")
+    if voice_error:
+        return voice_error
+
     if not auth_state["is_logged_in"]:
         return "Lo harus login dulu."
 

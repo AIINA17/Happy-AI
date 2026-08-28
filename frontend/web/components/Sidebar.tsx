@@ -13,8 +13,10 @@ import {
 } from "react-icons/io5";
 import { LuLogOut } from "react-icons/lu";
 import { PiUserSoundBold } from "react-icons/pi";
+import { FaStore } from "react-icons/fa6";
 
 import ConfirmDialog from "./ConfirmDialog";
+import EcommerceAccountLink from "./EcommerceAccountLink";
 import VoiceEnrollment from "./VoiceEnrollment";
 
 interface ConversationSession {
@@ -53,6 +55,7 @@ export default function Sidebar({
 }: SidebarProps) {
     const [showUserMenu, setShowUserMenu] = useState(false);
     const [showEnrollmentList, setShowEnrollmentList] = useState(false);
+    const [showEcommerceAccount, setShowEcommerceAccount] = useState(false);
     const [sessions, setSessions] = useState<ConversationSession[]>(
         () => cachedSessions,
     );
@@ -245,6 +248,11 @@ export default function Sidebar({
         setShowEnrollmentList((prev) => !prev);
     };
 
+    const handleEcommerceAccountClick = () => {
+        setShowUserMenu(false);
+        setShowEcommerceAccount(true);
+    };
+
     const toggleCollapse = () => {
         setIsCollapsed((prev) => !prev);
     };
@@ -280,6 +288,12 @@ export default function Sidebar({
                 cancelText="Cancel"
                 onConfirm={confirmLogout}
                 onCancel={() => setShowLogoutDialog(false)}
+            />
+
+            <EcommerceAccountLink
+                token={token}
+                isOpen={showEcommerceAccount}
+                onClose={() => setShowEcommerceAccount(false)}
             />
 
             <aside
@@ -444,6 +458,17 @@ export default function Sidebar({
                                     <PiUserSoundBold />
                                     <span className="text-sm">
                                         Enrollment List
+                                    </span>
+                                </button>
+
+                                {/* Ecommerce Account Link */}
+                                <button
+                                    onClick={handleEcommerceAccountClick}
+                                    className="w-full px-4 py-3 flex items-center gap-3 text-(--text-secondary)
+                                               hover:bg-(--bg-card) transition-colors cursor-pointer">
+                                    <FaStore />
+                                    <span className="text-sm">
+                                        Akun E-commerce
                                     </span>
                                 </button>
 

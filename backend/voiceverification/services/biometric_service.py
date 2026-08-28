@@ -6,7 +6,7 @@ from typing import List, Optional
 
 from core.behavior_profile import BehaviorProfile
 from models.speaker_verifier import SpeakerVerifier
-from core.asvspoof import compute_score
+from core.asvspoof import compute_score, warm_up as warm_up_asvspoof
 from core.decision_engine import decide, Decision
 from core.trusted_update import TrustedUpdatePolicy
 from core.behavior_scoring import compute_behavior_score
@@ -17,6 +17,7 @@ class BiometricService:
     def __init__(self, device="cpu"):
         self.speaker = SpeakerVerifier(device)
         self.policy = TrustedUpdatePolicy()
+        warm_up_asvspoof()
         print("Biometric ready.")
 
     def verify_against_multiple_embeddings(

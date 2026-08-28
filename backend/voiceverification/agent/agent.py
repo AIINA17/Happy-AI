@@ -24,9 +24,9 @@ from agent.tools import (
     check_voice_status,
     get_weather,
     login,
+    login_with_stored_credentials,
     logout,
     pay_order,
-    register,
     remove_from_cart,
     search_product,
     send_product_cards,
@@ -46,6 +46,8 @@ from db.conversation_sessions import create_conversation_session
 # ================= CONFIG =================
 SAMPLE_RATE = 16000
 MAX_VERIFY_ATTEMPTS = 3
+VERIFY_TIMEOUT_SEC = 20
+LOCKOUT_COOLDOWN_SEC = 60
 
 # ================= AGENT =================
 class ShoppingAgent(Agent):
@@ -56,7 +58,6 @@ class ShoppingAgent(Agent):
                 get_weather,
                 web_search,
                 login,
-                register,
                 logout,
                 check_login_status,
                 check_voice_status,
@@ -108,6 +109,7 @@ async def connect(ctx: agents.JobContext):
         "session_lock": asyncio.Lock(),
         "voice_status": "UNVERIFIED",
         "last_verified_at": None,
+        "lockout_until": None,
     }
 
     auth_state["agent_state"] = room_state
@@ -149,6 +151,7 @@ async def connect(ctx: agents.JobContext):
                 room_state["voice_status"] = "VERIFIED"
                 room_state["verify_attempts"] = 0
                 room_state["last_verified_at"] = time.time()
+                asyncio.create_task(auto_login_after_verification())
 
             elif decision == "DENIED":
                 room_state["voice_status"] = "DENIED"
@@ -157,6 +160,9 @@ async def connect(ctx: agents.JobContext):
             elif decision == "REPEAT":
                 room_state["voice_status"] = "REPEAT"
                 room_state["verify_attempts"] += 1
+
+            if room_state["verify_attempts"] >= MAX_VERIFY_ATTEMPTS:
+                room_state["lockout_until"] = time.time() + LOCKOUT_COOLDOWN_SEC
 
         except Exception as e:
             print("❌ Voice result error:", e)
@@ -195,11 +201,21 @@ async def connect(ctx: agents.JobContext):
 
             # ================= VOICE CHECK =================
             if not room_state["is_voice_verified"]:
-                if room_state["verify_attempts"] >= MAX_VERIFY_ATTEMPTS:
+                lockout_until = room_state["lockout_until"]
+                if lockout_until and time.time() >= lockout_until:
+                    # Cooldown elapsed — give the user a fresh set of attempts
+                    # instead of leaving them locked out for the rest of the
+                    # session with no way back in short of reconnecting.
+                    room_state["verify_attempts"] = 0
+                    room_state["lockout_until"] = None
+                    lockout_until = None
+
+                if lockout_until:
+                    remaining = int(lockout_until - time.time())
                     await session.generate_reply(
                         instructions=(
-                            "Maaf, verifikasi suara gagal. "
-                            "Aksi sensitif tidak bisa dilakukan."
+                            f"Maaf, verifikasi suara gagal beberapa kali. "
+                            f"Coba lagi sekitar {max(remaining, 1)} detik lagi."
                         )
                     )
                 else:
@@ -238,6 +254,31 @@ async def connect(ctx: agents.JobContext):
             reliable=True,
             topic="VOICE_CMD"
         )
+
+        asyncio.create_task(_verification_watchdog())
+
+    # ================= VERIFICATION WATCHDOG =================
+    async def _verification_watchdog():
+        # Safety net: the client always reports back a VOICE_RESULT once it
+        # gets a result (see useLiveKit.ts's try/finally), but if that never
+        # arrives for some other reason (tab backgrounded, mic permission
+        # denied, client crash mid-recording), is_verifying would otherwise
+        # stay stuck True forever and start_verification() would silently
+        # no-op on every future turn.
+        await asyncio.sleep(VERIFY_TIMEOUT_SEC)
+        if room_state["is_verifying"]:
+            print(f"⏱️ Verification timed out in room: {room_name}, resetting")
+            room_state["is_verifying"] = False
+
+    # ================= AUTO-LOGIN =================
+    async def auto_login_after_verification():
+        # Runs once voice verification succeeds — logs the user into their
+        # own linked e-commerce account (never a shared hardcoded one) so
+        # they don't have to separately ask Happy to log in.
+        if auth_state.get("is_logged_in"):
+            return
+        result = await login_with_stored_credentials()
+        print(f"🔐 Auto-login after verification: {result}")
 
     # ================= SESSION =================
     async def ensure_conversation_session():

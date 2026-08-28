@@ -1,5 +1,5 @@
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
 
@@ -10,7 +10,7 @@ class BehaviorProfile:
     var_pitch: float = 0.0
     mean_rate: float = 0.0
     var_rate: float = 0.0
-    last_update_ts: datetime = datetime.now(timezone.utc)
+    last_update_ts: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     
     @property
     def std_pitch(self):

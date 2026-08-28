@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 
 import librosa
 import numpy as np
+import requests
 import torch
 from dotenv import load_dotenv
 from fastapi import File, FastAPI, Form, HTTPException, Request, UploadFile
@@ -28,10 +29,18 @@ from core.behavior_profile import BehaviorProfile
 from db.behavior_repo import load_behavior_profile, save_behavior_profile
 from db.connection import get_supabase
 from db.conversation_sessions import update_conversation_session_label
+from db.ecommerce_repo import (
+    delete_ecommerce_account,
+    has_ecommerce_account,
+    save_ecommerce_account,
+)
 from db.speaker_repo import count_enrollments, load_all_embeddings, save_embedding
-from models.speaker_verifier import SpeakerVerifier
 from services.biometric_service import BiometricService
 from utils.audio import normalize_audio, save_audio
+
+# Same dummy e-commerce backend the shopping agent talks to (agent/tools.py
+# BASE_URL) — kept in sync manually since the two live in separate services.
+ECOMMERCE_BASE_URL = "https://dummy-ecommerce-tau.vercel.app"
 
 # Environment setup
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -207,9 +216,7 @@ async def enroll_voice(
     normalize_audio(wav_path)
 
     try:
-        verifier = SpeakerVerifier()
-
-        embedding = verifier.extract_embedding(wav_path)
+        embedding = get_biometric().speaker.extract_embedding(wav_path)
 
         existing_label = (
             get_supabase()
@@ -527,3 +534,67 @@ async def rename_speaker_label(
         "old_label": old_label,
         "new_label": new_label
     }
+
+# ECOMMERCE ACCOUNT LINKING
+# Lets each Supabase user attach their own dummy-ecommerce credentials so
+# the shopping agent logs in as them instead of one shared hardcoded
+# account. Deliberately a typed HTTP form, not something spoken to the
+# voice agent — voice input gets transcribed into conversation_logs in
+# plain text, which is not where a password should ever end up.
+class EcommerceAccountPayload(BaseModel):
+    username: str
+    password: str
+
+@app.post("/ecommerce-account")
+async def link_ecommerce_account(payload: EcommerceAccountPayload, request: Request):
+    user_id = get_user_id_from_request(request)
+    username = payload.username.strip()
+    password = payload.password
+
+    if not username or not password:
+        raise HTTPException(status_code=400, detail="Username and password are required")
+
+    try:
+        register_resp = requests.post(
+            f"{ECOMMERCE_BASE_URL}/api/auth/register",
+            json={"username": username, "password": password},
+            timeout=10,
+        )
+
+        if register_resp.status_code not in (200, 201):
+            # Account may already exist — validate these are real, working
+            # credentials for it before we store them.
+            login_resp = requests.post(
+                f"{ECOMMERCE_BASE_URL}/api/auth/token",
+                json={"username": username, "password": password},
+                timeout=10,
+            )
+            if login_resp.status_code != 200 or not login_resp.json().get("success"):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Registrasi gagal dan kredensial ini juga tidak valid untuk login ke akun yang sudah ada.",
+                )
+    except requests.RequestException:
+        raise HTTPException(status_code=502, detail="Gagal menghubungi layanan e-commerce.")
+
+    save_ecommerce_account(user_id, username, password)
+
+    return {"status": "OK", "username": username}
+
+@app.get("/ecommerce-account")
+async def get_ecommerce_account(request: Request):
+    user_id = get_user_id_from_request(request)
+    account = has_ecommerce_account(user_id)
+
+    return {
+        "status": "OK",
+        "linked": account is not None,
+        "username": account["username"] if account else None,
+    }
+
+@app.delete("/ecommerce-account")
+async def unlink_ecommerce_account(request: Request):
+    user_id = get_user_id_from_request(request)
+    delete_ecommerce_account(user_id)
+
+    return {"status": "OK"}

@@ -86,7 +86,7 @@ export function useLiveKit({
 
     /* ================= HANDLE AGENT DATA ================= */
 
-    const handleAgentDataRef = useRef((payload: Uint8Array) => {
+    const handleAgentDataRef = useRef((payload: Uint8Array, _topic?: string) => {
         const text = new TextDecoder().decode(payload).trim();
         if (!text.startsWith("{")) return;
 
@@ -108,17 +108,17 @@ export function useLiveKit({
             return;
         }
 
-        if (msg.type === "PRODUCT_CARDS") {
+        if (msg.type === "PRODUCT_CARDS" && msg.products) {
             onProductCardsRef.current?.(msg.products);
             return;
         }
 
-        if (msg.type === "AGENT_MESSAGE") {
+        if (msg.type === "AGENT_MESSAGE" && msg.text) {
             onMessageRef.current("assistant", msg.text);
             return;
         }
 
-        if (msg.type === "USER_MESSAGE") {
+        if (msg.type === "USER_MESSAGE" && msg.text) {
             onMessageRef.current("user", msg.text);
         }
     });
@@ -217,45 +217,60 @@ export function useLiveKit({
     /* ================= VERIFY ================= */
 
     const sendForVerificationRef = useRef(async (blob: Blob) => {
-        const session = await supabase.auth.getSession();
-        const accessToken = session.data.session?.access_token;
+        // Whatever happens below, the agent is blocked waiting for a
+        // VOICE_RESULT packet before it will ever try verifying again
+        // (see agent.py room_state["is_verifying"]). If we bail out early
+        // without sending one, verification gets stuck forever for the
+        // rest of the session. So every exit path funnels through
+        // `finally` and always reports *some* result back.
+        let status: VerificationStatus = "DENIED";
+        let score: number | null = null;
+        let reason: string | null = null;
 
-        if (!accessToken) {
-            onVerifyStatusRef.current("❌ Login dulu sebelum verifikasi");
-            return;
+        try {
+            const session = await supabase.auth.getSession();
+            const accessToken = session.data.session?.access_token;
+
+            if (!accessToken) {
+                onVerifyStatusRef.current("❌ Login dulu sebelum verifikasi");
+                reason = "Belum login";
+                return;
+            }
+
+            const form = new FormData();
+            form.append("audio", blob, "voice.webm");
+
+            const res = await fetch(`${SERVER_URL}/verify-voice`, {
+                method: "POST",
+                headers: { Authorization: `Bearer ${accessToken}` },
+                body: form,
+            });
+
+            const result: VerificationResult = await res.json();
+            score = result.score ?? null;
+            status = (result.status as VerificationStatus) ?? "DENIED";
+            reason = result.reason ?? null;
+        } catch (err) {
+            console.error("Verification error:", err);
+            onVerifyStatusRef.current("❌ Verifikasi gagal, coba lagi");
+            reason = "Verification request failed";
+        } finally {
+            onScoreRef.current(score);
+            onVerificationResultRef.current?.(status, score, reason);
+
+            await roomRef.current?.localParticipant.publishData(
+                new TextEncoder().encode(
+                    JSON.stringify({
+                        decision: status,
+                        score,
+                        ts: Date.now(),
+                    }),
+                ),
+                { reliable: true, topic: "VOICE_RESULT" },
+            );
+
+            setUiState("CHATTING");
         }
-
-        const form = new FormData();
-        form.append("audio", blob, "voice.webm");
-
-        const res = await fetch(`${SERVER_URL}/verify-voice`, {
-            method: "POST",
-            headers: { Authorization: `Bearer ${accessToken}` },
-            body: form,
-        });
-
-        const result: VerificationResult = await res.json();
-        onScoreRef.current(result.score ?? null);
-
-        const status = result.status as VerificationStatus;
-        onVerificationResultRef.current?.(
-            status,
-            result.score ?? null,
-            result.reason ?? null,
-        );
-
-        await roomRef.current?.localParticipant.publishData(
-            new TextEncoder().encode(
-                JSON.stringify({
-                    decision: result.status,
-                    score: result.score,
-                    ts: Date.now(),
-                }),
-            ),
-            { reliable: true, topic: "VOICE_RESULT" },
-        );
-
-        setUiState("CHATTING");
     });
 
     /* ================= JOIN ROOM ================= */
@@ -319,6 +334,11 @@ export function useLiveKit({
 
             room.on(RoomEvent.TrackSubscribed, (track) => {
                 if (track.kind === Track.Kind.Audio) {
+                    // Detach any previously attached elements for this track first
+                    // (e.g. a resubscribe after a brief reconnect) so audio never
+                    // plays from more than one element at once.
+                    track.detach().forEach((el) => el.remove());
+
                     const el = track.attach();
                     document.body.appendChild(el);
                     el.play().catch(() => {});
@@ -330,6 +350,7 @@ export function useLiveKit({
 
             room.on(RoomEvent.TrackUnsubscribed, (track) => {
                 if (track.kind === Track.Kind.Audio) {
+                    track.detach().forEach((el) => el.remove());
                     setIsAgentSpeaking(false);
                 }
             });

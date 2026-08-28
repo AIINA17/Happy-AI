@@ -31,17 +31,37 @@ sounddevice==0.5.3
 scikit-learn==1.3.2
 matplotlib==3.10.8
 
+# Testing (voiceverification/tests/) — run with: pytest
+pytest==9.1.1
+
 
 # Speaker recognition
 speechbrain==0.5.16
 huggingface_hub==0.16.4
+# torchaudio's default backend needs torchcodec (which itself needs the
+# system `ffmpeg` binary + shared libs — `brew install ffmpeg` on macOS,
+# already required by utils/ffmpeg.py for webm->wav conversion) to load
+# audio at all; without it, SpeakerVerifier.extract_embedding() fails.
+torchcodec
+
+# Anti-spoofing (pretrained deepfake/replay detector, core/asvspoof.py)
+# transformers MUST stay <4.31 here: newer releases require a huggingface_hub
+# major version that removed the use_auth_token kwarg speechbrain 0.5.16
+# still calls — upgrading transformers alone silently breaks speaker
+# verification. Bump both together only after confirming SpeakerVerifier
+# still loads.
+transformers==4.30.2
 
 webrtcvad==2.0.10
 
 supabase==2.27.3
 
-# Torch
-# ⚠ DO NOT install torch here
-# Install torch + torchaudio manually with CUDA
-# torch==2.0.1
-# torchaudio==2.0.2
+# Torch (CPU by default via PyPI's default index).
+# torchaudio's last published release is 2.11.0 — it has not kept pace with
+# torch's version numbers, so torch==2.13.0 + torchaudio==2.11.0 is the
+# correct/best available pairing, not a mismatch. For a CUDA deployment,
+# install these two from https://pytorch.org/get-started/locally/ instead
+# (matching your CUDA version) before `pip install -r requirements.txt`,
+# then drop this file's copies so pip doesn't override your GPU build.
+torch==2.13.0
+torchaudio==2.11.0

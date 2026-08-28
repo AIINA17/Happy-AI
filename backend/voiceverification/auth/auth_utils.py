@@ -1,5 +1,5 @@
 from fastapi import Request, HTTPException
-from db.supabase_client import get_supabase
+from db.connection import get_supabase
 
 
 def get_user_id_from_request(request: Request) -> str:

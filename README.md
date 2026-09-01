@@ -35,7 +35,7 @@ Monorepo ini terdiri dari dua bagian besar:
         - Behavior profiling & decision engine untuk menggabungkan beberapa sinyal risiko.
     - Penyimpanan data di **Supabase** melalui layer `voiceverification/db/`.
 
-- **Frontend (`frontend/web/`)**
+- **Frontend (`frontend/`)**
     - Aplikasi **Next.js (App Router)** untuk UI voice shopping assistant.
     - Autentikasi email/password via **Supabase**.
     - Komponen UI utama:

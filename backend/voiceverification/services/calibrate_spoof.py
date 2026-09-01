@@ -1,6 +1,6 @@
 import os
-from core.asvspoof import compute_score
-from core.calibration import find_eer_threshold
+from voiceverification.core.asvspoof import compute_score
+from voiceverification.core.calibration import find_eer_threshold
 
 
 def calibrate_spoof(genuine_dir, spoof_dir):

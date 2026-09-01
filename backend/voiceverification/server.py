@@ -24,19 +24,19 @@ from livekit.api import (
 )
 from pydantic import BaseModel
 
-from auth.auth_utils import get_user_id_from_request
-from core.behavior_profile import BehaviorProfile
-from db.behavior_repo import load_behavior_profile, save_behavior_profile
-from db.connection import get_supabase
-from db.conversation_sessions import update_conversation_session_label
-from db.ecommerce_repo import (
+from voiceverification.auth.auth_utils import get_user_id_from_request
+from voiceverification.core.behavior_profile import BehaviorProfile
+from voiceverification.db.behavior_repo import load_behavior_profile, save_behavior_profile
+from voiceverification.db.connection import get_supabase
+from voiceverification.db.conversation_sessions import update_conversation_session_label
+from voiceverification.db.ecommerce_repo import (
     delete_ecommerce_account,
     has_ecommerce_account,
     save_ecommerce_account,
 )
-from db.speaker_repo import count_enrollments, load_all_embeddings, save_embedding
-from services.biometric_service import BiometricService
-from utils.audio import normalize_audio, save_audio
+from voiceverification.db.speaker_repo import count_enrollments, load_all_embeddings, save_embedding
+from voiceverification.services.biometric_service import BiometricService
+from voiceverification.utils.audio import normalize_audio, save_audio
 
 # Same dummy e-commerce backend the shopping agent talks to (agent/tools.py
 # BASE_URL) — kept in sync manually since the two live in separate services.

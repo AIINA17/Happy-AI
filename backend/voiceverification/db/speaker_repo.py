@@ -1,6 +1,6 @@
 import numpy as np
 
-from db.connection import get_supabase
+from voiceverification.db.connection import get_supabase
 
 def load_embedding(user_id: str) -> np.ndarray | None:
     sb = get_supabase()

@@ -12,8 +12,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.metrics import roc_curve
 
-from core.asvspoof import compute_score
-from services.biometric_service import BiometricService
+from voiceverification.core.asvspoof import compute_score
+from voiceverification.services.biometric_service import BiometricService
 
 ENROLL = "dataset/enroll.wav"
 GENUINE_DIR = "dataset/genuine"

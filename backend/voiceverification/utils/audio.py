@@ -6,7 +6,7 @@ import numpy as np
 import soundfile as sf
 
 from fastapi import UploadFile
-from utils.ffmpeg import webm_to_wav
+from voiceverification.utils.ffmpeg import webm_to_wav
 
 # Target RMS level for gain normalization. Mic input volume varies a lot
 # device to device; without this, a quiet mic's live sample can end up

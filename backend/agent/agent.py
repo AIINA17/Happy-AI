@@ -1,16 +1,24 @@
 import asyncio
 import json
 import os
+import sys
 import time
 
 from dotenv import load_dotenv
 
 # ================= PATH FIX =================
+# agent/ lives alongside voiceverification/ under backend/ (not nested
+# inside it), but its db.* imports below are unqualified — voiceverification/
+# needs to be on sys.path for those to resolve, same as when server.py runs
+# with voiceverification/ as its own cwd.
 AGENT_DIR = os.path.dirname(os.path.abspath(__file__))
-VOICEVERIFICATION_DIR = os.path.dirname(AGENT_DIR)
-BACKEND_DIR = os.path.dirname(VOICEVERIFICATION_DIR)
+BACKEND_DIR = os.path.dirname(AGENT_DIR)
+VOICEVERIFICATION_DIR = os.path.join(BACKEND_DIR, "voiceverification")
 ENV_PATH = os.path.join(BACKEND_DIR, ".env")
 load_dotenv(ENV_PATH)
+
+if VOICEVERIFICATION_DIR not in sys.path:
+    sys.path.insert(0, VOICEVERIFICATION_DIR)
 
 from livekit import agents
 from livekit.agents import Agent, AgentServer, AgentSession, cli, room_io

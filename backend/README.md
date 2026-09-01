@@ -5,7 +5,7 @@ Backend ini adalah layanan FastAPI untuk verifikasi suara, anti-spoofing, dan ma
 ## Struktur
 
 - `voiceverification/server.py` — aplikasi FastAPI utama (endpoint join-token, verify-voice, enroll-voice, logs, sessions)
-- `voiceverification/agent/` — LiveKit Agent (LLM tools, dispatch, dsb.)
+- `agent/` — LiveKit Agent (LLM tools, dispatch, dsb.) — sibling dari `voiceverification/`, bukan di dalamnya; jalankan dengan `cd backend && python -m agent.agent start`
 - `voiceverification/core/` — core logic biometrik (ASVspoof, decision engine, behavior profile, dll.)
 - `voiceverification/models/` — wrapper model speaker verification (SpeechBrain ECAPA)
 - `voiceverification/services/` — service layer untuk verifikasi biometrik dan kalibrasi

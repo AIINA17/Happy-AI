@@ -28,7 +28,7 @@ Monorepo ini terdiri dari dua bagian besar:
 - **Backend (`backend/`)**
     - Aplikasi **FastAPI** di `voiceverification/server.py`.
     - Endpoint untuk join token LiveKit, verifikasi suara, enrollment, log percakapan, dan sesi.
-    - Integrasi **LiveKit Agent** di `voiceverification/agent/` sebagai otak percakapan (LLM + tools).
+    - Integrasi **LiveKit Agent** di `agent/` (sibling dari `voiceverification/`) sebagai otak percakapan (LLM + tools).
     - Modul biometrik di `voiceverification/core/` dan `voiceverification/services/`:
         - Speaker verification (model ECAPA‑TDNN via SpeechBrain).
         - ASVspoof / anti‑spoofing.

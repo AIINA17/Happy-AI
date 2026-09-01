@@ -85,14 +85,14 @@ export default function LoginPage() {
 
     if (isLoading) {
         return (
-            <main className="h-screen bg-(--bg-primary) flex items-center justify-center">
-                <div className="text-(--text-secondary)">Loading...</div>
+            <main className="h-screen bg-background flex items-center justify-center">
+                <div className="text-muted-foreground">Loading...</div>
             </main>
         );
     }
 
     return (
-        <main className="h-screen bg-(--bg-primary) flex items-center justify-center p-4 relative">
+        <main className="h-screen bg-background flex items-center justify-center p-4 relative">
             <AuthCard
                 onLogin={handleLogin}
                 onSignup={handleSignup}

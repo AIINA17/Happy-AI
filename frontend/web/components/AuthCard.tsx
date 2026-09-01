@@ -4,7 +4,12 @@
 
 import { FormEvent, useState } from "react";
 import Image from "next/image";
-import { IoEye, IoEyeOff } from "react-icons/io5";
+import { Eye, EyeOff } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface AuthCardProps {
     onLogin: (email: string, password: string) => Promise<void>;
@@ -63,102 +68,88 @@ export default function AuthCard({
                     height={48}
                     className="object-contain"
                 />
-                <h1 className="font-outfit text-4xl font-bold text-(--accent-primary)">
+                <h1 className="font-outfit text-4xl font-bold text-primary">
                     Happy
                 </h1>
             </div>
 
-            {/* Card */}
-            <div className="p-8 rounded-2xl bg-(--bg-card) shadow-2xl">
-                <form onSubmit={handleSubmit} className="space-y-5">
-                    {/* Email Field */}
-                    <div className="space-y-2">
-                        <label className="block text-sm text-(--text-secondary)">
-                            Email
-                        </label>
-                        <input
-                            type="email"
-                            autoComplete="email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            placeholder="you@example.com"
-                            required
-                            className="w-full px-4 py-4 rounded-xl bg-(--input-bg) 
-                            text-(--text-primary) text-base
-                            placeholder:text-(--text-white-50)
-                            border-none outline-none
-                            focus:ring-2 focus:ring-(--accent-primary)/50"
-                        />
-                    </div>
-
-                    {/* Password Field */}
-                    <div className="space-y-2">
-                        <label className="block text-sm text-(--text-secondary)">
-                            Password
-                        </label>
-                        <div className="relative">
-                            <input
-                                type={showPassword ? "text" : "password"}
-                                autoComplete={
-                                    mode === "login"
-                                        ? "current-password"
-                                        : "new-password"
-                                }
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                placeholder="••••••••"
+            <Card className="shadow-2xl">
+                <CardContent>
+                    <form onSubmit={handleSubmit} className="space-y-5">
+                        <div className="space-y-2">
+                            <Label htmlFor="auth-email">Email</Label>
+                            <Input
+                                id="auth-email"
+                                type="email"
+                                autoComplete="email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                placeholder="you@example.com"
                                 required
-                                minLength={6}
-                                className="w-full px-4 py-4 pr-12 rounded-xl bg-(--input-bg) 
-                            text-(--text-primary) text-base
-                            placeholder:text-(--text-white-50)
-                            border-none outline-none
-                            focus:ring-2 focus:ring-(--accent-primary)/50"
+                                className="h-12 rounded-xl px-4 text-base"
                             />
-                            {/* Toggle Password Visibility */}
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="auth-password">Password</Label>
+                            <div className="relative">
+                                <Input
+                                    id="auth-password"
+                                    type={showPassword ? "text" : "password"}
+                                    autoComplete={
+                                        mode === "login"
+                                            ? "current-password"
+                                            : "new-password"
+                                    }
+                                    value={password}
+                                    onChange={(e) =>
+                                        setPassword(e.target.value)
+                                    }
+                                    placeholder="••••••••"
+                                    required
+                                    minLength={6}
+                                    className="h-12 rounded-xl px-4 pr-12 text-base"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        setShowPassword(!showPassword)
+                                    }
+                                    className="absolute right-4 top-1/2 -translate-y-1/2
+                                    text-muted-foreground hover:text-foreground
+                                    transition-colors cursor-pointer">
+                                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="text-center text-sm">
+                            <span className="text-muted-foreground">
+                                {mode === "login"
+                                    ? "Don't have an account yet? "
+                                    : "Already have an account? "}
+                            </span>
                             <button
                                 type="button"
-                                onClick={() => setShowPassword(!showPassword)}
-                                className="absolute right-4 top-1/2 -translate-y-1/2 
-                            text-(--text-secondary) hover:text-(--text-primary)
-                            transition-colors cursor-pointer">
-                                {showPassword ? <IoEyeOff /> : <IoEye />}
+                                onClick={switchMode}
+                                className="text-primary hover:underline font-medium cursor-pointer">
+                                {mode === "login" ? "Sign up" : "Sign in"}
                             </button>
                         </div>
-                    </div>
 
-                    {/* Switch Mode Link */}
-                    <div className="text-center text-sm">
-                        <span className="text-(--text-secondary)">
-                            {mode === "login"
-                                ? "Don't have an account yet? "
-                                : "Already have an account? "}
-                        </span>
-                        <button
-                            type="button"
-                            onClick={switchMode}
-                            className="text-(--accent-link) hover:underline font-medium cursor-pointer">
-                            {mode === "login" ? "Sign up" : "Sign in"}
-                        </button>
-                    </div>
-
-                    {/* Submit Button */}
-                    <button
-                        type="submit"
-                        disabled={isLoading}
-                        className="w-full px-6 py-4 rounded-full bg-(--accent-primary)
-                        text-white font-semibold text-base
-                        hover:brightness-110 active:scale-[0.98]
-                        disabled:opacity-50 disabled:cursor-not-allowed
-                        transition-all cursor-pointer">
-                        {isLoading
-                            ? "Loading..."
-                            : mode === "login"
-                              ? "Login"
-                              : "Sign up"}
-                    </button>
-                </form>
-            </div>
+                        <Button
+                            type="submit"
+                            disabled={isLoading}
+                            className="w-full h-12 rounded-full text-base font-semibold">
+                            {isLoading
+                                ? "Loading..."
+                                : mode === "login"
+                                  ? "Login"
+                                  : "Sign up"}
+                        </Button>
+                    </form>
+                </CardContent>
+            </Card>
         </div>
     );
 }

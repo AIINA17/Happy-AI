@@ -112,11 +112,11 @@ export default function LiveKitControls({
             case "RECORDING":
             case "VERIFYING":
             case "LISTENING":
-                return "text-[var(--accent-primary)]";
+                return "text-primary";
             case "CONNECTING":
                 return "text-yellow-500";
             default:
-                return "text-[var(--text-muted)]";
+                return "text-muted-foreground";
         }
     };
 
@@ -143,10 +143,10 @@ export default function LiveKitControls({
                             : uiState === "RECORDING" ||
                                 uiState === "VERIFYING" ||
                                 uiState === "LISTENING"
-                              ? "bg-(--accent-primary) animate-pulse"
+                              ? "bg-primary animate-pulse"
                               : uiState === "CONNECTING"
                                 ? "bg-yellow-500 animate-pulse"
-                                : "bg-(--text-muted)"
+                                : "bg-muted-foreground"
                     }`}
                 />
                 <span className={`text-sm ${getStatusColor()}`}>

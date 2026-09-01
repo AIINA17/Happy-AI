@@ -29,6 +29,9 @@ backend/audio_cache/
 **/tmp_audio/
 backend/tmp_audio/
 
+# temp debug capture of denied-verification audio samples
+**/debug_spoof_samples/
+
 /pretrained_models/
 
 backend/voiceverification/pretrained_models/

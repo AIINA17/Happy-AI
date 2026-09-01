@@ -4,9 +4,10 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { AiOutlineProduct } from "react-icons/ai";
-import { IoMdChatboxes } from "react-icons/io";
+import { MessageSquareText, Package } from "lucide-react";
 
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import { Product } from "@/types";
 
 interface ProductCardsProps {
@@ -32,8 +33,8 @@ export default function ProductCards({ products }: ProductCardsProps) {
         <div className="w-full">
             {/* Header */}
             <div className="mb-3">
-                <div className="flex items-center gap-2 text-md font-medium text-white">
-                    <AiOutlineProduct className="w-6 h-6" />
+                <div className="flex items-center gap-2 text-md font-medium text-foreground">
+                    <Package className="w-5 h-5" />
                     <span>{uniqueProducts.length} Product(s) Found</span>
                 </div>
             </div>
@@ -47,9 +48,9 @@ export default function ProductCards({ products }: ProductCardsProps) {
                         target="_blank"
                         rel="noopener noreferrer"
                         className="block">
-                        <div className="bg-black-50 border border-gray-200 rounded-xl overflow-hidden hover:shadow-md transition-all hover:scale-[1.02] cursor-pointer">
+                        <Card className="py-0 gap-0 overflow-hidden hover:shadow-md transition-all hover:scale-[1.02] cursor-pointer">
                             {/* Image */}
-                            <div className="relative aspect-square bg-black-50 overflow-hidden">
+                            <div className="relative aspect-square bg-muted overflow-hidden">
                                 {product.image_url ? (
                                     <Image
                                         src={product.image_url}
@@ -59,19 +60,8 @@ export default function ProductCards({ products }: ProductCardsProps) {
                                         sizes="(max-width: 768px) 50vw, 25vw"
                                     />
                                 ) : (
-                                    <div className="w-full h-full flex items-center justify-center">
-                                        <svg
-                                            className="w-16 h-16"
-                                            fill="none"
-                                            viewBox="0 0 24 24"
-                                            stroke="currentColor">
-                                            <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                strokeWidth={1}
-                                                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                                            />
-                                        </svg>
+                                    <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                                        <Package className="w-12 h-12" strokeWidth={1} />
                                     </div>
                                 )}
                             </div>
@@ -79,19 +69,17 @@ export default function ProductCards({ products }: ProductCardsProps) {
                             {/* Content */}
                             <div className="p-3">
                                 {product.category && (
-                                    <div className="mb-2">
-                                        <span className="inline-block px-2 py-0.5 text-[0.65rem] font-medium text-gray-600 bg-gray-100 rounded-md">
-                                            {product.category}
-                                        </span>
-                                    </div>
+                                    <Badge variant="secondary" className="mb-2">
+                                        {product.category}
+                                    </Badge>
                                 )}
 
-                                <h3 className="text-sm font-semibold text-white mb-2 line-clamp-2 leading-tight">
+                                <h3 className="text-sm font-semibold text-foreground mb-2 line-clamp-2 leading-tight">
                                     {product.name}
                                 </h3>
 
                                 <div className="flex items-baseline gap-1.5 mb-2">
-                                    <span className="text-base font-bold text-white">
+                                    <span className="text-base font-bold text-foreground">
                                         {formatPrice(product.price)}
                                     </span>
                                 </div>
@@ -101,14 +89,14 @@ export default function ProductCards({ products }: ProductCardsProps) {
                                         {product.stock > 0 ? (
                                             <>
                                                 <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                                                <span className="text-[0.7rem] text-green-600 font-medium">
+                                                <span className="text-[0.7rem] text-green-500 font-medium">
                                                     Tersedia
                                                 </span>
                                             </>
                                         ) : (
                                             <>
                                                 <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
-                                                <span className="text-[0.7rem] text-red-600 font-medium">
+                                                <span className="text-[0.7rem] text-red-500 font-medium">
                                                     Habis
                                                 </span>
                                             </>
@@ -116,14 +104,14 @@ export default function ProductCards({ products }: ProductCardsProps) {
                                     </div>
                                 )}
                             </div>
-                        </div>
+                        </Card>
                     </Link>
                 ))}
             </div>
 
             {/* Footer hint */}
-            <div className="mt-3 text-xs text-gray-400 italic">
-                <IoMdChatboxes className="inline mr-1 w-4 h-4" />
+            <div className="mt-3 text-xs text-muted-foreground italic flex items-center gap-1">
+                <MessageSquareText className="w-4 h-4" />
                 Ask for product details or request to add to cart
             </div>
         </div>

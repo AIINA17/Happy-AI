@@ -4,9 +4,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { HiShoppingBag } from "react-icons/hi2";
-import { FaMicrophone } from "react-icons/fa";
-import { IoChatbubblesOutline, IoChevronForward } from "react-icons/io5";
+import { ChevronRight, MessageCircle, Mic, ShoppingBag } from "lucide-react";
 
 import LiveKitControls from "./LiveKitControls";
 import MessageBubble from "./MessageBubble";
@@ -82,7 +80,7 @@ export default function ChatArea({
     }, [messages, isTyping, viewMode, isHistoryMode]);
 
     return (
-        <div className="flex-1 flex h-screen bg-(--bg-primary) overflow-hidden">
+        <div className="flex-1 flex h-screen bg-background overflow-hidden">
             {/* ====== LEFT: Main Content Area ====== */}
             <div className="flex-1 flex flex-col min-w-0">
                 {/* Scrollable content */}
@@ -105,7 +103,7 @@ export default function ChatArea({
                 </div>
 
                 {!isHistoryMode && (
-                    <div className="p-1 flex flex-col items-center gap-4 border-t border-(--bg-tertiary)">
+                    <div className="p-1 flex flex-col items-center gap-4 border-t border-border">
                         <ModeToggle
                             currentMode={viewMode}
                             onModeChange={setViewMode}
@@ -152,7 +150,7 @@ function ProductSidebar({ products, isOpen, onToggle }: ProductSidebarProps) {
             {/* Sidebar Content */}
             <div
                 className={`
-          flex flex-col border-l border-(--bg-tertiary) bg-(--bg-secondary)
+          flex flex-col border-l border-border bg-sidebar
           transition-all duration-300 ease-in-out
           ${isOpen ? "w-80 opacity-100" : "w-0 opacity-0 overflow-hidden border-l-0"}
         `}>
@@ -161,19 +159,19 @@ function ProductSidebar({ products, isOpen, onToggle }: ProductSidebarProps) {
                         {/* Header */}
                         <button
                             onClick={onToggle}
-                            className="w-full p-4 border-b border-(--bg-tertiary)
+                            className="w-full p-4 border-b border-border
                         flex items-center justify-between
-                        hover:bg--(--bg-tertiary) transition-colors cursor-pointer">
-                            <div className="flex items-center gap-2 text-sm font-medium text-(--text-primary)">
-                                <HiShoppingBag
+                        hover:bg-sidebar-accent transition-colors cursor-pointer">
+                            <div className="flex items-center gap-2 text-sm font-medium text-sidebar-foreground">
+                                <ShoppingBag
                                     size={18}
-                                    className="text-(--accent-primary)"
+                                    className="text-primary"
                                 />
                                 <span>{products.length} Produk</span>
                             </div>
-                            <IoChevronForward
+                            <ChevronRight
                                 size={16}
-                                className="text-(--text-muted)"
+                                className="text-muted-foreground"
                             />
                         </button>
 
@@ -190,13 +188,13 @@ function ProductSidebar({ products, isOpen, onToggle }: ProductSidebarProps) {
                 <div
                     onClick={onToggle}
                     className="w-12 h-full flex flex-col items-center justify-center
-                     border-l border-(--bg-tertiary) bg-(--bg-secondary)
-                     cursor-pointer hover:bg-(--bg-tertiary) transition-colors">
-                    <HiShoppingBag
+                     border-l border-border bg-sidebar
+                     cursor-pointer hover:bg-sidebar-accent transition-colors">
+                    <ShoppingBag
                         size={20}
-                        className="text-(--accent-primary)"
+                        className="text-primary"
                     />
-                    <span className="text-xs text-(--text-muted) writing-mode-vertical">
+                    <span className="text-xs text-muted-foreground writing-mode-vertical">
                         {products.length}
                     </span>
                 </div>
@@ -212,17 +210,17 @@ interface ModeToggleProps {
 
 function ModeToggle({ currentMode, onModeChange }: ModeToggleProps) {
     return (
-        <div className="flex items-center gap-2 p-1 mt-3 rounded-full bg-(--bg-tertiary)">
+        <div className="flex items-center gap-2 p-1 mt-3 rounded-full bg-muted">
             <button
                 onClick={() => onModeChange("voice")}
                 className={`p-2.5 rounded-full transition-all duration-200
                     ${
                         currentMode === "voice"
-                            ? "bg-(--accent-primary) text-(--text-primary) shadow-sm"
-                            : "text-(--text-muted) hover:text-(--text-secondary) cursor-pointer"
+                            ? "bg-primary text-primary-foreground shadow-sm"
+                            : "text-muted-foreground hover:text-foreground cursor-pointer"
                     }`}
                 title="Voice Mode">
-                <FaMicrophone size={16} />
+                <Mic size={16} />
             </button>
 
             <button
@@ -230,11 +228,11 @@ function ModeToggle({ currentMode, onModeChange }: ModeToggleProps) {
                 className={`p-2.5 rounded-full transition-all duration-200
                     ${
                         currentMode === "chat"
-                            ? "bg-(--accent-primary) text-(--text-primary) shadow-sm"
-                            : "text-(--text-muted) hover:text-(--text-secondary) cursor-pointer"
+                            ? "bg-primary text-primary-foreground shadow-sm"
+                            : "text-muted-foreground hover:text-foreground cursor-pointer"
                     }`}
                 title="Chat Mode">
-                <IoChatbubblesOutline size={20} />
+                <MessageCircle size={20} />
             </button>
         </div>
     );
@@ -247,11 +245,11 @@ interface VoiceModeViewProps {
 function VoiceModeView({ isSpeaking }: VoiceModeViewProps) {
     return (
         <div className="h-full flex flex-col items-center justify-center p-8">
-            <h1 className="font-outfit text-5xl font-bold text-(--accent-primary) mb-4">
+            <h1 className="font-outfit text-5xl font-bold text-primary mb-4">
                 Happy
             </h1>
 
-            <p className="font-space text-xl text-(--text-primary) mb-8">
+            <p className="font-space text-xl text-foreground mb-8">
                 Your personal shopping assistant
             </p>
 
@@ -289,12 +287,12 @@ function ChatModeView({
     if (messages.length === 0) {
         return (
             <div className="h-full flex flex-col items-center justify-center p-8">
-                <IoChatbubblesOutline
+                <MessageCircle
                     size={64}
-                    className="text-(--text-muted) mb-4"
+                    className="text-muted-foreground mb-4"
                 />
-                <p className="text-(--text-muted) text-lg">Belum ada pesan</p>
-                <p className="text-(--text-muted) text-sm mt-2">
+                <p className="text-muted-foreground text-lg">Belum ada pesan</p>
+                <p className="text-muted-foreground text-sm mt-2">
                     Mulai percakapan dengan menekan tombol mic
                 </p>
             </div>
@@ -328,11 +326,11 @@ function HistoryModeView({
     return (
         <div className="h-full flex flex-col">
             {/* History Header */}
-            <div className="p-4 border-b border-(--bg-tertiary) bg-(--bg-secondary)">
-                <div className="flex items-center gap-2 text-sm text-(--text-secondary)">
-                    <IoChatbubblesOutline size={16} />
+            <div className="p-4 border-b border-border bg-sidebar">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <MessageCircle size={16} />
                     <span>Chat History</span>
-                    <span className="text-(--text-muted)">
+                    <span className="text-muted-foreground/70">
                         • {messages.length} pesan
                     </span>
                 </div>

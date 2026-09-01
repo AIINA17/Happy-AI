@@ -86,6 +86,7 @@ export function useLiveKit({
 
     /* ================= HANDLE AGENT DATA ================= */
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- kept to match RoomEvent.DataReceived's call signature below
     const handleAgentDataRef = useRef((payload: Uint8Array, _topic?: string) => {
         const text = new TextDecoder().decode(payload).trim();
         if (!text.startsWith("{")) return;

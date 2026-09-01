@@ -4,17 +4,25 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { MdDelete, MdModeEdit } from "react-icons/md";
 import {
-    IoAdd,
-    IoChevronBack,
-    IoEllipsisVertical,
-    IoMenu,
-} from "react-icons/io5";
-import { LuLogOut } from "react-icons/lu";
+    ChevronLeft,
+    LogOut,
+    MoreVertical,
+    Pencil,
+    Plus,
+    Store,
+    Trash2,
+} from "lucide-react";
 import { PiUserSoundBold } from "react-icons/pi";
-import { FaStore } from "react-icons/fa6";
 
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import ConfirmDialog from "./ConfirmDialog";
 import EcommerceAccountLink from "./EcommerceAccountLink";
 import VoiceEnrollment from "./VoiceEnrollment";
@@ -53,7 +61,6 @@ export default function Sidebar({
     onNewChat,
     refreshKey,
 }: SidebarProps) {
-    const [showUserMenu, setShowUserMenu] = useState(false);
     const [showEnrollmentList, setShowEnrollmentList] = useState(false);
     const [showEcommerceAccount, setShowEcommerceAccount] = useState(false);
     const [sessions, setSessions] = useState<ConversationSession[]>(
@@ -70,27 +77,9 @@ export default function Sidebar({
     }>({ isOpen: false, sessionId: null, sessionLabel: "" });
     const [isDeleting, setIsDeleting] = useState(false);
 
-    const menuRef = useRef<HTMLDivElement>(null);
     const sidebarRef = useRef<HTMLElement>(null);
 
     const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL;
-
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (
-                menuRef.current &&
-                !menuRef.current.contains(event.target as Node)
-            ) {
-                setShowUserMenu(false);
-            }
-        };
-
-        if (showUserMenu) {
-            document.addEventListener("mousedown", handleClickOutside);
-        }
-        return () =>
-            document.removeEventListener("mousedown", handleClickOutside);
-    }, [showUserMenu]);
 
     const loadSessions = useCallback(async () => {
         if (!token) return;
@@ -232,7 +221,6 @@ export default function Sidebar({
 
     // Handle logout with dialog
     const handleLogoutClick = () => {
-        setShowUserMenu(false);
         setShowLogoutDialog(true);
     };
 
@@ -243,19 +231,11 @@ export default function Sidebar({
         onLogout();
     };
 
-    const handleEnrollmentListClick = () => {
-        setShowUserMenu(false);
-        setShowEnrollmentList((prev) => !prev);
-    };
-
-    const handleEcommerceAccountClick = () => {
-        setShowUserMenu(false);
-        setShowEcommerceAccount(true);
-    };
-
     const toggleCollapse = () => {
         setIsCollapsed((prev) => !prev);
     };
+
+    const userInitial = userEmail ? userEmail[0].toUpperCase() : "?";
 
     return (
         <>
@@ -299,20 +279,18 @@ export default function Sidebar({
             <aside
                 ref={sidebarRef}
                 style={{ width: isCollapsed ? COLLAPSED_WIDTH : "360px" }}
-                className="h-screen bg-(--bg-secondary) flex flex-col border-r border-(--border-color)/20 
+                className="h-screen bg-sidebar flex flex-col border-r border-sidebar-border
                            transition-[width] duration-300 ease-in-out relative">
                 {/* Collapse Button - Hanya muncul saat expanded */}
                 {!isCollapsed && (
-                    <button
+                    <Button
                         onClick={toggleCollapse}
-                        className="absolute -right-3 top-6 z-10 w-10 h-10 rounded-xl 
-                                   bg-(--bg-tertiary) border border-(--border-color)/30
-                                   flex items-center justify-center
-                                   hover:bg-(--bg-card) transition-colors cursor-pointer
-                                   text-(--text-muted) hover:text-(--text-primary)"
-                        title="Collapse sidebar">
-                        <IoChevronBack size={14} />
-                    </button>
+                        variant="outline"
+                        size="icon"
+                        title="Collapse sidebar"
+                        className="absolute -right-3 top-6 z-10 rounded-xl bg-sidebar">
+                        <ChevronLeft size={14} />
+                    </Button>
                 )}
 
                 {/* Logo Header */}
@@ -342,7 +320,7 @@ export default function Sidebar({
                                 style={{ width: "40px", height: "40px" }}
                                 className="object-contain"
                             />
-                            <h1 className="font-space text-3xl font-bold text-(--text-primary)">
+                            <h1 className="font-space text-3xl font-bold text-sidebar-foreground">
                                 Happy
                             </h1>
                         </div>
@@ -352,30 +330,25 @@ export default function Sidebar({
                 {/* New Chat Button - Expanded */}
                 {!isCollapsed && (
                     <div className="px-6 pb-4">
-                        <button
+                        <Button
                             onClick={handleNewChat}
-                            className="w-full flex items-center justify-center gap-2 px-4 py-3 
-                                       rounded-xl bg-(--accent-primary) text-white font-medium
-                                       hover:brightness-110 active:scale-[0.98] transition-all
-                                       cursor-pointer shadow-md">
-                            <IoAdd size={20} />
+                            className="w-full h-auto rounded-xl py-3 shadow-md">
+                            <Plus size={20} />
                             <span>New Chat</span>
-                        </button>
+                        </Button>
                     </div>
                 )}
 
                 {/* New Chat Button - Collapsed */}
                 {isCollapsed && (
                     <div className="px-3 pb-4">
-                        <button
+                        <Button
                             onClick={handleNewChat}
-                            className="w-full flex items-center justify-center p-3
-                                       rounded-xl bg-(--accent-primary) text-white
-                                       hover:brightness-110 active:scale-[0.98] transition-all
-                                       cursor-pointer shadow-md"
-                            title="New Chat">
-                            <IoAdd size={20} />
-                        </button>
+                            size="icon"
+                            title="New Chat"
+                            className="w-full h-auto rounded-xl py-3 shadow-md">
+                            <Plus size={20} />
+                        </Button>
                     </div>
                 )}
 
@@ -395,7 +368,7 @@ export default function Sidebar({
                 {!isCollapsed && (
                     <div className="flex-1 px-6 overflow-hidden flex flex-col">
                         <div className="flex items-center justify-between mb-3">
-                            <h2 className="text-sm font-medium text-(--text-secondary)">
+                            <h2 className="text-sm font-medium text-muted-foreground">
                                 Recents
                             </h2>
                         </div>
@@ -403,11 +376,11 @@ export default function Sidebar({
                         {/* Sessions List */}
                         <div className="flex-1 overflow-y-auto space-y-1 pr-2">
                             {loading ? (
-                                <div className="text-(--text-muted) text-sm py-4">
+                                <div className="text-muted-foreground text-sm py-4">
                                     Loading...
                                 </div>
                             ) : sessions.length === 0 ? (
-                                <div className="text-(--text-muted) text-sm py-4">
+                                <div className="text-muted-foreground text-sm py-4">
                                     Belum ada chat
                                 </div>
                             ) : (
@@ -440,67 +413,51 @@ export default function Sidebar({
 
                 {/* User Section - Bottom */}
                 {isLoggedIn && (
-                    <div
-                        className="relative p-4 border-t border-(--border-color)/20"
-                        ref={menuRef}>
-                        {/* User Menu Popup */}
-                        {showUserMenu && (
-                            <div
-                                className={`absolute bottom-full mb-2 bg-(--bg-tertiary) 
-                                            rounded-lg shadow-lg overflow-hidden animate-fadeIn
-                                            border border-(--border-color)/20
-                                            ${isCollapsed ? "left-2 w-48" : "left-4 right-4"}`}>
-                                {/* Enrollment List - TOGGLE */}
+                    <div className="p-4 border-t border-sidebar-border">
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
                                 <button
-                                    onClick={handleEnrollmentListClick}
-                                    className="w-full px-4 py-3 flex items-center gap-3 text-(--text-secondary)
-                                               hover:bg-(--bg-card) transition-colors cursor-pointer">
-                                    <PiUserSoundBold />
-                                    <span className="text-sm">
-                                        Enrollment List
-                                    </span>
-                                </button>
-
-                                {/* Ecommerce Account Link */}
-                                <button
-                                    onClick={handleEcommerceAccountClick}
-                                    className="w-full px-4 py-3 flex items-center gap-3 text-(--text-secondary)
-                                               hover:bg-(--bg-card) transition-colors cursor-pointer">
-                                    <FaStore />
-                                    <span className="text-sm">
-                                        Akun E-commerce
-                                    </span>
-                                </button>
-
-                                {/* Log out - Opens dialog */}
-                                <button
-                                    onClick={handleLogoutClick}
-                                    className="w-full px-4 py-4 flex items-center gap-3 text-(--text-secondary)
-                                               hover:bg-(--bg-card) transition-colors cursor-pointer">
-                                    <LuLogOut />
-                                    <span className="text-sm">Log out</span>
-                                </button>
-                            </div>
-                        )}
-
-                        {/* User Info Button */}
-                        <button
-                            onClick={() => setShowUserMenu(!showUserMenu)}
-                            className={`w-full flex items-center gap-3 p-2 rounded-lg 
-                                       hover:bg-(--bg-tertiary) transition-colors cursor-pointer
+                                    className={`w-full flex items-center gap-3 p-2 rounded-lg
+                                       hover:bg-sidebar-accent transition-colors cursor-pointer
                                        ${isCollapsed ? "justify-center" : ""}`}>
-                            <div className="w-10 h-10 rounded-full bg-(--bg-tertiary) flex items-center justify-center shrink-0">
-                                <span className="text-lg">👤</span>
-                            </div>
-                            {!isCollapsed && (
-                                <>
-                                    <span className="flex-1 text-left text-(--text-primary) text-sm truncate">
-                                        {userEmail}
-                                    </span>
-                                    <IoMenu className="w-5 h-5 mx-2 shrink-0" />
-                                </>
-                            )}
-                        </button>
+                                    <Avatar>
+                                        <AvatarFallback>
+                                            {userInitial}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                    {!isCollapsed && (
+                                        <span className="flex-1 text-left text-sidebar-foreground text-sm truncate">
+                                            {userEmail}
+                                        </span>
+                                    )}
+                                </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent
+                                align="start"
+                                side="top"
+                                className="w-56">
+                                <DropdownMenuItem
+                                    onClick={() =>
+                                        setShowEnrollmentList((prev) => !prev)
+                                    }>
+                                    <PiUserSoundBold />
+                                    <span>Enrollment List</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                    onClick={() =>
+                                        setShowEcommerceAccount(true)
+                                    }>
+                                    <Store />
+                                    <span>Akun E-commerce</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                    variant="destructive"
+                                    onClick={handleLogoutClick}>
+                                    <LogOut />
+                                    <span>Log out</span>
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                     </div>
                 )}
             </aside>
@@ -527,28 +484,9 @@ function SessionItem({
     onRename,
     onDelete,
 }: SessionItemProps) {
-    const [showMenu, setShowMenu] = useState(false);
     const [isRenaming, setIsRenaming] = useState(false);
     const [newLabel, setNewLabel] = useState(session.label);
-    const menuRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
-
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (
-                menuRef.current &&
-                !menuRef.current.contains(event.target as Node)
-            ) {
-                setShowMenu(false);
-            }
-        };
-
-        if (showMenu) {
-            document.addEventListener("mousedown", handleClickOutside);
-        }
-        return () =>
-            document.removeEventListener("mousedown", handleClickOutside);
-    }, [showMenu]);
 
     useEffect(() => {
         if (isRenaming && inputRef.current) {
@@ -564,11 +502,6 @@ function SessionItem({
             setNewLabel(session.label);
         }
         setIsRenaming(false);
-    };
-
-    const handleDeleteClick = () => {
-        setShowMenu(false);
-        onDelete(); // Opens dialog in parent
     };
 
     return (
@@ -587,9 +520,9 @@ function SessionItem({
                             setIsRenaming(false);
                         }
                     }}
-                    className="w-full px-3 py-2.5 rounded-lg bg-(--bg-tertiary) 
-                               text-(--text-primary) text-sm outline-none
-                               border border-(--accent-primary)"
+                    className="w-full px-3 py-2.5 rounded-lg bg-sidebar-accent
+                               text-sidebar-foreground text-sm outline-none
+                               border border-ring"
                 />
             ) : (
                 <div
@@ -598,48 +531,42 @@ function SessionItem({
                                transition-colors flex items-center justify-between group
                                ${
                                    isActive
-                                       ? "bg-(--bg-tertiary) text-(--text-primary)"
-                                       : "text-(--text-primary) hover:bg-(--bg-tertiary)"
+                                       ? "bg-sidebar-accent text-sidebar-foreground"
+                                       : "text-sidebar-foreground hover:bg-sidebar-accent"
                                }`}>
                     <span className="truncate flex-1 pr-2">
                         {session.label}
                     </span>
 
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            setShowMenu(!showMenu);
-                        }}
-                        className="opacity-0 group-hover:opacity-100 p-3 rounded hover:bg-(--bg-card)
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <button
+                                onClick={(e) => e.stopPropagation()}
+                                className="opacity-0 group-hover:opacity-100 p-3 rounded hover:bg-sidebar
                                    transition-opacity cursor-pointer">
-                        <IoEllipsisVertical />
-                    </button>
-                </div>
-            )}
-
-            {showMenu && (
-                <div
-                    ref={menuRef}
-                    className="absolute right-0 top-full mt-1 w-40 bg-(--bg-tertiary) 
-                               rounded-lg shadow-lg overflow-hidden z-50 animate-fadeIn
-                               border border-(--border-color)/20">
-                    <button
-                        onClick={() => {
-                            setIsRenaming(true);
-                            setShowMenu(false);
-                        }}
-                        className="w-full px-4 py-2.5 flex items-center gap-3 text-sm text-(--text-primary)
-                                   hover:bg-(--bg-card) transition-colors cursor-pointer">
-                        <MdModeEdit />
-                        <span>Rename</span>
-                    </button>
-                    <button
-                        onClick={handleDeleteClick}
-                        className="w-full px-4 py-2.5 flex items-center gap-3 text-sm text-red-400
-                                   hover:bg-red-500/10 transition-colors cursor-pointer">
-                        <MdDelete />
-                        <span>Delete</span>
-                    </button>
+                                <MoreVertical size={16} />
+                            </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-40">
+                            <DropdownMenuItem
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setIsRenaming(true);
+                                }}>
+                                <Pencil />
+                                <span>Rename</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                                variant="destructive"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onDelete();
+                                }}>
+                                <Trash2 />
+                                <span>Delete</span>
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
             )}
         </div>

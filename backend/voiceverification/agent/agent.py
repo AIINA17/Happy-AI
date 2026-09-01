@@ -49,6 +49,15 @@ MAX_VERIFY_ATTEMPTS = 3
 VERIFY_TIMEOUT_SEC = 20
 LOCKOUT_COOLDOWN_SEC = 60
 
+# An unnamed/default agent gets LiveKit's automatic dispatch to every new
+# room *in addition to* our own explicit create_dispatch() call in
+# server.py's /join-token — that's two independent agents joining the same
+# room per user click (visible as duplicated greetings/audio, doubled
+# Gemini Realtime sessions, and racing voice-verification attempts). Naming
+# the agent opts it out of automatic dispatch; server.py's dispatch call
+# must target this exact name too.
+AGENT_NAME = "happy-shopping-assistant"
+
 # ================= AGENT =================
 class ShoppingAgent(Agent):
     def __init__(self):
@@ -82,7 +91,7 @@ server = AgentServer()
 _active_rooms: set[str] = set()
 _active_rooms_lock = asyncio.Lock()
 
-@server.rtc_session()
+@server.rtc_session(agent_name=AGENT_NAME)
 async def connect(ctx: agents.JobContext):
     room = ctx.room
     room_name = room.name

@@ -1,8 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { MdClose } from "react-icons/md";
-import { FaStore } from "react-icons/fa6";
+import { Store } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface Props {
     token: string | null;
@@ -100,100 +109,99 @@ export default function EcommerceAccountLink({ token, isOpen, onClose }: Props) 
         }
     };
 
-    if (!isOpen) return null;
-
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-            <div
-                className="absolute inset-0 bg-black/70 backdrop-blur-md"
-                onClick={onClose}
-            />
+        <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2 text-lg">
+                        <Store className="text-primary" size={18} />
+                        Akun E-commerce
+                    </DialogTitle>
+                </DialogHeader>
 
-            <div className="relative z-10 w-full max-w-md mx-4 p-6 rounded-2xl bg-(--bg-primary) shadow-2xl animate-fadeIn">
-                <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2 text-(--text-primary)">
-                        <FaStore className="text-(--accent-primary)" />
-                        <h2 className="text-lg font-semibold">Akun E-commerce</h2>
-                    </div>
-                    <button
-                        onClick={onClose}
-                        className="p-1.5 rounded-lg hover:bg-(--bg-tertiary) text-(--text-muted) cursor-pointer">
-                        <MdClose size={18} />
-                    </button>
-                </div>
-
-                <p className="text-sm text-(--text-secondary) mb-4">
+                <p className="text-sm text-muted-foreground -mt-2">
                     Happy login pakai akun ini setiap kali suara kamu berhasil
                     diverifikasi — bukan akun bersama, ini akun kamu sendiri.
                 </p>
 
                 {isLoading ? (
-                    <div className="text-sm text-(--text-muted) py-4 text-center">
+                    <div className="text-sm text-muted-foreground py-4 text-center">
                         Memuat...
                     </div>
                 ) : linked && !isEditing ? (
                     <div className="space-y-3">
-                        <div className="p-3 rounded-lg bg-(--bg-card) border border-(--border-color)/20">
-                            <p className="text-xs text-(--text-muted) mb-1">
+                        <div className="p-3 rounded-lg bg-muted">
+                            <p className="text-xs text-muted-foreground mb-1">
                                 Terhubung sebagai
                             </p>
-                            <p className="text-(--text-primary) font-medium">
+                            <p className="text-foreground font-medium">
                                 {linkedUsername}
                             </p>
                         </div>
                         <div className="flex gap-2">
-                            <button
-                                onClick={() => setIsEditing(true)}
-                                className="flex-1 px-4 py-2.5 rounded-lg bg-(--bg-tertiary) text-(--text-primary) text-sm hover:brightness-110 transition-all cursor-pointer">
+                            <Button
+                                variant="secondary"
+                                className="flex-1"
+                                onClick={() => setIsEditing(true)}>
                                 Ganti akun
-                            </button>
-                            <button
+                            </Button>
+                            <Button
+                                variant="destructive"
+                                className="flex-1"
                                 onClick={handleUnlink}
-                                disabled={isSaving}
-                                className="flex-1 px-4 py-2.5 rounded-lg bg-red-500/15 text-red-400 text-sm hover:bg-red-500/25 transition-all disabled:opacity-50 cursor-pointer">
+                                disabled={isSaving}>
                                 Putuskan
-                            </button>
+                            </Button>
                         </div>
                     </div>
                 ) : (
                     <div className="space-y-3">
-                        <input
-                            value={username}
-                            onChange={(e) => setUsername(e.target.value)}
-                            placeholder="Username e-commerce"
-                            className="w-full px-4 py-3 rounded-lg bg-(--input-bg) text-(--text-primary) text-sm placeholder:text-(--text-white-50) border-none outline-none focus:ring-2 focus:ring-(--accent-primary)/50"
-                        />
-                        <input
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            type="password"
-                            placeholder="Password"
-                            className="w-full px-4 py-3 rounded-lg bg-(--input-bg) text-(--text-primary) text-sm placeholder:text-(--text-white-50) border-none outline-none focus:ring-2 focus:ring-(--accent-primary)/50"
-                        />
+                        <div className="space-y-2">
+                            <Label htmlFor="ecom-username">
+                                Username e-commerce
+                            </Label>
+                            <Input
+                                id="ecom-username"
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value)}
+                                placeholder="Username e-commerce"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="ecom-password">Password</Label>
+                            <Input
+                                id="ecom-password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                type="password"
+                                placeholder="Password"
+                            />
+                        </div>
                         {error && (
-                            <p className="text-xs text-red-400">{error}</p>
+                            <p className="text-xs text-destructive">{error}</p>
                         )}
                         <div className="flex gap-2">
                             {linked && (
-                                <button
+                                <Button
+                                    variant="secondary"
+                                    className="flex-1"
                                     onClick={() => {
                                         setIsEditing(false);
                                         setError(null);
-                                    }}
-                                    className="flex-1 px-4 py-2.5 rounded-lg bg-(--bg-tertiary) text-(--text-primary) text-sm hover:brightness-110 transition-all cursor-pointer">
+                                    }}>
                                     Batal
-                                </button>
+                                </Button>
                             )}
-                            <button
+                            <Button
+                                className="flex-1"
                                 onClick={handleSave}
-                                disabled={isSaving}
-                                className="flex-1 px-4 py-2.5 rounded-lg bg-(--accent-primary) text-white text-sm font-medium hover:brightness-110 transition-all disabled:opacity-50 cursor-pointer">
+                                disabled={isSaving}>
                                 {isSaving ? "Menyimpan..." : "Simpan & Hubungkan"}
-                            </button>
+                            </Button>
                         </div>
                     </div>
                 )}
-            </div>
-        </div>
+            </DialogContent>
+        </Dialog>
     );
 }

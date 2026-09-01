@@ -52,6 +52,11 @@ load_dotenv(ENV_PATH)
 LIVEKIT_API_KEY = os.getenv("LIVEKIT_API_KEY")
 LIVEKIT_API_SECRET = os.getenv("LIVEKIT_API_SECRET")
 
+# Must match agent/agent.py's AGENT_NAME — an unnamed dispatch would target
+# LiveKit's automatic-dispatch agent instead of (or in addition to) this
+# named one.
+AGENT_NAME = "happy-shopping-assistant"
+
 if not LIVEKIT_API_KEY or not LIVEKIT_API_SECRET:
     raise RuntimeError("LIVEKIT credentials not set")
 
@@ -109,16 +114,20 @@ async def join_token(request: Request):
     token.with_identity(user_id)
     token.with_grants(grant)
 
-    # Dispatch agent to room
+    # Dispatch agent to room — guard against a double click / duplicate
+    # request creating two dispatches (and so two agents talking over each
+    # other in the same room).
     async with LiveKitAPI(
         url=os.getenv("LIVEKIT_URL"),
         api_key=LIVEKIT_API_KEY,
         api_secret=LIVEKIT_API_SECRET,
     ) as lk:
 
-        await lk.agent_dispatch.create_dispatch(
-            CreateAgentDispatchRequest(room=room_name)
-        )
+        existing = await lk.agent_dispatch.list_dispatch(room_name)
+        if not any(d.agent_name == AGENT_NAME for d in existing):
+            await lk.agent_dispatch.create_dispatch(
+                CreateAgentDispatchRequest(room=room_name, agent_name=AGENT_NAME)
+            )
 
 
     return {
@@ -164,6 +173,17 @@ async def verify_voice(request: Request, audio: UploadFile = File(...)):
         )
 
         print("Verify took:", time.time() - start)
+
+        # TEMP DEBUG — investigating spoof_prob false positives on real
+        # browser-recorded audio (2026-08-28). Remove once root-caused.
+        if result["spoof_prob"] >= 0.5:
+            import shutil
+            debug_dir = os.path.join(BASE_DIR, "debug_spoof_samples")
+            os.makedirs(debug_dir, exist_ok=True)
+            shutil.copy(
+                wav_path,
+                os.path.join(debug_dir, f"{int(time.time())}_spoof{result['spoof_prob']:.2f}.wav"),
+            )
 
         matched_label: str | None = result.get("best_label")
         updated_profile: BehaviorProfile | None = result.get("updated_behavior_profile")

@@ -8,7 +8,7 @@ import type { Session } from "@supabase/supabase-js";
 
 import ChatArea from "@/components/ChatArea";
 import Sidebar from "@/components/Sidebar";
-import VerificationToast from "@/components/VerificationToast";
+import { useVerificationToast } from "@/hooks/useVerificationToast";
 import { supabase } from "@/lib/supabase";
 import { Message, Product } from "@/types";
 
@@ -132,6 +132,8 @@ export default function HistoryDetailPage() {
         setVerificationResult({ status: null, score: null, reason: null });
     }, []);
 
+    useVerificationToast(verificationResult, clearVerificationResult);
+
     const handleSelectSession = async (newSessionId: string) => {
         router.replace(`/history/${newSessionId}`);
     };
@@ -153,16 +155,16 @@ export default function HistoryDetailPage() {
 
     if (isLoading) {
         return (
-            <main className="h-screen bg-(--bg-primary) flex items-center justify-center">
-                <div className="text-(--text-secondary)">Loading...</div>
+            <main className="h-screen bg-background flex items-center justify-center">
+                <div className="text-muted-foreground">Loading...</div>
             </main>
         );
     }
 
     if (!isLoggedIn) {
         return (
-            <main className="h-screen bg-(--bg-primary) flex items-center justify-center">
-                <div className="text-(--text-secondary)">
+            <main className="h-screen bg-background flex items-center justify-center">
+                <div className="text-muted-foreground">
                     Redirecting to login...
                 </div>
             </main>
@@ -170,14 +172,7 @@ export default function HistoryDetailPage() {
     }
 
     return (
-        <main className="h-screen bg-(--bg-primary) flex overflow-hidden">
-            <VerificationToast
-                status={verificationResult.status}
-                score={verificationResult.score}
-                reason={verificationResult.reason}
-                onClose={clearVerificationResult}
-            />
-
+        <main className="h-screen bg-background flex overflow-hidden">
             <Sidebar
                 isLoggedIn={isLoggedIn}
                 userEmail={session?.user?.email || ""}

@@ -36,7 +36,7 @@ export default function MessageBubble({
                             className="opacity-70"
                         />
                     )}
-                    <span className="text-sm text-(--text-secondary)">
+                    <span className="text-sm text-muted-foreground">
                         {isUser ? userName : "Happy"}
                     </span>
                 </div>
@@ -44,8 +44,8 @@ export default function MessageBubble({
                 <div
                     className={`px-4 py-3 rounded-2xl max-w-4xl wrap-break-words ${
                         isUser
-                            ? "bg-(--accent-primary) text-(--text-primary) rounded-br-md"
-                            : "bg-(--bubble-agent) text-(--text-primary) rounded-bl-md"
+                            ? "bg-primary text-primary-foreground rounded-br-md"
+                            : "bg-muted text-foreground rounded-bl-md"
                     }`}>
                     <p className="text-base leading-relaxed">{text}</p>
                 </div>

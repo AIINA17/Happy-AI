@@ -1,9 +1,14 @@
 // Root layout for the Next.js app, configuring fonts and global styles.
 
 import type { Metadata } from "next";
-import { Outfit, Space_Grotesk } from "next/font/google";
+import { Outfit, Space_Grotesk, Geist } from "next/font/google";
 
 import "./globals.css";
+import { cn } from "@/lib/utils";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { Toaster } from "@/components/ui/sonner";
+
+const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 const outfit = Outfit({
     subsets: ["latin"],
@@ -30,8 +35,11 @@ export default function RootLayout({
     return (
         <html
             lang="id"
-            className={`${outfit.variable} ${spaceGrotesk.variable}`}>
-            <body className="font-outfit">{children}</body>
+            className={cn(outfit.variable, spaceGrotesk.variable, "font-sans", geist.variable)}>
+            <body className="font-outfit">
+                <TooltipProvider>{children}</TooltipProvider>
+                <Toaster theme="dark" />
+            </body>
         </html>
     );
 }

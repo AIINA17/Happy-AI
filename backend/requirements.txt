@@ -9,31 +9,34 @@ livekit-plugins-google==1.3.12
 # LLM & tools
 mem0ai
 duckduckgo-search
-langchain_community==0.4.1
-Requests==2.32.5
-python-dotenv==1.2.1
+langchain_community==0.4.2
+Requests==2.34.2
+python-dotenv==1.2.3
+pydantic==2.13.5
 
 # FastAPI Server (untuk voice verification endpoint)
-fastapi==0.128.0
+fastapi==0.141.1
 uvicorn[standard]
 python-multipart
+cryptography==50.0.1
 
 # Numeric
-numpy==1.26.4
-scipy==1.11.4
+numpy
+scipy
 
 # Audio
 librosa==0.11.0
 soundfile==0.13.1
 sounddevice==0.5.3
 
-# ML utils
+# ML utils & Computer Vision
 scikit-learn==1.3.2
-matplotlib==3.10.8
+matplotlib
+insightface==1.0.1
+opencv_python==4.11.0.86
 
 # Testing (voiceverification/tests/) — run with: pytest
 pytest==9.1.1
-
 
 # Speaker recognition
 speechbrain==0.5.16
@@ -54,7 +57,7 @@ transformers==4.30.2
 
 webrtcvad==2.0.10
 
-supabase==2.27.3
+supabase==2.31.0
 
 # Torch (CPU by default via PyPI's default index).
 # torchaudio's last published release is 2.11.0 — it has not kept pace with

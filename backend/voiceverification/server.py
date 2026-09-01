@@ -174,17 +174,6 @@ async def verify_voice(request: Request, audio: UploadFile = File(...)):
 
         print("Verify took:", time.time() - start)
 
-        # TEMP DEBUG — investigating spoof_prob false positives on real
-        # browser-recorded audio (2026-08-28). Remove once root-caused.
-        if result["spoof_prob"] >= 0.5:
-            import shutil
-            debug_dir = os.path.join(BASE_DIR, "debug_spoof_samples")
-            os.makedirs(debug_dir, exist_ok=True)
-            shutil.copy(
-                wav_path,
-                os.path.join(debug_dir, f"{int(time.time())}_spoof{result['spoof_prob']:.2f}.wav"),
-            )
-
         matched_label: str | None = result.get("best_label")
         updated_profile: BehaviorProfile | None = result.get("updated_behavior_profile")
 

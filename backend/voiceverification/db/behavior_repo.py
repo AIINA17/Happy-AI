@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 
-from core.behavior_profile import BehaviorProfile
-from db.connection import get_supabase
+from voiceverification.core.behavior_profile import BehaviorProfile
+from voiceverification.db.connection import get_supabase
 
 def load_behavior_profile(user_id: str, label:str) -> BehaviorProfile:
     sb = get_supabase()

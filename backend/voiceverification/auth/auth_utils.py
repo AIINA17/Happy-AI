@@ -1,5 +1,5 @@
 from fastapi import Request, HTTPException
-from db.connection import get_supabase
+from voiceverification.db.connection import get_supabase
 
 
 def get_user_id_from_request(request: Request) -> str:

@@ -1,5 +1,5 @@
-from db.connection import get_supabase
-from utils.crypto import decrypt, encrypt
+from voiceverification.db.connection import get_supabase
+from voiceverification.utils.crypto import decrypt, encrypt
 
 
 def save_ecommerce_account(user_id: str, username: str, password: str) -> None:

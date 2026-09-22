@@ -23,6 +23,7 @@ from livekit.api import (
     LiveKitAPI,
     VideoGrants,
 )
+from livekit.api.twirp_client import TwirpError
 from pydantic import BaseModel
 
 from voiceverification.auth.auth_utils import get_user_id_from_request
@@ -30,8 +31,12 @@ from voiceverification.core.behavior_profile import BehaviorProfile
 from voiceverification.db.behavior_repo import load_behavior_profile, save_behavior_profile
 from voiceverification.db.connection import get_supabase
 from voiceverification.db.conversation_sessions import update_conversation_session_label
+from voiceverification.db.ecommerce_repo import (
+    delete_ecommerce_account,
+    has_ecommerce_account,
+    save_ecommerce_account,
+)
 from voiceverification.db.speaker_repo import count_enrollments, load_all_embeddings, save_embedding
-from voiceverification.models.speaker_verifier import SpeakerVerifier
 from voiceverification.services.biometric_service import BiometricService
 from voiceverification.utils.audio import normalize_audio, save_audio
 
@@ -120,7 +125,12 @@ async def join_token(request: Request):
         api_secret=LIVEKIT_API_SECRET,
     ) as lk:
 
-        existing = await lk.agent_dispatch.list_dispatch(room_name)
+        try:
+            existing = await lk.agent_dispatch.list_dispatch(room_name)
+        except TwirpError as e:
+            if e.code != "not_found":
+                raise
+            existing = []
         if not any(d.agent_name == AGENT_NAME for d in existing):
             await lk.agent_dispatch.create_dispatch(
                 CreateAgentDispatchRequest(room=room_name, agent_name=AGENT_NAME)

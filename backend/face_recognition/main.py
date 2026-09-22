@@ -1,10 +1,15 @@
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 import numpy as np
 
 from face_recognition.arcface_model import ArcFaceModel
 from face_recognition.face_service import FaceRecognitionService
 from face_recognition.face_storage import LocalFaceStorage
+
+
+class LabelUpdateRequest(BaseModel):
+    label: str
 
 
 app = FastAPI(
@@ -53,23 +58,29 @@ def health_check():
 @app.post("/enroll-face")
 async def enroll_face(
     user_id: str = Form(...),
+    label: str = Form(...),
     image: UploadFile = File(...)
 ):
     try:
+        if not label or not label.strip():
+            raise HTTPException(status_code=400, detail="Label tidak boleh kosong.")
+
         image_bytes = await image.read()
         embedding = arcface_model.extract_embedding(image_bytes)
 
         face_storage.save_embedding(
             user_id=user_id,
-            embedding=embedding.tolist()
+            label=label.strip(),
+            embedding=embedding.tolist(),
         )
 
         return {
             "status": "ENROLLMENT_SUCCESS",
             "user_id": user_id,
+            "label": label.strip(),
             "embedding_dim": len(embedding),
             "storage": "face_recognition/data/face_embeddings.json",
-            "message": "Face embedding berhasil dibuat dan disimpan ke file lokal."
+            "message": "Face embedding berhasil dibuat dan disimpan ke file lokal.",
         }
 
     except ValueError as error:
@@ -77,6 +88,45 @@ async def enroll_face(
 
     except Exception as error:
         raise HTTPException(status_code=500, detail=f"Terjadi kesalahan server: {str(error)}")
+
+
+@app.get("/face/{user_id}")
+def get_user_face(user_id: str):
+    """Ambil info wajah yang terdaftar untuk user tertentu."""
+    face_info = face_storage.get_face_info(user_id)
+
+    if face_info is None:
+        return {
+            "has_face": False,
+            "user_id": user_id,
+        }
+
+    return {
+        "has_face": True,
+        "user_id": user_id,
+        "label": face_info["label"],
+        "created_at": face_info["created_at"],
+    }
+
+
+@app.patch("/face/{user_id}/label")
+def update_face_label(user_id: str, payload: LabelUpdateRequest):
+    """Ganti label wajah user."""
+    new_label = payload.label.strip()
+
+    if not new_label:
+        raise HTTPException(status_code=400, detail="Label tidak boleh kosong.")
+
+    success = face_storage.update_label(user_id, new_label)
+
+    if not success:
+        raise HTTPException(status_code=404, detail="User tidak memiliki face enrollment.")
+
+    return {
+        "status": "OK",
+        "user_id": user_id,
+        "label": new_label,
+    }
 
 
 @app.post("/verify-face")

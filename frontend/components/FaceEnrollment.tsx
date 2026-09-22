@@ -1,8 +1,16 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { ScanFace } from "lucide-react";
+import { ScanFace, MoreVertical, Pencil, Trash2 } from "lucide-react";
 import { FaceDetector, FilesetResolver } from "@mediapipe/tasks-vision";
+import { Input } from "@/components/ui/input";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import ConfirmDialog from "./ConfirmDialog";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -22,6 +30,8 @@ type EnrollmentPhase =
   | "loading"
   | "scanning"
   | "capturing"
+  | "naming"
+  | "uploading"
   | "success"
   | "error";
 
@@ -39,6 +49,7 @@ export default function FaceEnrollment({ userId, setVerifyStatus }: Props) {
     width: number;
     height: number;
   } | null>(null);
+  const [stableProgress, setStableProgress] = useState(0);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -46,6 +57,19 @@ export default function FaceEnrollment({ userId, setVerifyStatus }: Props) {
   const faceDetectorRef = useRef<FaceDetector | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const stableSinceRef = useRef<number | null>(null);
+  const capturedBlobRef = useRef<Blob | null>(null);
+  const [label, setLabel] = useState("");
+
+  const [enrolledFace, setEnrolledFace] = useState<{
+    label: string;
+    created_at: string | null;
+  } | null>(null);
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingLabel, setEditingLabel] = useState("");
+
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const startCamera = useCallback(async () => {
     try {
@@ -80,7 +104,10 @@ export default function FaceEnrollment({ userId, setVerifyStatus }: Props) {
       animationFrameRef.current = null;
     }
 
+    setStableProgress(0);
     setDetectionBox(null);
+    capturedBlobRef.current = null;
+    setLabel("");
 
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => track.stop());
@@ -149,6 +176,10 @@ export default function FaceEnrollment({ userId, setVerifyStatus }: Props) {
         }
 
         const stableDuration = performance.now() - stableSinceRef.current;
+
+        const progress = Math.min(stableDuration / STABILITY_DURATION_MS, 1);
+        setStableProgress(progress);
+
         if (stableDuration >= STABILITY_DURATION_MS) {
           setPhase("capturing");
           return;
@@ -157,6 +188,7 @@ export default function FaceEnrollment({ userId, setVerifyStatus }: Props) {
     } else {
       setDetectionBox(null);
       stableSinceRef.current = null;
+      setStableProgress(0);
     }
 
     animationFrameRef.current = requestAnimationFrame(detectionLoop);
@@ -194,18 +226,60 @@ export default function FaceEnrollment({ userId, setVerifyStatus }: Props) {
     });
   }, []);
 
-  const uploadEnrollment = useCallback(async () => {
-    if (!userId) {
-      setErrorMessage("User ID tidak tersedia");
+  const captureAndPreview = useCallback(async () => {
+    try {
+      const blob = await captureFrame();
+      capturedBlobRef.current = blob;
+      setPhase("naming");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Gagal mengambil foto";
+      setErrorMessage(message);
+      setPhase("error");
+    }
+  }, [captureFrame]);
+
+  const fetchFaceInfo = useCallback(async () => {
+    if (!userId) return;
+
+    try {
+      const response = await fetch(`${SERVER_URL}/face/${userId}`);
+      if (!response.ok) return;
+
+      const data = await response.json();
+
+      if (data.has_face) {
+        setEnrolledFace({
+          label: data.label,
+          created_at: data.created_at,
+        });
+      } else {
+        setEnrolledFace(null);
+      }
+    } catch (err) {
+      console.error("Fetch face info error:", err);
+    }
+  }, [userId, SERVER_URL]);
+
+  const submitEnrollment = useCallback(async () => {
+    if (!userId || !capturedBlobRef.current) {
+      setErrorMessage("Data tidak lengkap. Coba ulang.");
       setPhase("error");
       return;
     }
 
+    const trimmedLabel = label.trim();
+    if (!trimmedLabel) {
+      return;
+    }
+
+    setPhase("uploading");
+
     try {
-      const blob = await captureFrame();
       const formData = new FormData();
       formData.append("user_id", userId);
-      formData.append("image", blob, "enroll.jpg");
+      formData.append("label", trimmedLabel);
+      formData.append("image", capturedBlobRef.current, "enroll.jpg");
 
       const response = await fetch(`${SERVER_URL}/enroll-face`, {
         method: "POST",
@@ -219,9 +293,10 @@ export default function FaceEnrollment({ userId, setVerifyStatus }: Props) {
 
       const result = await response.json();
       console.log("Enrollment success:", result);
-
       setPhase("success");
-      setVerifyStatus("Face enrollment berhasil!");
+      setVerifyStatus(`Wajah "${trimmedLabel}" berhasil didaftarkan!`);
+
+      await fetchFaceInfo();
 
       setTimeout(() => {
         closeModal();
@@ -234,7 +309,53 @@ export default function FaceEnrollment({ userId, setVerifyStatus }: Props) {
       setPhase("error");
       setVerifyStatus(`Face enrollment error: ${message}`);
     }
-  }, [userId, SERVER_URL, captureFrame, setVerifyStatus]);
+  }, [userId, SERVER_URL, label, setVerifyStatus, fetchFaceInfo]);
+
+  const handleRename = useCallback(async () => {
+    if (!userId || !editingLabel.trim()) return;
+
+    try {
+      const response = await fetch(`${SERVER_URL}/face/${userId}/label`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ label: editingLabel.trim() }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "Rename gagal");
+      }
+
+      await fetchFaceInfo();
+      setIsEditing(false);
+    } catch (err) {
+      console.error("Rename error:", err);
+      alert(err instanceof Error ? err.message : "Rename gagal");
+    }
+  }, [userId, SERVER_URL, editingLabel, fetchFaceInfo]);
+
+  const handleDelete = useCallback(async () => {
+    if (!userId) return;
+
+    setIsDeleting(true);
+    try {
+      const response = await fetch(`${SERVER_URL}/enroll-face/${userId}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        throw new Error("Delete gagal");
+      }
+
+      setEnrolledFace(null);
+      setShowDeleteDialog(false);
+    } catch (err) {
+      console.error("Delete error:", err);
+      alert("Gagal menghapus wajah");
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [userId, SERVER_URL]);
 
   const openModal = () => {
     setIsOpen(true);
@@ -272,9 +393,9 @@ export default function FaceEnrollment({ userId, setVerifyStatus }: Props) {
 
   useEffect(() => {
     if (phase === "capturing") {
-      uploadEnrollment();
+      captureAndPreview();
     }
-  }, [phase, uploadEnrollment]);
+  }, [phase, captureAndPreview]);
 
   useEffect(() => {
     return () => {
@@ -283,6 +404,10 @@ export default function FaceEnrollment({ userId, setVerifyStatus }: Props) {
       }
     };
   }, []);
+
+  useEffect(() => {
+    fetchFaceInfo();
+  }, [fetchFaceInfo]);
 
   return (
     <>
@@ -295,15 +420,7 @@ export default function FaceEnrollment({ userId, setVerifyStatus }: Props) {
             <DialogTitle>Face Enrollment</DialogTitle>
           </DialogHeader>
 
-          <div
-            className={`relative w-full aspect-[4/3] bg-black rounded-lg overflow-hidden mb-4 flex items-center justify-center border-4 transition-colors duration-300 ${
-              phase === "scanning"
-                ? detectionBox
-                  ? "border-green-400 shadow-[0_0_20px_rgba(74,222,128,0.4)]"
-                  : "border-yellow-400/70"
-                : "border-transparent"
-            }`}
-          >
+          <div className="relative w-full aspect-[4/3] bg-black rounded-lg overflow-hidden mb-4 flex items-center justify-center">
             <video
               ref={videoRef}
               autoPlay
@@ -313,6 +430,89 @@ export default function FaceEnrollment({ userId, setVerifyStatus }: Props) {
             />
 
             <canvas ref={canvasRef} className="hidden" />
+
+            {phase === "scanning" && (
+              <svg
+                className="absolute inset-0 w-full h-full pointer-events-none"
+                viewBox="0 0 100 100"
+                preserveAspectRatio="none"
+              >
+                {/* Waiting state: kuning kalau belum ada wajah */}
+                {!detectionBox && (
+                  <rect
+                    x="1"
+                    y="1"
+                    width="98"
+                    height="98"
+                    rx="1.5"
+                    ry="1.5"
+                    fill="none"
+                    stroke="rgb(250, 204, 21)"
+                    strokeOpacity="0.7"
+                    strokeWidth="4"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                )}
+
+                {/* Face detected: dua ring - background hijau redup + progress ring hijau terang */}
+                {detectionBox && (
+                  <>
+                    {/* Background track: hijau redup, static */}
+                    <rect
+                      x="1"
+                      y="1"
+                      width="98"
+                      height="98"
+                      rx="1.5"
+                      ry="1.5"
+                      fill="none"
+                      stroke="rgb(74, 222, 128)"
+                      strokeOpacity="0.25"
+                      strokeWidth="4"
+                      vectorEffect="non-scaling-stroke"
+                    />
+                    {/* Progress ring: hijau terang, ngisi searah jarum jam */}
+                    <rect
+                      x="1"
+                      y="1"
+                      width="98"
+                      height="98"
+                      rx="1.5"
+                      ry="1.5"
+                      fill="none"
+                      stroke="rgb(74, 222, 128)"
+                      strokeWidth="4"
+                      vectorEffect="non-scaling-stroke"
+                      pathLength="100"
+                      strokeDasharray="100"
+                      strokeDashoffset={100 - stableProgress * 100}
+                      strokeLinecap="round"
+                    />
+                  </>
+                )}
+              </svg>
+            )}
+
+            {phase === "capturing" && (
+              <svg
+                className="absolute inset-0 w-full h-full pointer-events-none animate-pulse"
+                viewBox="0 0 100 100"
+                preserveAspectRatio="none"
+              >
+                <rect
+                  x="1"
+                  y="1"
+                  width="98"
+                  height="98"
+                  rx="1.5"
+                  ry="1.5"
+                  fill="none"
+                  stroke="rgb(74, 222, 128)"
+                  strokeWidth="4"
+                  vectorEffect="non-scaling-stroke"
+                />
+              </svg>
+            )}
 
             {phase === "loading" && (
               <div className="absolute inset-0 flex items-center justify-center bg-black/60 text-white">
@@ -331,10 +531,35 @@ export default function FaceEnrollment({ userId, setVerifyStatus }: Props) {
             {phase === "idle" && "Persiapkan wajah kamu di depan kamera"}
             {phase === "loading" && "Menyiapkan kamera..."}
             {phase === "scanning" && "Arahkan wajah ke kamera..."}
-            {phase === "capturing" && "Menyimpan wajah..."}
+            {phase === "capturing" && "Wajah terdeteksi, sedang memotret..."}
+            {phase === "naming" && "Beri nama untuk wajah kamu"}
+            {phase === "uploading" && "Menyimpan wajah, mohon tunggu..."}
             {phase === "success" && "Wajah berhasil didaftarkan!"}
             {phase === "error" && errorMessage}
           </p>
+
+          {phase === "naming" && (
+            <div className="space-y-3 mb-4">
+              <Input
+                type="text"
+                value={label}
+                onChange={(e) => setLabel(e.target.value)}
+                placeholder="Contoh: Wajah utama, Muka pagi..."
+                className="h-11 rounded-lg"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && label.trim()) submitEnrollment();
+                }}
+              />
+              <Button
+                onClick={submitEnrollment}
+                disabled={!label.trim()}
+                className="w-full h-auto rounded-xl py-3"
+              >
+                Simpan Wajah
+              </Button>
+            </div>
+          )}
 
           <Button
             onClick={closeModal}
@@ -352,8 +577,89 @@ export default function FaceEnrollment({ userId, setVerifyStatus }: Props) {
         className="w-full h-auto rounded-xl py-3"
       >
         <ScanFace size={18} />
-        <span>Enroll Face</span>
+        <span>{enrolledFace ? "Ganti Wajah" : "Enroll Face"}</span>
       </Button>
+
+      {enrolledFace && (
+        <div className="mt-3 p-4 rounded-xl bg-card border border-border/20">
+          {isEditing ? (
+            <div className="space-y-2">
+              <Input
+                type="text"
+                value={editingLabel}
+                onChange={(e) => setEditingLabel(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleRename();
+                  if (e.key === "Escape") setIsEditing(false);
+                }}
+                autoFocus
+                className="h-10"
+              />
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsEditing(false)}
+                >
+                  Batal
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleRename}
+                  disabled={!editingLabel.trim()}
+                >
+                  Simpan
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex justify-between items-center">
+              <span className="text-foreground text-sm">
+                {enrolledFace.label}
+              </span>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="p-1 rounded hover:bg-muted transition-colors cursor-pointer">
+                    <MoreVertical size={16} className="text-muted-foreground" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-36">
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setEditingLabel(enrolledFace.label);
+                      setIsEditing(true);
+                    }}
+                  >
+                    <Pencil />
+                    <span>Rename</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    variant="destructive"
+                    onClick={() => setShowDeleteDialog(true)}
+                  >
+                    <Trash2 />
+                    <span>Delete</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          )}
+        </div>
+      )}
+
+      <ConfirmDialog
+        isOpen={showDeleteDialog}
+        type="delete"
+        title="Hapus Wajah Terdaftar?"
+        message="Kamu akan menghapus wajah"
+        highlightText={enrolledFace?.label || ""}
+        confirmText="Hapus"
+        cancelText="Batal"
+        onConfirm={handleDelete}
+        onCancel={() => setShowDeleteDialog(false)}
+        isLoading={isDeleting}
+      />
     </>
   );
 }

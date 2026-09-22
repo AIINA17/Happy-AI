@@ -15,7 +15,7 @@ def get_user_id_from_request(request: Request) -> str:
     token = auth_header.replace("Bearer ", "")
 
     try:
-        supabase_auth = _get_supabase_auth_client()
+        supabase_auth = get_supabase
         res = supabase_auth.auth.get_user(token)
         user = res.user
 

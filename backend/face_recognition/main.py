@@ -1,4 +1,5 @@
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 import numpy as np
 
 from face_recognition.arcface_model import ArcFaceModel
@@ -10,6 +11,19 @@ app = FastAPI(
     title="Standalone ArcFace Face Recognition",
     description="Modul face recognition terpisah dari sistem utama HAPPY.",
     version="0.1.0"
+)
+
+# Izinkan request dari frontend (Next.js) yang jalan di origin berbeda.
+# Tanpa ini, browser blok response walau backend udah kirim OK.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 arcface_model = ArcFaceModel()

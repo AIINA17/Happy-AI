@@ -25,6 +25,8 @@ type EnrollmentPhase =
   | "success"
   | "error";
 
+const STABILITY_DURATION_MS = 1500;
+
 export default function FaceEnrollment({ userId, setVerifyStatus }: Props) {
   const SERVER_URL = process.env.NEXT_PUBLIC_FACE_SERVER_URL;
 
@@ -43,6 +45,7 @@ export default function FaceEnrollment({ userId, setVerifyStatus }: Props) {
   const streamRef = useRef<MediaStream | null>(null);
   const faceDetectorRef = useRef<FaceDetector | null>(null);
   const animationFrameRef = useRef<number | null>(null);
+  const stableSinceRef = useRef<number | null>(null);
 
   const startCamera = useCallback(async () => {
     try {
@@ -141,18 +144,97 @@ export default function FaceEnrollment({ userId, setVerifyStatus }: Props) {
           height: bbox.height / video.videoHeight,
         });
 
-        console.log("Face detected:", {
-          confidence: detection.categories[0]?.score.toFixed(2),
-          x: bbox.originX,
-          y: bbox.originY,
-        });
+        if (stableSinceRef.current === null) {
+          stableSinceRef.current = performance.now();
+        }
+
+        const stableDuration = performance.now() - stableSinceRef.current;
+        if (stableDuration >= STABILITY_DURATION_MS) {
+          setPhase("capturing");
+          return;
+        }
       }
     } else {
       setDetectionBox(null);
+      stableSinceRef.current = null;
     }
 
     animationFrameRef.current = requestAnimationFrame(detectionLoop);
   }, []);
+
+  const captureFrame = useCallback((): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+
+      if (!video || !canvas) {
+        reject(new Error("Video atau canvas belum siap"));
+        return;
+      }
+
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        reject(new Error("Canvas context tidak tersedia"));
+        return;
+      }
+
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      canvas.toBlob(
+        (blob) => {
+          if (blob) resolve(blob);
+          else reject(new Error("Gagal convert canvas ke image"));
+        },
+        "image/jpeg",
+        0.9,
+      );
+    });
+  }, []);
+
+  const uploadEnrollment = useCallback(async () => {
+    if (!userId) {
+      setErrorMessage("User ID tidak tersedia");
+      setPhase("error");
+      return;
+    }
+
+    try {
+      const blob = await captureFrame();
+      const formData = new FormData();
+      formData.append("user_id", userId);
+      formData.append("image", blob, "enroll.jpg");
+
+      const response = await fetch(`${SERVER_URL}/enroll-face`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "Enrollment gagal");
+      }
+
+      const result = await response.json();
+      console.log("Enrollment success:", result);
+
+      setPhase("success");
+      setVerifyStatus("Face enrollment berhasil!");
+
+      setTimeout(() => {
+        closeModal();
+      }, 2000);
+    } catch (err) {
+      console.error("Upload error:", err);
+      const message =
+        err instanceof Error ? err.message : "Gagal mengirim data ke server";
+      setErrorMessage(message);
+      setPhase("error");
+      setVerifyStatus(`Face enrollment error: ${message}`);
+    }
+  }, [userId, SERVER_URL, captureFrame, setVerifyStatus]);
 
   const openModal = () => {
     setIsOpen(true);
@@ -177,8 +259,22 @@ export default function FaceEnrollment({ userId, setVerifyStatus }: Props) {
   useEffect(() => {
     if (phase === "scanning") {
       detectionLoop();
+
+      return () => {
+        if (animationFrameRef.current !== null) {
+          cancelAnimationFrame(animationFrameRef.current);
+          animationFrameRef.current = null;
+        }
+        stableSinceRef.current = null;
+      };
     }
   }, [phase, detectionLoop]);
+
+  useEffect(() => {
+    if (phase === "capturing") {
+      uploadEnrollment();
+    }
+  }, [phase, uploadEnrollment]);
 
   useEffect(() => {
     return () => {

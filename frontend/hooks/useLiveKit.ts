@@ -339,69 +339,6 @@ export function useLiveKit({
 
             setUiState("CHATTING");
         }
-<<<<<<< HEAD:frontend/web/hooks/useLiveKit.ts
-
-        const form = new FormData();
-        form.append("audio", blob, "voice.webm");
-
-        const url = buildApiUrl(apiBaseUrl, "/verify-voice");
-        if (!url) {
-            onVerifyStatusRef.current(
-                "❌ Server URL belum dikonfigurasi (NEXT_PUBLIC_SERVER_URL)",
-            );
-            setUiState("CHATTING");
-            return;
-        }
-
-        let res: Response;
-        try {
-            res = await fetch(url, {
-                method: "POST",
-                headers: { Authorization: `Bearer ${accessToken}` },
-                body: form,
-            });
-        } catch (err) {
-            logFetchHint({
-                endpoint: "/verify-voice",
-                baseUrl: apiBaseUrl,
-                err,
-            });
-            onVerifyStatusRef.current("❌ Gagal konek server verifikasi");
-            setUiState("CHATTING");
-            return;
-        }
-
-        const result: VerificationResult = await res.json().catch(
-            () =>
-                ({
-                    status: "DENIED",
-                    score: null,
-                    reason: "Invalid response from server",
-                }) as VerificationResult,
-        );
-        onScoreRef.current(result.score ?? null);
-
-        const status = result.status as VerificationStatus;
-        onVerificationResultRef.current?.(
-            status,
-            result.score ?? null,
-            result.reason ?? null,
-        );
-
-        await roomRef.current?.localParticipant.publishData(
-            new TextEncoder().encode(
-                JSON.stringify({
-                    decision: result.status,
-                    score: result.score,
-                    ts: Date.now(),
-                }),
-            ),
-            { reliable: true, topic: "VOICE_RESULT" },
-        );
-
-        setUiState("CHATTING");
-=======
->>>>>>> upstream/main:frontend/hooks/useLiveKit.ts
     });
 
     /* ================= JOIN ROOM ================= */

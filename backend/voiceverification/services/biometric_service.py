@@ -6,11 +6,7 @@ from typing import List, Optional
 
 from voiceverification.core.behavior_profile import BehaviorProfile
 from voiceverification.models.speaker_verifier import SpeakerVerifier
-<<<<<<< HEAD
-from voiceverification.core.asvspoof import compute_score
-=======
 from voiceverification.core.asvspoof import compute_score, warm_up as warm_up_asvspoof
->>>>>>> upstream/main
 from voiceverification.core.decision_engine import decide, Decision
 from voiceverification.core.trusted_update import TrustedUpdatePolicy
 from voiceverification.core.behavior_scoring import compute_behavior_score

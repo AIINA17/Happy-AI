@@ -288,8 +288,6 @@
     "threshold": 0.45,
     "error_message": null,
     "timestamp": "2026-06-06T12:37:51.855872+00:00"
-<<<<<<< HEAD
-=======
   },
   {
     "user_id": "izz",
@@ -310,6 +308,5 @@
     "threshold": 0.45,
     "error_message": null,
     "timestamp": "2026-09-10T06:24:03.298048+00:00"
->>>>>>> upstream/main
   }
 ]

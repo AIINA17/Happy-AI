@@ -1,17 +1,7 @@
-<<<<<<< HEAD
-from __future__ import annotations
-
-from datetime import datetime, timezone
-import re
-
-from voiceverification.core.behavior_profile import BehaviorProfile
-from .connection import get_supabase
-=======
 from datetime import datetime, timezone
 
 from voiceverification.core.behavior_profile import BehaviorProfile
 from voiceverification.db.connection import get_supabase
->>>>>>> upstream/main
 
 
 _TZ_RE = re.compile(r"([+-]\d\d:\d\d)$")

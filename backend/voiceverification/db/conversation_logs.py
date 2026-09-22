@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from db.connection import get_supabase
+from voiceverification.db.connection import get_supabase
 
 def insert_conversation_log(
         session_id: UUID,

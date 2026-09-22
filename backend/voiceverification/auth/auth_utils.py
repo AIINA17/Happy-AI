@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import os
 
 from fastapi import HTTPException, Request
@@ -27,6 +28,10 @@ def _get_supabase_auth_client():
 
     _supabase_auth_client = create_client(supabase_url, supabase_key)
     return _supabase_auth_client
+=======
+from fastapi import Request, HTTPException
+from voiceverification.db.connection import get_supabase
+>>>>>>> upstream/main
 
 
 def get_user_id_from_request(request: Request) -> str:

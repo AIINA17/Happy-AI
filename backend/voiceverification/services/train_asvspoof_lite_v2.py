@@ -72,7 +72,10 @@ def load_dataset(base="dataset"):
             X.append(feat)
             y.append(1)
 
-    # NEGATIVE CLASS: impostor (human lain)
+    # POSITIVE CLASS: impostor (human lain, tapi suara LIVE/asli — bukan
+    # rekaman). Untuk anti-spoofing ini tetap "genuine" (label 1), karena
+    # model ini cuma mendeteksi live vs rekaman/replay, bukan identitas
+    # siapa yang bicara (itu tugas speaker verification, bukan di sini).
     impostor_dir = os.path.join(base, "impostor")
     for f in os.listdir(impostor_dir):
         path = os.path.join(impostor_dir, f)
@@ -81,7 +84,7 @@ def load_dataset(base="dataset"):
             X.append(feat)
             y.append(1)
 
-    # NEGATIVE CLASS: spoof
+    # NEGATIVE CLASS: spoof (rekaman/replay)
     spoof_dir = os.path.join(base, "spoof")
     for f in os.listdir(spoof_dir):
         path = os.path.join(spoof_dir, f)

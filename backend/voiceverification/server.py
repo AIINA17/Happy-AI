@@ -12,6 +12,7 @@ import traceback
 
 import librosa
 import numpy as np
+import requests
 import torch
 from dotenv import load_dotenv
 from fastapi import File, FastAPI, Form, HTTPException, Request, UploadFile
@@ -22,6 +23,7 @@ from livekit.api import (
     LiveKitAPI,
     VideoGrants,
 )
+from livekit.api.twirp_client import TwirpError
 from pydantic import BaseModel
 
 from voiceverification.auth.auth_utils import get_user_id_from_request
@@ -29,10 +31,25 @@ from voiceverification.core.behavior_profile import BehaviorProfile
 from voiceverification.db.behavior_repo import load_behavior_profile, save_behavior_profile
 from voiceverification.db.connection import get_supabase
 from voiceverification.db.conversation_sessions import update_conversation_session_label
+<<<<<<< HEAD
 from voiceverification.db.speaker_repo import count_enrollments, load_all_embeddings, save_embedding
 from voiceverification.models.speaker_verifier import SpeakerVerifier
 from voiceverification.services.biometric_service import BiometricService
 from voiceverification.utils.audio import normalize_audio, save_audio
+=======
+from voiceverification.db.ecommerce_repo import (
+    delete_ecommerce_account,
+    has_ecommerce_account,
+    save_ecommerce_account,
+)
+from voiceverification.db.speaker_repo import count_enrollments, load_all_embeddings, save_embedding
+from voiceverification.services.biometric_service import BiometricService
+from voiceverification.utils.audio import normalize_audio, save_audio
+
+# Same dummy e-commerce backend the shopping agent talks to (agent/tools.py
+# BASE_URL) — kept in sync manually since the two live in separate services.
+ECOMMERCE_BASE_URL = "https://dummy-ecommerce-tau.vercel.app"
+>>>>>>> upstream/main
 
 # Environment setup
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -43,6 +60,11 @@ load_dotenv(ENV_PATH)
 
 LIVEKIT_API_KEY = os.getenv("LIVEKIT_API_KEY")
 LIVEKIT_API_SECRET = os.getenv("LIVEKIT_API_SECRET")
+
+# Must match agent/agent.py's AGENT_NAME — an unnamed dispatch would target
+# LiveKit's automatic-dispatch agent instead of (or in addition to) this
+# named one.
+AGENT_NAME = "happy-shopping-assistant"
 
 if not LIVEKIT_API_KEY or not LIVEKIT_API_SECRET:
     raise RuntimeError("LIVEKIT credentials not set")
@@ -101,16 +123,25 @@ async def join_token(request: Request):
     token.with_identity(user_id)
     token.with_grants(grant)
 
-    # Dispatch agent to room
+    # Dispatch agent to room — guard against a double click / duplicate
+    # request creating two dispatches (and so two agents talking over each
+    # other in the same room).
     async with LiveKitAPI(
         url=os.getenv("LIVEKIT_URL"),
         api_key=LIVEKIT_API_KEY,
         api_secret=LIVEKIT_API_SECRET,
     ) as lk:
 
-        await lk.agent_dispatch.create_dispatch(
-            CreateAgentDispatchRequest(room=room_name)
-        )
+        try:
+            existing = await lk.agent_dispatch.list_dispatch(room_name)
+        except TwirpError as e:
+            if e.code != "not_found":
+                raise
+            existing = []
+        if not any(d.agent_name == AGENT_NAME for d in existing):
+            await lk.agent_dispatch.create_dispatch(
+                CreateAgentDispatchRequest(room=room_name, agent_name=AGENT_NAME)
+            )
 
 
     return {
@@ -223,9 +254,7 @@ async def enroll_voice(
         raise HTTPException(status_code=400, detail=f"Invalid/unsupported audio upload: {e}")
 
     try:
-        verifier = SpeakerVerifier()
-
-        embedding = verifier.extract_embedding(wav_path)
+        embedding = get_biometric().speaker.extract_embedding(wav_path)
 
         existing_label = (
             get_supabase()
@@ -552,3 +581,67 @@ async def rename_speaker_label(
         "old_label": old_label,
         "new_label": new_label
     }
+
+# ECOMMERCE ACCOUNT LINKING
+# Lets each Supabase user attach their own dummy-ecommerce credentials so
+# the shopping agent logs in as them instead of one shared hardcoded
+# account. Deliberately a typed HTTP form, not something spoken to the
+# voice agent — voice input gets transcribed into conversation_logs in
+# plain text, which is not where a password should ever end up.
+class EcommerceAccountPayload(BaseModel):
+    username: str
+    password: str
+
+@app.post("/ecommerce-account")
+async def link_ecommerce_account(payload: EcommerceAccountPayload, request: Request):
+    user_id = get_user_id_from_request(request)
+    username = payload.username.strip()
+    password = payload.password
+
+    if not username or not password:
+        raise HTTPException(status_code=400, detail="Username and password are required")
+
+    try:
+        register_resp = requests.post(
+            f"{ECOMMERCE_BASE_URL}/api/auth/register",
+            json={"username": username, "password": password},
+            timeout=10,
+        )
+
+        if register_resp.status_code not in (200, 201):
+            # Account may already exist — validate these are real, working
+            # credentials for it before we store them.
+            login_resp = requests.post(
+                f"{ECOMMERCE_BASE_URL}/api/auth/token",
+                json={"username": username, "password": password},
+                timeout=10,
+            )
+            if login_resp.status_code != 200 or not login_resp.json().get("success"):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Registrasi gagal dan kredensial ini juga tidak valid untuk login ke akun yang sudah ada.",
+                )
+    except requests.RequestException:
+        raise HTTPException(status_code=502, detail="Gagal menghubungi layanan e-commerce.")
+
+    save_ecommerce_account(user_id, username, password)
+
+    return {"status": "OK", "username": username}
+
+@app.get("/ecommerce-account")
+async def get_ecommerce_account(request: Request):
+    user_id = get_user_id_from_request(request)
+    account = has_ecommerce_account(user_id)
+
+    return {
+        "status": "OK",
+        "linked": account is not None,
+        "username": account["username"] if account else None,
+    }
+
+@app.delete("/ecommerce-account")
+async def unlink_ecommerce_account(request: Request):
+    user_id = get_user_id_from_request(request)
+    delete_ecommerce_account(user_id)
+
+    return {"status": "OK"}

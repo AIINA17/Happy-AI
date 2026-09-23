@@ -308,5 +308,55 @@
     "threshold": 0.45,
     "error_message": null,
     "timestamp": "2026-09-10T06:24:03.298048+00:00"
+  },
+  {
+    "user_id": "2bcb135d-56f7-47b9-8b08-4234f2382aa1",
+    "image_filename": "verify.jpg",
+    "verified": false,
+    "status": "NO_FACE_ENROLLMENT",
+    "similarity": null,
+    "threshold": 0.45,
+    "error_message": "User belum memiliki face embedding.",
+    "timestamp": "2026-09-23T02:27:13.715330+00:00"
+  },
+  {
+    "user_id": "2bcb135d-56f7-47b9-8b08-4234f2382aa1",
+    "image_filename": "verify.jpg",
+    "verified": true,
+    "status": "VERIFIED",
+    "similarity": 0.8353491425514221,
+    "threshold": 0.45,
+    "error_message": null,
+    "timestamp": "2026-09-23T02:28:37.257387+00:00"
+  },
+  {
+    "user_id": "2bcb135d-56f7-47b9-8b08-4234f2382aa1",
+    "image_filename": "verify.jpg",
+    "verified": true,
+    "status": "VERIFIED",
+    "similarity": 0.854350745677948,
+    "threshold": 0.45,
+    "error_message": null,
+    "timestamp": "2026-09-23T02:28:55.011583+00:00"
+  },
+  {
+    "user_id": "2bcb135d-56f7-47b9-8b08-4234f2382aa1",
+    "image_filename": "verify.jpg",
+    "verified": true,
+    "status": "VERIFIED",
+    "similarity": 0.7207088470458984,
+    "threshold": 0.45,
+    "error_message": null,
+    "timestamp": "2026-09-23T02:29:30.618372+00:00"
+  },
+  {
+    "user_id": "2bcb135d-56f7-47b9-8b08-4234f2382aa1",
+    "image_filename": "verify.jpg",
+    "verified": false,
+    "status": "DENIED",
+    "similarity": 0.1121629998087883,
+    "threshold": 0.45,
+    "error_message": null,
+    "timestamp": "2026-09-23T02:29:57.086316+00:00"
   }
 ]

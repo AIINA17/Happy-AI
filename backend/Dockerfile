@@ -19,7 +19,7 @@ COPY . .
 # Bake the pretrained models into the image layer instead of downloading
 # them on every container start — avoids slow cold starts and a hard
 # dependency on Hugging Face being reachable at boot time.
-RUN python -c "from models.speaker_verifier import SpeakerVerifier; SpeakerVerifier(device='cpu')" \
-&& python -c "from core.asvspoof import warm_up; warm_up()"
+RUN python -c "from voiceverification.models.speaker_verifier import SpeakerVerifier; SpeakerVerifier(device='cpu')" \
+&& python -c "from voiceverification.core.asvspoof import warm_up; warm_up()"
 
 CMD ["uvicorn", "voiceverification.server:app", "--host", "0.0.0.0", "--port", "8000"]

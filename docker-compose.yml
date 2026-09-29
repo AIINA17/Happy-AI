@@ -40,7 +40,7 @@ services:
         ports:
             - "3000:3000"
         env_file:
-            - ./frontend/web/.env
+            - ./frontend/.env
         depends_on:
             - backend
         restart: always

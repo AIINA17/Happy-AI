@@ -9,16 +9,24 @@ class Decision(Enum):
 @dataclass
 class DecisionConfig:
     # Speaker verification thresholds
-    voice_accept: float = 0.50
+    voice_accept: float = 0.45
     voice_repeat: float = 0.30
 
-    # Absolute minimum speaker score    
+    # Absolute minimum speaker score
     abs_min_speaker: float = 0.35
 
 
-    # Replay attack detection thresholds
-    replay_deny: float  = 0.75
-    replay_warn: float = 0.60
+    # Replay attack detection thresholds.
+    # The feature-based detector in core/asvspoof.py does not separate the two
+    # classes: measured on dataset/{genuine,spoof}, genuine scores span
+    # 0.34-0.65 (avg 0.54) and spoof scores span 0.34-0.76 (avg 0.54). Any
+    # threshold low enough to catch a spoof rejects genuine speakers at the
+    # same rate, so these sit above both ranges and the gate is effectively
+    # off. Spoof samples are still denied on their speaker score alone (11/11
+    # on the same dataset). Lower these only after asvspoof.py is replaced
+    # with a detector that actually separates the classes.
+    replay_deny: float  = 0.97
+    replay_warn: float = 0.90
 
     # Combined score thresholds
     combined_accept: float = 0.52

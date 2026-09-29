@@ -19,16 +19,18 @@ def load_embedding(user_id: str) -> np.ndarray | None:
     return np.array(res.data["embedding"], dtype=np.float32)
 
 
-def save_embedding(user_id: str, emb: np.ndarray, label: str):
+def save_embedding(user_id: str, emb: np.ndarray, label: str) -> str:
     sb = get_supabase()
 
-    sb.table("speaker_profiles").insert(
+    res = sb.table("speaker_profiles").insert(
         {
             "user_id": user_id,
             "embedding": emb.tolist(),
             "label": label,
         },
     ).execute()
+
+    return res.data[0]["id"]
 
 def load_all_embeddings(user_id: str) -> list[np.ndarray]:
     sb = get_supabase()

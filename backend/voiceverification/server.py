@@ -29,10 +29,16 @@ from voiceverification.core.behavior_profile import BehaviorProfile
 from voiceverification.db.behavior_repo import load_behavior_profile, save_behavior_profile
 from voiceverification.db.connection import get_supabase
 from voiceverification.db.conversation_sessions import update_conversation_session_label
+from voiceverification.db.spectrogram_repo import (
+    delete_spectrogram,
+    get_spectrogram_url,
+    save_spectrogram,
+)
 from voiceverification.db.speaker_repo import count_enrollments, load_all_embeddings, save_embedding
 from voiceverification.models.speaker_verifier import SpeakerVerifier
 from voiceverification.services.biometric_service import BiometricService
 from voiceverification.utils.audio import normalize_audio, save_audio
+from voiceverification.utils.spectrogram import render_spectrogram_png
 
 # Environment setup
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -241,7 +247,19 @@ async def enroll_voice(
                 detail=f"Enrollment with label '{label}' already exists."
             )
         
-        save_embedding(user_id, embedding, label)
+        profile_id = save_embedding(user_id, embedding, label)
+
+        # The WAV is deleted below, so the spectrogram has to be rendered now.
+        # A storage failure must not fail an enrollment that is already saved.
+        try:
+            save_spectrogram(
+                user_id,
+                profile_id,
+                render_spectrogram_png(wav_path, label),
+            )
+        except Exception:
+            print(f"WARNING: spectrogram upload failed for profile {profile_id}")
+            traceback.print_exc()
 
         behavior_profile = load_behavior_profile(user_id, label)
 
@@ -442,6 +460,31 @@ async def get_enrollments(request: Request):
         "enrollments": res.data or []
     }
 
+# SPECTROGRAMS FOR THE ANALYSIS DASHBOARD
+@app.get("/spectrograms")
+async def get_spectrograms(request: Request):
+    user_id = get_user_id_from_request(request)
+    sb = get_supabase()
+
+    res = (
+        sb.table("speaker_profiles")
+        .select("id, label, created_at")
+        .eq("user_id", user_id)
+        .order("created_at", desc=True)
+        .execute()
+    )
+
+    profiles = [
+        {**row, "spectrogram_url": get_spectrogram_url(user_id, row["id"])}
+        for row in (res.data or [])
+    ]
+
+    return {
+        "status": "OK",
+        "total": len(profiles),
+        "profiles": profiles,
+    }
+
 # DELETE ENROLLMENT BY ID
 @app.delete("/enrollments/{enrollment_id}")
 async def delete_enrollment(
@@ -477,7 +520,9 @@ async def delete_enrollment(
         .eq("user_id", user_id)\
         .eq("label", label)\
         .execute()
-    
+
+    delete_spectrogram(user_id, enrollment_id)
+
     return {
         "status": "OK",
         "message": "Enrollment deleted",

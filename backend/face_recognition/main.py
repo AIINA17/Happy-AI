@@ -135,6 +135,16 @@ async def verify_face(
         raise HTTPException(status_code=500, detail=f"Terjadi kesalahan server: {str(error)}")
 
 
+@router.get("/enroll-face/{user_id}")
+def get_enrollment_status(user_id: str):
+    embedding = face_repo.get_embedding(user_id)
+
+    return {
+        "user_id": user_id,
+        "enrolled": embedding is not None
+    }
+
+
 @router.get("/enrolled-users")
 def get_enrolled_users():
     users = face_repo.list_enrolled_users()

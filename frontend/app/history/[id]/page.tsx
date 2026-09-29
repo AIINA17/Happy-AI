@@ -175,6 +175,7 @@ export default function HistoryDetailPage() {
         <main className="h-screen bg-background flex overflow-hidden">
             <Sidebar
                 isLoggedIn={isLoggedIn}
+                userId={session?.user?.id || ""}
                 userEmail={session?.user?.email || ""}
                 onLogout={handleLogout}
                 token={session?.access_token || null}

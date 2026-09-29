@@ -14,6 +14,7 @@ type UiState =
     | "LISTENING"
     | "RECORDING"
     | "VERIFYING"
+    | "FACE_VERIFYING"
     | "CHATTING";
 
 type VerificationStatus = "VERIFIED" | "REPEAT" | "DENIED" | null;
@@ -106,6 +107,11 @@ export function useLiveKit({
 
         if (msg.type === "VOICE_CMD" && msg.action === "START_RECORD") {
             startVADRecordingRef.current();
+            return;
+        }
+
+        if (msg.type === "FACE_CMD" && msg.action === "START_FACE_CAPTURE") {
+            startFaceVerificationRef.current();
             return;
         }
 
@@ -274,6 +280,59 @@ export function useLiveKit({
         }
     });
 
+    /* ================= FACE VERIFICATION (fallback after 3x voice fail) ==== */
+
+    // The actual camera + liveness-check + capture UI lives in
+    // FaceLivenessCapture.tsx, rendered by whoever consumes this hook
+    // (LiveKitControls.tsx) so it can show a real preview — this hook only
+    // tracks *when* that modal should be open and reports its outcome back
+    // to the agent over the room's data channel.
+    const [faceVerifyOpen, setFaceVerifyOpen] = useState(false);
+
+    const startFaceVerificationRef = useRef(() => {
+        setUiState("FACE_VERIFYING");
+        onVerifyStatusRef.current("📷 Verifikasi wajah, arahkan wajah ke kamera...");
+        setFaceVerifyOpen(true);
+    });
+
+    const handleFaceVerifyResult = useCallback(
+        async (outcome: { decision: "VERIFIED" | "DENIED" | "ERROR"; similarity: number | null }) => {
+            // Same reasoning as sendForVerificationRef: the agent is blocked
+            // waiting for a FACE_RESULT packet (see agent.py
+            // room_state["is_face_verifying"]) before it retries anything, so
+            // this must always run, even if FaceLivenessCapture closed early
+            // (e.g. the user hit "Tutup" mid-flow).
+            setFaceVerifyOpen(false);
+
+            if (outcome.decision === "VERIFIED") {
+                onVerifyStatusRef.current("✅ Verifikasi wajah berhasil");
+            } else if (outcome.decision === "DENIED") {
+                onVerifyStatusRef.current("❌ Wajah tidak cocok");
+            } else {
+                onVerifyStatusRef.current("❌ Verifikasi wajah gagal");
+            }
+
+            await roomRef.current?.localParticipant.publishData(
+                new TextEncoder().encode(
+                    JSON.stringify({
+                        decision: outcome.decision,
+                        similarity: outcome.similarity,
+                        ts: Date.now(),
+                    }),
+                ),
+                { reliable: true, topic: "FACE_RESULT" },
+            );
+
+            setUiState("CHATTING");
+        },
+        [],
+    );
+
+    // The room's own participant identity is the Supabase user id (see
+    // server.py's /join-token: token.with_identity(user_id)) — no separate
+    // auth lookup needed for FaceLivenessCapture's `userId` prop.
+    const faceVerifyUserId = roomRef.current?.localParticipant.identity ?? null;
+
     /* ================= JOIN ROOM ================= */
 
     const joinRoom = useCallback(async () => {
@@ -416,5 +475,8 @@ export function useLiveKit({
         uiState,
         isConnected,
         isAgentSpeaking,
+        faceVerifyOpen,
+        faceVerifyUserId,
+        onFaceVerifyResult: handleFaceVerifyResult,
     };
 }

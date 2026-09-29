@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { ScanFace } from "lucide-react";
+import { ScanFace, Trash2 } from "lucide-react";
 import { FaceDetector, FilesetResolver } from "@mediapipe/tasks-vision";
 import { toast } from "sonner";
 
@@ -34,6 +34,9 @@ export default function FaceEnrollment({ userId, setVerifyStatus }: Props) {
   const [isOpen, setIsOpen] = useState(false);
   const [phase, setPhase] = useState<EnrollmentPhase>("idle");
   const [errorMessage, setErrorMessage] = useState<string>("");
+  // null = belum diketahui/masih dicek ke server.
+  const [isEnrolled, setIsEnrolled] = useState<boolean | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [detectionBox, setDetectionBox] = useState<{
     x: number;
     y: number;
@@ -115,6 +118,55 @@ export default function FaceEnrollment({ userId, setVerifyStatus }: Props) {
     }
   }, []);
 
+  const checkEnrollmentStatus = useCallback(async () => {
+    if (!userId) {
+      setIsEnrolled(null);
+      return;
+    }
+
+    try {
+      const res = await fetch(`${SERVER_URL}/enroll-face/${userId}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setIsEnrolled(!!data.enrolled);
+    } catch (err) {
+      console.error("Gagal cek status face enrollment:", err);
+    }
+  }, [userId, SERVER_URL]);
+
+  useEffect(() => {
+    checkEnrollmentStatus();
+  }, [checkEnrollmentStatus]);
+
+  const handleDelete = useCallback(async () => {
+    if (!userId) return;
+    if (!confirm("Hapus pendaftaran wajah? Kamu perlu mendaftar ulang untuk verifikasi wajah berikutnya.")) {
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`${SERVER_URL}/enroll-face/${userId}`, {
+        method: "DELETE",
+      });
+      const result = await res.json();
+
+      if (res.ok && result.status === "DELETED") {
+        toast.success("Pendaftaran wajah berhasil dihapus.");
+        setVerifyStatus("Face enrollment dihapus.");
+        setIsEnrolled(false);
+      } else {
+        const message = result.message || "Gagal menghapus pendaftaran wajah.";
+        toast.error(message);
+      }
+    } catch (err) {
+      console.error("Face enrollment delete error:", err);
+      toast.error("Gagal menghubungi server.");
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [userId, SERVER_URL, setVerifyStatus]);
+
   const openModal = useCallback(() => {
     setIsOpen(true);
     setPhase("loading");
@@ -169,6 +221,7 @@ export default function FaceEnrollment({ userId, setVerifyStatus }: Props) {
           if (res.ok && result.status === "ENROLLMENT_SUCCESS") {
             stopCamera();
             setPhase("success");
+            setIsEnrolled(true);
             toast.success("Wajah berhasil didaftarkan!");
             setVerifyStatus("Face enrollment berhasil!");
             // Beri jeda sebentar biar notifikasinya kelihatan dulu sebelum
@@ -349,14 +402,33 @@ export default function FaceEnrollment({ userId, setVerifyStatus }: Props) {
         </DialogContent>
       </Dialog>
 
-      <Button
-        onClick={openModal}
-        disabled={!userId}
-        className="w-full h-auto rounded-xl py-3"
-      >
-        <ScanFace size={18} />
-        <span>Enroll Face</span>
-      </Button>
+      {isEnrolled ? (
+        <div className="space-y-1">
+          <p className="text-xs text-muted-foreground px-1">
+            Wajah sudah terdaftar. Hapus dulu untuk mendaftar ulang.
+          </p>
+          <Button
+            onClick={handleDelete}
+            disabled={isDeleting}
+            variant="destructive"
+            className="w-full h-auto rounded-xl py-3"
+          >
+            <Trash2 size={18} />
+            <span>
+              {isDeleting ? "Menghapus..." : "Hapus Pendaftaran Wajah"}
+            </span>
+          </Button>
+        </div>
+      ) : (
+        <Button
+          onClick={openModal}
+          disabled={!userId || isEnrolled === null}
+          className="w-full h-auto rounded-xl py-3"
+        >
+          <ScanFace size={18} />
+          <span>Enroll Face</span>
+        </Button>
+      )}
     </>
   );
 }

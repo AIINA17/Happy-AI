@@ -55,6 +55,11 @@ from db.conversation_sessions import create_conversation_session
 SAMPLE_RATE = 16000
 MAX_VERIFY_ATTEMPTS = 3
 VERIFY_TIMEOUT_SEC = 20
+# Longer than VERIFY_TIMEOUT_SEC: the client now runs a liveness challenge
+# (blink/mouth/turn, up to 15s — see FaceLivenessCapture.tsx's
+# LIVENESS_TIMEOUT_MS) before it even captures a photo, on top of camera +
+# ML model load time.
+FACE_VERIFY_TIMEOUT_SEC = 35
 LOCKOUT_COOLDOWN_SEC = 60
 
 # An unnamed/default agent gets LiveKit's automatic dispatch to every new
@@ -122,6 +127,7 @@ async def connect(ctx: agents.JobContext):
         "user_id": None,
         "is_voice_verified": False,
         "is_verifying": False,
+        "is_face_verifying": False,
         "verify_attempts": 0,
         "session_lock": asyncio.Lock(),
         "voice_status": "UNVERIFIED",
@@ -149,12 +155,15 @@ async def connect(ctx: agents.JobContext):
         print(f"🧹 Room released: {room_name}")
         disconnected_event.set()
 
-    # ================= VOICE RESULT =================
+    # ================= VOICE / FACE RESULT =================
     @room.on("data_received")
     def on_data(packet):
-        if packet.topic != "VOICE_RESULT":
-            return
+        if packet.topic == "VOICE_RESULT":
+            _handle_voice_result(packet)
+        elif packet.topic == "FACE_RESULT":
+            _handle_face_result(packet)
 
+    def _handle_voice_result(packet):
         try:
             decoded = json.loads(packet.data.decode())
             decision = decoded.get("decision") or decoded.get("status")
@@ -178,11 +187,49 @@ async def connect(ctx: agents.JobContext):
                 room_state["voice_status"] = "REPEAT"
                 room_state["verify_attempts"] += 1
 
+            # 3 gagal berturut-turut → coba jalur wajah sebagai fallback,
+            # bukan langsung lockout. Lockout baru dipasang kalau verifikasi
+            # wajah ini juga gagal (lihat _handle_face_result).
             if room_state["verify_attempts"] >= MAX_VERIFY_ATTEMPTS:
-                room_state["lockout_until"] = time.time() + LOCKOUT_COOLDOWN_SEC
+                asyncio.create_task(start_face_verification())
 
         except Exception as e:
             print("❌ Voice result error:", e)
+
+    def _handle_face_result(packet):
+        try:
+            decoded = json.loads(packet.data.decode())
+            decision = decoded.get("decision")
+
+            print("📦 Face result:", decision)
+
+            room_state["is_face_verifying"] = False
+
+            if decision == "VERIFIED":
+                # Fallback yang berhasil membuka gate yang sama dengan voice
+                # verification — require_voice_verification() (agent/tools.py)
+                # hanya mengecek is_voice_verified/voice_status/last_verified_at,
+                # tidak peduli metode mana yang memverifikasinya.
+                room_state["is_voice_verified"] = True
+                room_state["voice_status"] = "VERIFIED"
+                room_state["verify_attempts"] = 0
+                room_state["lockout_until"] = None
+                room_state["last_verified_at"] = time.time()
+                asyncio.create_task(auto_login_after_verification())
+            else:
+                # Wajah juga gagal (termasuk belum enroll wajah / error kamera)
+                # — jatuh ke cooldown yang sama seperti voice lockout biasa.
+                room_state["lockout_until"] = time.time() + LOCKOUT_COOLDOWN_SEC
+                asyncio.create_task(session.generate_reply(
+                    instructions=(
+                        "Verifikasi wajah kamu juga belum berhasil. Beri tahu "
+                        "user dengan sopan kalau mereka bisa coba lagi sebentar "
+                        "lagi."
+                    )
+                ))
+
+        except Exception as e:
+            print("❌ Face result error:", e)
 
     # ================= CONVERSATION =================
     @session.on("conversation_item_added")
@@ -218,6 +265,12 @@ async def connect(ctx: agents.JobContext):
 
             # ================= VOICE CHECK =================
             if not room_state["is_voice_verified"]:
+                if room_state["is_face_verifying"]:
+                    # A face verification attempt (triggered after 3 failed
+                    # voice attempts) is already in flight for this user —
+                    # don't also kick off a competing voice recording prompt.
+                    return
+
                 lockout_until = room_state["lockout_until"]
                 if lockout_until and time.time() >= lockout_until:
                     # Cooldown elapsed — give the user a fresh set of attempts
@@ -286,6 +339,44 @@ async def connect(ctx: agents.JobContext):
         if room_state["is_verifying"]:
             print(f"⏱️ Verification timed out in room: {room_name}, resetting")
             room_state["is_verifying"] = False
+
+    # ================= FACE VERIFICATION (fallback after 3x voice fail) ====
+    async def start_face_verification():
+        if room_state["is_voice_verified"]:
+            return
+        if room_state["is_face_verifying"]:
+            return
+
+        room_state["is_face_verifying"] = True
+
+        await session.generate_reply(
+            instructions=(
+                "Verifikasi suara gagal beberapa kali. Beri tahu user dengan "
+                "sopan bahwa kamu akan coba verifikasi lewat wajah sebagai "
+                "gantinya, minta mereka arahkan wajah ke kamera."
+            )
+        )
+
+        await room.local_participant.publish_data(
+            json.dumps({"type": "FACE_CMD", "action": "START_FACE_CAPTURE"}).encode(),
+            reliable=True,
+            topic="FACE_CMD"
+        )
+
+        asyncio.create_task(_face_verification_watchdog())
+
+    # ================= FACE VERIFICATION WATCHDOG =================
+    async def _face_verification_watchdog():
+        # Same reasoning as _verification_watchdog() — if the client never
+        # reports back a FACE_RESULT (camera permission denied, tab
+        # backgrounded, client crash mid-capture), is_face_verifying would
+        # otherwise stay stuck True forever and lock the user out of ever
+        # retrying (voice re-prompt is suppressed while this flag is set).
+        await asyncio.sleep(FACE_VERIFY_TIMEOUT_SEC)
+        if room_state["is_face_verifying"]:
+            print(f"⏱️ Face verification timed out in room: {room_name}, resetting")
+            room_state["is_face_verifying"] = False
+            room_state["lockout_until"] = time.time() + LOCKOUT_COOLDOWN_SEC
 
     # ================= AUTO-LOGIN =================
     async def auto_login_after_verification():

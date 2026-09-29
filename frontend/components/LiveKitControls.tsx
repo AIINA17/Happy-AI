@@ -5,6 +5,7 @@
 import React, { useEffect } from "react";
 
 import VoiceButton from "./VoiceButton";
+import FaceLivenessCapture from "./FaceLivenessCapture";
 import { useLiveKit } from "@/hooks/useLiveKit";
 import { Product } from "@/types";
 
@@ -44,6 +45,9 @@ export default function LiveKitControls({
         uiState,
         isConnected: hookIsConnected,
         isAgentSpeaking,
+        faceVerifyOpen,
+        faceVerifyUserId,
+        onFaceVerifyResult,
     } = useLiveKit({
         token,
         onMessage: addMessage,
@@ -60,7 +64,11 @@ export default function LiveKitControls({
     }, [hookIsConnected, setIsConnected]);
 
     useEffect(() => {
-        setIsTyping(uiState === "RECORDING" || uiState === "VERIFYING");
+        setIsTyping(
+            uiState === "RECORDING" ||
+                uiState === "VERIFYING" ||
+                uiState === "FACE_VERIFYING",
+        );
     }, [uiState, setIsTyping]);
 
     useEffect(() => {
@@ -82,6 +90,7 @@ export default function LiveKitControls({
                 return "speaking";
             case "CHATTING":
             case "VERIFYING":
+            case "FACE_VERIFYING":
                 return "connected";
             default:
                 return "idle";
@@ -98,6 +107,8 @@ export default function LiveKitControls({
                 return "Merekam suara...";
             case "VERIFYING":
                 return "Memverifikasi...";
+            case "FACE_VERIFYING":
+                return "Verifikasi wajah...";
             case "CHATTING":
                 return "Terhubung dengan Happy";
             default:
@@ -111,6 +122,7 @@ export default function LiveKitControls({
                 return "text-green-500";
             case "RECORDING":
             case "VERIFYING":
+            case "FACE_VERIFYING":
             case "LISTENING":
                 return "text-primary";
             case "CONNECTING":
@@ -131,6 +143,18 @@ export default function LiveKitControls({
 
     return (
         <div className="space-y-4 justify-center items-center flex flex-col">
+            {/* Agent-triggered face verification (fallback after 3x failed
+                voice verification) — open/close is fully driven by
+                faceVerifyOpen from the hook; onOpenChange here is a no-op
+                because FaceLivenessCapture already reports its outcome via
+                onFaceVerifyResult before it ever calls onOpenChange. */}
+            <FaceLivenessCapture
+                userId={faceVerifyUserId}
+                open={faceVerifyOpen}
+                onOpenChange={() => {}}
+                onResult={onFaceVerifyResult}
+            />
+
             {/* Voice Button - Always visible, changes based on state */}
             <VoiceButton state={getButtonState()} onClick={handleClick} />
 
@@ -142,6 +166,7 @@ export default function LiveKitControls({
                             ? "bg-green-500"
                             : uiState === "RECORDING" ||
                                 uiState === "VERIFYING" ||
+                                uiState === "FACE_VERIFYING" ||
                                 uiState === "LISTENING"
                               ? "bg-primary animate-pulse"
                               : uiState === "CONNECTING"

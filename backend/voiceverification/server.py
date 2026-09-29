@@ -25,6 +25,7 @@ from livekit.api import (
 from livekit.api.twirp_client import TwirpError
 from pydantic import BaseModel
 
+from face_recognition.main import router as face_router
 from voiceverification.auth.auth_utils import get_user_id_from_request
 from voiceverification.core.behavior_profile import BehaviorProfile
 from voiceverification.db.behavior_repo import load_behavior_profile, save_behavior_profile
@@ -72,6 +73,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"]
 )
+
+# Face recognition (enroll-face, verify-face, ...) lives under /face — see
+# face_recognition/main.py. Merged in here so voice + face verification run
+# as one FastAPI process/container instead of two separately launched apps.
+app.include_router(face_router)
 
 
 biometric: BiometricService | None = None

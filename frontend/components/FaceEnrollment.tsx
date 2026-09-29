@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { ScanFace } from "lucide-react";
 import { FaceDetector, FilesetResolver } from "@mediapipe/tasks-vision";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -26,7 +27,9 @@ type EnrollmentPhase =
   | "error";
 
 export default function FaceEnrollment({ userId, setVerifyStatus }: Props) {
-  const SERVER_URL = process.env.NEXT_PUBLIC_FACE_SERVER_URL;
+    // face_recognition is now mounted under /face on the same backend as
+  // voice verification (see backend/README.md), not a separate service.
+  const SERVER_URL = `${process.env.NEXT_PUBLIC_SERVER_URL}/face`;
 
   const [isOpen, setIsOpen] = useState(false);
   const [phase, setPhase] = useState<EnrollmentPhase>("idle");
@@ -112,17 +115,107 @@ export default function FaceEnrollment({ userId, setVerifyStatus }: Props) {
     }
   }, []);
 
+  const openModal = useCallback(() => {
+    setIsOpen(true);
+    setPhase("loading");
+    setErrorMessage("");
+  }, []);
+
+  const closeModal = useCallback(() => {
+    stopCamera();
+    setIsOpen(false);
+    setPhase("idle");
+    setErrorMessage("");
+  }, [stopCamera]);
+
+  const captureAndEnroll = useCallback(async () => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !canvas || !userId) return;
+
+    setPhase("capturing");
+    setErrorMessage("");
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      setErrorMessage("Gagal mengambil gambar dari kamera.");
+      setPhase("error");
+      return;
+    }
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    canvas.toBlob(
+      async (blob) => {
+        if (!blob) {
+          setErrorMessage("Gagal memproses gambar.");
+          setPhase("error");
+          return;
+        }
+
+        try {
+          const form = new FormData();
+          form.append("user_id", userId);
+          form.append("image", blob, "face.jpg");
+
+          const res = await fetch(`${SERVER_URL}/enroll-face`, {
+            method: "POST",
+            body: form,
+          });
+
+          const result = await res.json();
+
+          if (res.ok && result.status === "ENROLLMENT_SUCCESS") {
+            stopCamera();
+            setPhase("success");
+            toast.success("Wajah berhasil didaftarkan!");
+            setVerifyStatus("Face enrollment berhasil!");
+            // Beri jeda sebentar biar notifikasinya kelihatan dulu sebelum
+            // modal-nya ketutup, bukan langsung hilang.
+            setTimeout(closeModal, 1200);
+          } else {
+            const message =
+              result.detail || result.message || "Enrollment gagal.";
+            setErrorMessage(message);
+            setPhase("error");
+            toast.error(message);
+            setVerifyStatus(`Face enrollment error: ${message}`);
+          }
+        } catch (err) {
+          console.error("Face enroll upload error:", err);
+          setErrorMessage("Gagal menghubungi server.");
+          setPhase("error");
+          toast.error("Gagal menghubungi server.");
+          setVerifyStatus("Face enrollment error: gagal menghubungi server.");
+        }
+      },
+      "image/jpeg",
+      0.92,
+    );
+  }, [userId, SERVER_URL, setVerifyStatus, closeModal, stopCamera]);
+
+  // Held in a ref (rather than referencing the useCallback binding by name
+  // from inside itself) so the recursive requestAnimationFrame call doesn't
+  // trip the "accessed before declared" lint rule on this self-referencing
+  // rAF loop.
+  const detectionLoopRef = useRef<() => void>(() => {});
+
   const detectionLoop = useCallback(() => {
     const video = videoRef.current;
     const detector = faceDetectorRef.current;
 
     if (!video || !detector) {
-      animationFrameRef.current = requestAnimationFrame(detectionLoop);
+      animationFrameRef.current = requestAnimationFrame(() =>
+        detectionLoopRef.current(),
+      );
       return;
     }
 
     if (video.readyState < 2) {
-      animationFrameRef.current = requestAnimationFrame(detectionLoop);
+      animationFrameRef.current = requestAnimationFrame(() =>
+        detectionLoopRef.current(),
+      );
       return;
     }
 
@@ -151,27 +244,21 @@ export default function FaceEnrollment({ userId, setVerifyStatus }: Props) {
       setDetectionBox(null);
     }
 
-    animationFrameRef.current = requestAnimationFrame(detectionLoop);
+    animationFrameRef.current = requestAnimationFrame(() =>
+      detectionLoopRef.current(),
+    );
   }, []);
 
-  const openModal = () => {
-    setIsOpen(true);
-    setPhase("loading");
-    setErrorMessage("");
-  };
-
-  const closeModal = () => {
-    stopCamera();
-    setIsOpen(false);
-    setPhase("idle");
-    setErrorMessage("");
-  };
+  useEffect(() => {
+    detectionLoopRef.current = detectionLoop;
+  }, [detectionLoop]);
 
   useEffect(() => {
-    if (phase === "loading") {
-      startCamera();
-      loadFaceDetector();
-    }
+    if (phase !== "loading") return;
+
+    void (async () => {
+      await Promise.all([startCamera(), loadFaceDetector()]);
+    })();
   }, [phase, startCamera, loadFaceDetector]);
 
   useEffect(() => {
@@ -240,9 +327,21 @@ export default function FaceEnrollment({ userId, setVerifyStatus }: Props) {
             {phase === "error" && errorMessage}
           </p>
 
+          {phase === "scanning" && (
+            <Button
+              onClick={captureAndEnroll}
+              disabled={!detectionBox}
+              className="w-full max-w-xs mx-auto mb-2"
+            >
+              <ScanFace size={18} />
+              <span>Ambil & Daftarkan Wajah</span>
+            </Button>
+          )}
+
           <Button
             onClick={closeModal}
             variant="outline"
+            disabled={phase === "capturing"}
             className="w-full max-w-xs mx-auto"
           >
             Tutup

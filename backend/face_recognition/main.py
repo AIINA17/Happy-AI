@@ -1,42 +1,32 @@
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 import numpy as np
 
 from face_recognition.arcface_model import ArcFaceModel
 from face_recognition.face_service import FaceRecognitionService
-from face_recognition.face_storage import LocalFaceStorage
+from voiceverification.db import face_repo, face_verification_logs
 
-
-app = FastAPI(
-    title="Standalone ArcFace Face Recognition",
-    description="Modul face recognition terpisah dari sistem utama HAPPY.",
-    version="0.1.0"
-)
+# Mounted into voiceverification/server.py under this prefix (see
+# app.include_router there) so face recognition shares the same FastAPI
+# process/container as voice verification instead of running as its own
+# standalone app.
+router = APIRouter(prefix="/face", tags=["face-recognition"])
 
 arcface_model = ArcFaceModel()
 face_service = FaceRecognitionService(threshold=0.45)
-face_storage = LocalFaceStorage()
 
 
-@app.get("/")
-def root():
-    return {
-        "message": "Standalone ArcFace Face Recognition API",
-        "status": "running"
-    }
-
-
-@app.get("/health")
+@router.get("/health")
 def health_check():
     return {
         "status": "ok",
         "module": "face_recognition",
         "model": "insightface-buffalo_l",
-        "embedding_storage": "face_recognition/data/face_embeddings.json",
-        "log_storage": "face_recognition/data/face_verification_logs.json"
+        "embedding_storage": "supabase.face_profiles",
+        "log_storage": "supabase.face_verification_logs"
     }
 
 
-@app.post("/enroll-face")
+@router.post("/enroll-face")
 async def enroll_face(
     user_id: str = Form(...),
     image: UploadFile = File(...)
@@ -45,17 +35,17 @@ async def enroll_face(
         image_bytes = await image.read()
         embedding = arcface_model.extract_embedding(image_bytes)
 
-        face_storage.save_embedding(
+        face_repo.save_embedding(
             user_id=user_id,
-            embedding=embedding.tolist()
+            embedding=embedding
         )
 
         return {
             "status": "ENROLLMENT_SUCCESS",
             "user_id": user_id,
             "embedding_dim": len(embedding),
-            "storage": "face_recognition/data/face_embeddings.json",
-            "message": "Face embedding berhasil dibuat dan disimpan ke file lokal."
+            "storage": "supabase.face_profiles",
+            "message": "Face embedding berhasil dibuat dan disimpan."
         }
 
     except ValueError as error:
@@ -65,7 +55,7 @@ async def enroll_face(
         raise HTTPException(status_code=500, detail=f"Terjadi kesalahan server: {str(error)}")
 
 
-@app.post("/verify-face")
+@router.post("/verify-face")
 async def verify_face(
     user_id: str = Form(...),
     image: UploadFile = File(...)
@@ -73,9 +63,9 @@ async def verify_face(
     image_filename = image.filename
 
     try:
-        reference_embedding_list = face_storage.get_embedding(user_id)
+        reference_embedding = face_repo.get_embedding(user_id)
 
-        if reference_embedding_list is None:
+        if reference_embedding is None:
             result = {
                 "verified": False,
                 "status": "NO_FACE_ENROLLMENT",
@@ -83,7 +73,7 @@ async def verify_face(
                 "message": "User belum memiliki face embedding."
             }
 
-            face_storage.append_verification_log({
+            face_verification_logs.append_verification_log({
                 "user_id": user_id,
                 "image_filename": image_filename,
                 "verified": False,
@@ -98,17 +88,15 @@ async def verify_face(
         image_bytes = await image.read()
         test_embedding = arcface_model.extract_embedding(image_bytes)
 
-        reference_embedding = np.array(reference_embedding_list, dtype=np.float32)
-
         result = face_service.verify(
             test_embedding=test_embedding,
             reference_embedding=reference_embedding
         )
 
         result["user_id"] = user_id
-        result["storage"] = "local_json_file"
+        result["storage"] = "supabase.face_profiles"
 
-        face_storage.append_verification_log({
+        face_verification_logs.append_verification_log({
             "user_id": user_id,
             "image_filename": image_filename,
             "verified": result["verified"],
@@ -121,7 +109,7 @@ async def verify_face(
         return result
 
     except ValueError as error:
-        face_storage.append_verification_log({
+        face_verification_logs.append_verification_log({
             "user_id": user_id,
             "image_filename": image_filename,
             "verified": False,
@@ -134,7 +122,7 @@ async def verify_face(
         raise HTTPException(status_code=400, detail=str(error))
 
     except Exception as error:
-        face_storage.append_verification_log({
+        face_verification_logs.append_verification_log({
             "user_id": user_id,
             "image_filename": image_filename,
             "verified": False,
@@ -147,9 +135,9 @@ async def verify_face(
         raise HTTPException(status_code=500, detail=f"Terjadi kesalahan server: {str(error)}")
 
 
-@app.get("/enrolled-users")
+@router.get("/enrolled-users")
 def get_enrolled_users():
-    users = face_storage.list_users()
+    users = face_repo.list_enrolled_users()
 
     return {
         "total": len(users),
@@ -157,9 +145,9 @@ def get_enrolled_users():
     }
 
 
-@app.delete("/enroll-face/{user_id}")
+@router.delete("/enroll-face/{user_id}")
 def delete_face_enrollment(user_id: str):
-    deleted = face_storage.delete_embedding(user_id)
+    deleted = face_repo.delete_embedding(user_id)
 
     if not deleted:
         return {
@@ -170,13 +158,13 @@ def delete_face_enrollment(user_id: str):
     return {
         "status": "DELETED",
         "user_id": user_id,
-        "message": "Face enrollment berhasil dihapus dari file lokal."
+        "message": "Face enrollment berhasil dihapus."
     }
 
 
-@app.get("/verification-logs")
+@router.get("/verification-logs")
 def get_verification_logs():
-    logs = face_storage.get_verification_logs()
+    logs = face_verification_logs.get_verification_logs()
 
     return {
         "total": len(logs),
@@ -184,9 +172,9 @@ def get_verification_logs():
     }
 
 
-@app.delete("/verification-logs")
+@router.delete("/verification-logs")
 def clear_verification_logs():
-    face_storage.clear_verification_logs()
+    face_verification_logs.clear_verification_logs()
 
     return {
         "status": "CLEARED",

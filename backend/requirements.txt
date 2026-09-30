@@ -33,6 +33,7 @@ sounddevice==0.5.3
 scikit-learn==1.3.2
 matplotlib
 insightface==1.0.1
+onnxruntime-gpu==1.23.2
 opencv_python==4.11.0.86
 
 # Testing (voiceverification/tests/) — run with: pytest

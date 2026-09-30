@@ -101,7 +101,9 @@ networkx==3.4.2
 numba==0.67.0
 numpy==1.26.4
 onnx==1.22.0
-onnxruntime==1.23.2
+    # via insightface
+onnxruntime-gpu==1.23.2
+    # via insightface
 openai==3.5.0
 opencv-python==4.11.0.86
 opentelemetry-api==1.39.1

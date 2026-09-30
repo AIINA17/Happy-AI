@@ -14,6 +14,19 @@ BASE_URL = "https://dummy-ecommerce-tau.vercel.app"
 # Interval untuk re-verifikasi (10 menit)
 REVERIFY_INTERVAL = 600
 
+
+def _num(value, default=0):
+    """Safely coerce API values (price, rating, balance, total, ...) to a number.
+
+    Supabase/Postgres numeric columns often come back as strings over the
+    REST API (e.g. "price": "13999000"), which breaks both arithmetic and
+    the ',' thousands-separator format spec if used directly.
+    """
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
 # ==================== GLOBAL AUTH STATE ====================
 auth_state = {
     # Login state
@@ -151,7 +164,7 @@ async def send_product_cards(products: list) -> str:
         summary += (
             f"{i}. {p.get('name', 'Unknown')}\n"
             f"   ID: {p.get('id', '-')} | "
-            f"Harga: Rp {p.get('price', 0):,} | "
+            f"Harga: Rp {_num(p.get('price')):,.0f} | "
             f"Stok: {p.get('stock', '-')} | "
             f"Kategori: {p.get('category', '-')}\n"
         )
@@ -194,6 +207,11 @@ async def search_product(
 
         if not products:
             return "Tidak ada produk di toko saat ini."
+
+        # Normalize price/rating (API sometimes returns them as strings)
+        for p in products:
+            p["price"] = _num(p.get("price"))
+            p["rating"] = _num(p.get("rating"))
 
         # ── Client-side filtering ──
         if query:
@@ -248,7 +266,7 @@ async def search_product(
             result += (
                 f"{i}. {p.get('name', 'Unknown')}\n"
                 f"   ID: {p.get('id', '-')} | "
-                f"Harga: Rp {p.get('price', 0):,} | "
+                f"Harga: Rp {p.get('price', 0):,.0f} | "
                 f"Stok: {p.get('stock', 0)} | "
                 f"Kategori: {p.get('category', '-')}\n"
             )
@@ -281,9 +299,9 @@ async def get_product_detail(product_id: int) -> str:
                 return f"Produk ID {product_id} gak ditemukan."
 
             name = p.get('name', 'Unknown')
-            price = p.get('price', 0)
+            price = _num(p.get('price'))
             category = p.get('category', '-')
-            rating = p.get('rating', 0)
+            rating = _num(p.get('rating'))
             stock = p.get('stock', 0)
             description = p.get('description', 'Tidak ada deskripsi')
             image_url = p.get('image_url', f"https://picsum.photos/seed/{product_id}/300/300")
@@ -299,7 +317,7 @@ async def get_product_detail(product_id: int) -> str:
             return (
                 f"📦 Detail Produk:\n"
                 f"• Nama: {name}\n"
-                f"• Harga: Rp {price:,}\n"
+                f"• Harga: Rp {price:,.0f}\n"
                 f"• Kategori: {category}\n"
                 f"• Rating: {rating}⭐\n"
                 f"• Stok: {stock_status}\n\n"
@@ -330,9 +348,9 @@ async def get_product_from_search_index(index: int) -> str:
     product = auth_state["last_search_products"][index - 1]
     product_id = product.get("id")
     product_name = product.get("name")
-    product_price = product.get("price", 0)
+    product_price = _num(product.get("price"))
 
-    return f"Produk nomor {index}: {product_name} (ID: {product_id}, Harga: Rp {product_price:,})"
+    return f"Produk nomor {index}: {product_name} (ID: {product_id}, Harga: Rp {product_price:,.0f})"
 
 
 # ==================== GENERAL TOOLS ====================
@@ -511,8 +529,8 @@ async def get_shopkupay_balance() -> str:
         if response.status_code == 200:
             data = response.json()
             user = data.get("data", {})
-            balance = user.get("balance", 0)
-            return f"Saldo ShopKuPay lo: Rp {balance:,}"
+            balance = _num(user.get("balance"))
+            return f"Saldo ShopKuPay lo: Rp {balance:,.0f}"
 
         return "Gagal mengambil data saldo."
 
@@ -584,14 +602,15 @@ async def get_cart() -> str:
 
             for item in items:
                 product = item.get("products", {})
-                subtotal = product.get("price", 0) * item.get("quantity", 1)
+                price = _num(product.get("price"))
+                subtotal = price * item.get("quantity", 1)
                 total += subtotal
 
                 result += f"• {product.get('name', 'Unknown')}\n"
-                result += f"  {item.get('quantity')}x Rp {product.get('price', 0):,} = Rp {subtotal:,}\n"
+                result += f"  {item.get('quantity')}x Rp {price:,.0f} = Rp {subtotal:,.0f}\n"
                 result += f"  (Cart ID: {item.get('id')})\n\n"
 
-            result += f"💰 Total: Rp {total:,}\n\n"
+            result += f"💰 Total: Rp {total:,.0f}\n\n"
             result += f"🔗 Link Keranjang: {BASE_URL}/cart"
             return result
 
@@ -666,7 +685,7 @@ async def checkout(payment_method: str = "GoPay") -> str:
             return "Keranjang kosong. Gak ada yang bisa di-checkout."
 
         total = sum(
-            item.get("products", {}).get("price", 0) * item.get("quantity", 1)
+            _num(item.get("products", {}).get("price")) * item.get("quantity", 1)
             for item in cart_items
         )
 
@@ -678,9 +697,9 @@ async def checkout(payment_method: str = "GoPay") -> str:
             )
             if user_response.status_code == 200:
                 user_data = user_response.json()
-                balance = user_data.get("data", {}).get("balance", 0)
+                balance = _num(user_data.get("data", {}).get("balance"))
                 if balance < total:
-                    return f"Saldo ShopKuPay tidak cukup. Saldo: Rp {balance:,}, Total: Rp {total:,}"
+                    return f"Saldo ShopKuPay tidak cukup. Saldo: Rp {balance:,.0f}, Total: Rp {total:,.0f}"
 
         items = []
         for item in cart_items:
@@ -717,7 +736,7 @@ async def checkout(payment_method: str = "GoPay") -> str:
                     f"🎉 Pesanan berhasil dibuat!\n\n"
                     f"📦 Order ID: {order.get('id')}\n"
                     f"💳 Metode Bayar: {payment_method}\n"
-                    f"💰 Total: Rp {order.get('total', 0):,}\n"
+                    f"💰 Total: Rp {_num(order.get('total')):,.0f}\n"
                     f"📋 Status: {order.get('status', 'pending')}\n\n"
                     f"🔗 Link Pesanan: {BASE_URL}/orders/{order.get('id')}\n"
                     f"🔗 Semua Pesanan: {BASE_URL}/orders"
@@ -765,7 +784,7 @@ async def get_order_history() -> str:
                 }.get(order.get('status'), order.get('status'))
 
                 result += f"• Order #{order.get('id')}\n"
-                result += f"  Total: Rp {order.get('total', 0):,}\n"
+                result += f"  Total: Rp {_num(order.get('total')):,.0f}\n"
                 result += f"  Status: {status_label}\n"
                 result += f"  Metode Bayar: {order.get('payment_method', '-')}\n"
                 result += f"  🔗 Link: {BASE_URL}/orders/{order.get('id')}\n\n"
@@ -811,14 +830,15 @@ async def get_order_detail(order_id: int) -> str:
             result = f"📦 Detail Order #{order.get('id')}:\n\n"
             result += f"📋 Status: {status_label}\n"
             result += f"💳 Metode Bayar: {order.get('payment_method', '-')}\n"
-            result += f"💰 Total: Rp {order.get('total', 0):,}\n\n"
+            result += f"💰 Total: Rp {_num(order.get('total')):,.0f}\n\n"
             result += "🛍️ Produk yang dipesan:\n"
 
             items = order.get("order_items", [])
             for item in items:
-                subtotal = item.get('price_at_purchase', 0) * item.get('quantity', 1)
+                price_at_purchase = _num(item.get('price_at_purchase'))
+                subtotal = price_at_purchase * item.get('quantity', 1)
                 result += f"• {item.get('name_snapshot', 'Unknown')}\n"
-                result += f"  {item.get('quantity')}x Rp {item.get('price_at_purchase', 0):,} = Rp {subtotal:,}\n"
+                result += f"  {item.get('quantity')}x Rp {price_at_purchase:,.0f} = Rp {subtotal:,.0f}\n"
 
             result += f"\n🔗 Link Pesanan: {BASE_URL}/orders/{order_id}"
 
@@ -878,7 +898,7 @@ async def pay_order(order_id: int) -> str:
         if response.status_code == 200:
             data = response.json()
             if data.get("success"):
-                return f"🎉 Pembayaran berhasil!\nOrder #{order_id} sudah dibayar.\nTotal: Rp {order_data.get('total', 0):,}"
+                return f"🎉 Pembayaran berhasil!\nOrder #{order_id} sudah dibayar.\nTotal: Rp {_num(order_data.get('total')):,.0f}"
 
         return "Pembayaran gagal. Coba lagi nanti."
 

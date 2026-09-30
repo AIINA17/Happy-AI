@@ -1,5 +1,7 @@
 from datetime import datetime, timezone
 
+from dateutil.parser import isoparse
+
 from voiceverification.core.behavior_profile import BehaviorProfile
 from voiceverification.db.connection import get_supabase
 
@@ -21,7 +23,7 @@ def load_behavior_profile(user_id: str, label:str) -> BehaviorProfile:
 
     last_ts = row["last_update_ts"]
     if isinstance(last_ts, str):
-        last_ts = datetime.fromisoformat(last_ts)
+        last_ts = isoparse(last_ts)
     elif isinstance(last_ts, (int, float)):
         last_ts = datetime.fromtimestamp(last_ts, tz=timezone.utc)
     elif last_ts is None:

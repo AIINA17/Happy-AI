@@ -5,7 +5,7 @@ import os
 
 import cv2
 import numpy as np
-import onnxruntime
+import onnxruntime as ort
 from insightface.app import FaceAnalysis
 
 # cuDNN links against cuBLAS, and cuBLAS links against nvJitLink — load in
@@ -49,25 +49,19 @@ def _preload_cuda_libs() -> bool:
 
 class ArcFaceModel:
     def __init__(self):
-        available = onnxruntime.get_available_providers()
-        use_cuda = "CUDAExecutionProvider" in available and _preload_cuda_libs()
-        providers = (
-            ["CUDAExecutionProvider", "CPUExecutionProvider"]
-            if use_cuda
-            else ["CPUExecutionProvider"]
-        )
+        available_providers = ort.get_available_providers()
+        providers = ["CPUExecutionProvider"]
+
+        if "CUDAExecutionProvider" in available_providers:
+            providers.insert(0, "CUDAExecutionProvider")
 
         self.app = FaceAnalysis(
             name="buffalo_l",
             providers=providers
         )
 
-        # insightface only honors the `providers` list above when ctx_id>=0;
-        # ctx_id=-1 would force CPUExecutionProvider regardless (see
-        # insightface's model_zoo prepare()). det_size menentukan ukuran
-        # input untuk deteksi wajah.
-        ctx_id = 0 if use_cuda else -1
-        self.app.prepare(ctx_id=ctx_id, det_size=(640, 640))
+        # det_size menentukan ukuran input untuk deteksi wajah.
+        self.app.prepare(ctx_id=0, det_size=(640, 640))
 
     def extract_embedding(self, image_bytes: bytes) -> np.ndarray:
         image_array = np.frombuffer(image_bytes, np.uint8)

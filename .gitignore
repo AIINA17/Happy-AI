@@ -35,3 +35,6 @@ backend/voiceverification/pretrained_models/
 pretrained_models/
 *.pt
 *.ckpt
+
+# voice verification dataset (wav samples, embeddings cache, viz output)
+backend/voiceverification/dataset/

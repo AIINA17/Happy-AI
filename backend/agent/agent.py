@@ -349,13 +349,15 @@ async def connect(ctx: agents.JobContext):
 
         room_state["is_face_verifying"] = True
 
-        await session.generate_reply(
+        speech_handle = await session.generate_reply(
             instructions=(
-                "Verifikasi suara gagal beberapa kali. Beri tahu user dengan "
+                "Verifikasi suara gagal 3 kali. Beri tahu user dengan "
                 "sopan bahwa kamu akan coba verifikasi lewat wajah sebagai "
                 "gantinya, minta mereka arahkan wajah ke kamera."
             )
         )
+
+        await speech_handle.wait_for_playout()
 
         await room.local_participant.publish_data(
             json.dumps({"type": "FACE_CMD", "action": "START_FACE_CAPTURE"}).encode(),

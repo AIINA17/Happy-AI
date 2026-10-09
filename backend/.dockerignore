@@ -1,0 +1,20 @@
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Secrets — never bake these into an image layer
+.env
+**/.env
+
+# Generated/runtime data, not needed in the build context
+**/pretrained_models/
+**/tmp_audio/
+**/audio_cache/
+
+.git/
+.gitignore
+README.md

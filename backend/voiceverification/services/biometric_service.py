@@ -6,7 +6,7 @@ from typing import List, Optional
 
 from voiceverification.core.behavior_profile import BehaviorProfile
 from voiceverification.models.speaker_verifier import SpeakerVerifier
-from voiceverification.core.asvspoof import compute_score
+from voiceverification.core.asvspoof import compute_score, warm_up as warm_up_asvspoof
 from voiceverification.core.decision_engine import decide, Decision
 from voiceverification.core.trusted_update import TrustedUpdatePolicy
 from voiceverification.core.behavior_scoring import compute_behavior_score
@@ -17,6 +17,7 @@ class BiometricService:
     def __init__(self, device="cpu"):
         self.speaker = SpeakerVerifier(device)
         self.policy = TrustedUpdatePolicy()
+        warm_up_asvspoof()
         print("Biometric ready.")
 
     def verify_against_multiple_embeddings(
@@ -88,11 +89,7 @@ class BiometricService:
                     n_samples=behavior_profile.n_samples,
                     z_pitch=z_pitch,
                     z_rate=z_rate,
-                    last_update_time=(
-                        behavior_profile.last_update_ts.timestamp()
-                        if behavior_profile.last_update_ts is not None
-                        else None
-                    ),
+                    last_update_time=behavior_profile.last_update_ts,
                     is_retry=is_retry,
                 ):
                     behavior_profile.update(pitch, rate, datetime.now(timezone.utc))

@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from time import time
-from urllib import response
 
 @dataclass
 class TrustedUpdatePolicy:

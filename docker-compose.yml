@@ -35,7 +35,7 @@ services:
                           capabilities: [gpu]
     frontend:
         build:
-            context: ./frontend/web
+            context: ./frontend
         container_name: frontend
         ports:
             - "3000:3000"

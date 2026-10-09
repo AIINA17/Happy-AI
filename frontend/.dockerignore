@@ -1,0 +1,12 @@
+node_modules/
+.next/
+out/
+
+# Secrets — never bake these into a build layer
+.env
+.env.local
+**/.env
+
+.git/
+.gitignore
+README.md

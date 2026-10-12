@@ -78,6 +78,26 @@ def require_voice_verification(action_name: str, params=None) -> str | None:
     if status == "VERIFIED":
         return None
 
+    # Lockout check (voice + face gagal berkali kali)
+    lockout_until = state.get("lockout_until")
+    if lockout_until:
+        now = time.time()
+        if now >= lockout_until:
+            state["verify_attempts"] = 0
+            state["lockout_until"] = None
+            lockout_until = None
+        else:
+            remaining = int(lockout_until - now)
+            return (
+                f"Maaf, verifikassi gagal beberapa kali."
+                f"Coba lagi sekitar {remaining} detik lagi sebelum {action_name}."
+            )
+
+    if not state.get("is_verifying") and not state.get("is_face_verifying"):
+        trigger = state.get("start_verification")
+        if trigger:
+            asyncio.create_task(trigger())
+
     if status == "EXPIRED":
         return (
             f"Sesi verifikasi suara kamu sudah habis. "

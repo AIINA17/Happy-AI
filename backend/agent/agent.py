@@ -263,33 +263,33 @@ async def connect(ctx: agents.JobContext):
                 topic="chat"
             )
 
-            # ================= VOICE CHECK =================
-            if not room_state["is_voice_verified"]:
-                if room_state["is_face_verifying"]:
-                    # A face verification attempt (triggered after 3 failed
-                    # voice attempts) is already in flight for this user —
-                    # don't also kick off a competing voice recording prompt.
-                    return
+            # # ================= VOICE CHECK =================
+            # if not room_state["is_voice_verified"]:
+            #     if room_state["is_face_verifying"]:
+            #         # A face verification attempt (triggered after 3 failed
+            #         # voice attempts) is already in flight for this user —
+            #         # don't also kick off a competing voice recording prompt.
+            #         return
 
-                lockout_until = room_state["lockout_until"]
-                if lockout_until and time.time() >= lockout_until:
-                    # Cooldown elapsed — give the user a fresh set of attempts
-                    # instead of leaving them locked out for the rest of the
-                    # session with no way back in short of reconnecting.
-                    room_state["verify_attempts"] = 0
-                    room_state["lockout_until"] = None
-                    lockout_until = None
+            #     lockout_until = room_state["lockout_until"]
+            #     if lockout_until and time.time() >= lockout_until:
+            #         # Cooldown elapsed — give the user a fresh set of attempts
+            #         # instead of leaving them locked out for the rest of the
+            #         # session with no way back in short of reconnecting.
+            #         room_state["verify_attempts"] = 0
+            #         room_state["lockout_until"] = None
+            #         lockout_until = None
 
-                if lockout_until:
-                    remaining = int(lockout_until - time.time())
-                    await session.generate_reply(
-                        instructions=(
-                            f"Maaf, verifikasi suara gagal beberapa kali. "
-                            f"Coba lagi sekitar {max(remaining, 1)} detik lagi."
-                        )
-                    )
-                else:
-                    await start_verification()
+            #     if lockout_until:
+            #         remaining = int(lockout_until - time.time())
+            #         await session.generate_reply(
+            #             instructions=(
+            #                 f"Maaf, verifikasi suara gagal beberapa kali. "
+            #                 f"Coba lagi sekitar {max(remaining, 1)} detik lagi."
+            #             )
+            #         )
+            #     else:
+            #         await start_verification()
 
         # ================= ASSISTANT =================
         elif role == "assistant":
@@ -326,6 +326,8 @@ async def connect(ctx: agents.JobContext):
         )
 
         asyncio.create_task(_verification_watchdog())
+
+    room_state["start_verification"] = start_verification
 
     # ================= VERIFICATION WATCHDOG =================
     async def _verification_watchdog():
@@ -431,7 +433,7 @@ async def connect(ctx: agents.JobContext):
 
     print("✅ Greeting sent")
 
-    await start_verification()
+    # await start_verification()
 
     # ✅ Tahan coroutine agar connect() tidak exit — room tetap aktif
     await disconnected_event.wait()

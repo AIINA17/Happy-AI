@@ -140,7 +140,7 @@ export function useLiveKit({
         }
 
         setUiState("LISTENING");
-        onVerifyStatusRef.current("🎧 Silakan bicara...");
+        onVerifyStatusRef.current("🎧 Bicara satu kalimat penuh ya...");
 
         const stream = await navigator.mediaDevices.getUserMedia({
             audio: true,
@@ -162,10 +162,21 @@ export function useLiveKit({
 
         let recording = false;
         let silenceStart: number | null = null;
+        let speechMs = 0;
+        let lastTick = performance.now();
 
         const START = 0.015;
         const STOP = 0.01;
         const SILENCE_MS = 800;
+        // ECAPA needs a few seconds of speech to place a voice reliably. On
+        // identical audio, the score climbs 0.17 (0.5s) → 0.39 (1.4s) → 0.77
+        // (2.9s) → 0.94 (5.7s), so a short "iya" scores like an impostor and
+        // gets DENIED. Keep listening until enough speech has accumulated
+        // (silence in between doesn't count), then stop on the usual pause.
+        const MIN_SPEECH_MS = 3000;
+        // Cap a single take so a noisy room can't record indefinitely.
+        const MAX_RECORD_MS = 15000;
+        let recordStartedAt = 0;
 
         recorder.ondataavailable = (e) => {
             if (e.data.size > 0) chunksRef.current.push(e.data);
@@ -197,21 +208,38 @@ export function useLiveKit({
             }
             const rms = Math.sqrt(sum / buffer.length);
 
+            const now = performance.now();
+            const elapsed = now - lastTick;
+            lastTick = now;
+
             if (!recording && rms > START) {
                 recorder.start();
                 recording = true;
+                recordStartedAt = now;
                 setUiState("RECORDING");
             }
 
             if (recording) {
                 if (rms < STOP) {
-                    silenceStart ??= performance.now();
-                    if (performance.now() - silenceStart > SILENCE_MS) {
+                    silenceStart ??= now;
+                    const paused = now - silenceStart;
+                    if (paused > SILENCE_MS && speechMs >= MIN_SPEECH_MS) {
                         recorder.stop();
                         return;
                     }
+                    if (paused > SILENCE_MS) {
+                        onVerifyStatusRef.current(
+                            "🎧 Lanjut bicara sebentar lagi ya...",
+                        );
+                    }
                 } else {
+                    speechMs += elapsed;
                     silenceStart = null;
+                }
+
+                if (now - recordStartedAt > MAX_RECORD_MS) {
+                    recorder.stop();
+                    return;
                 }
             }
 

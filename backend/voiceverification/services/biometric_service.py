@@ -12,6 +12,18 @@ from voiceverification.core.trusted_update import TrustedUpdatePolicy
 from voiceverification.core.behavior_scoring import compute_behavior_score
 
 
+# Below this much *speech* (silence trimmed), a speaker embedding is too
+# unstable to judge — see the REPEAT branch in verify_against_multiple_embeddings.
+MIN_SPEECH_SEC = 2.0
+
+
+def _speech_duration(wav_path: str) -> float:
+    y, sr = librosa.load(wav_path, sr=16000, mono=True)
+    if len(y) == 0:
+        return 0.0
+    trimmed, _ = librosa.effects.trim(y, top_db=25)
+    return len(trimmed) / sr
+
 
 class BiometricService:
     def __init__(self, device="cpu"):
@@ -50,10 +62,19 @@ class BiometricService:
         spoof_prob, _ = compute_score(live_wav)
 
         # 3. Decision
-        decision, reason = decide(
-            speaker_score=best_score,
-            replay_prob=spoof_prob,
-        )
+        # Too little speech makes the embedding unreliable rather than wrong:
+        # on identical audio the score falls to ~0.17 at 0.5s and ~0.39 at
+        # 1.4s, well inside impostor territory. Denying that punishes the
+        # speaker for answering briefly, so ask for another take instead.
+        speech_sec = _speech_duration(live_wav)
+        if speech_sec < MIN_SPEECH_SEC:
+            decision = Decision.REPEAT
+            reason = "Suaranya terlalu singkat, coba ucapkan satu kalimat penuh"
+        else:
+            decision, reason = decide(
+                speaker_score=best_score,
+                replay_prob=spoof_prob,
+            )
 
         # 4. Behavior
         behavior_score = None

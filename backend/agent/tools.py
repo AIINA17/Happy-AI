@@ -11,6 +11,22 @@ from livekit.agents.llm import function_tool
 # Base URL untuk e-commerce website
 BASE_URL = "https://dummy-ecommerce-tau.vercel.app"
 
+# `requests` bersifat sinkron: dipanggil langsung di dalam tool async, ia
+# menghentikan event loop agent, padahal loop yang sama mengirim frame audio ke
+# user (hasilnya suara terpotong selama request berjalan, 400 ms - 1 detik).
+# Jalankan di thread supaya loop tetap bebas.
+async def _get(*args, **kwargs):
+    return await asyncio.to_thread(requests.get, *args, **kwargs)
+
+
+async def _post(*args, **kwargs):
+    return await asyncio.to_thread(requests.post, *args, **kwargs)
+
+
+async def _delete(*args, **kwargs):
+    return await asyncio.to_thread(requests.delete, *args, **kwargs)
+
+
 # Interval untuk re-verifikasi (10 menit)
 REVERIFY_INTERVAL = 600
 
@@ -139,10 +155,12 @@ async def _send_product_cards_internal(products: list):
     if session_id:
         try:
             sb = get_supabase()
-            sb.table("product_cards").insert({
-                "session_id": str(session_id),
-                "products": products,
-            }).execute()
+            await asyncio.to_thread(
+                lambda: sb.table("product_cards").insert({
+                    "session_id": str(session_id),
+                    "products": products,
+                }).execute()
+            )
             logging.info(f"✅ PRODUCT_CARDS SAVED (session={session_id}, count={len(products)})")
         except Exception as e:
             logging.error(f"❌ Failed to save product cards: {e}")
@@ -404,7 +422,7 @@ async def get_weather(city: str) -> str:
 async def web_search(query: str) -> str:
     """Search the internet for information."""
     try:
-        return DuckDuckGoSearchRun().run(query)
+        return await asyncio.to_thread(DuckDuckGoSearchRun().run, query)
     except Exception as e:
         logging.error(e)
         return "Search error."

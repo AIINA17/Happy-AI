@@ -22,6 +22,7 @@ if VOICEVERIFICATION_DIR not in sys.path:
 
 from livekit import agents
 from livekit.agents import Agent, AgentServer, AgentSession, cli, room_io
+from google.genai import types as genai_types
 from livekit.plugins import google, noise_cancellation
 
 from agent.prompts import AGENT_INSTRUCTION, SESSION_INSTRUCTION
@@ -52,7 +53,10 @@ from voiceverification.db.conversation_logs import insert_conversation_log
 from voiceverification.db.conversation_sessions import create_conversation_session
 
 # ================= CONFIG =================
-SAMPLE_RATE = 16000
+# Gemini native audio emits 24 kHz (livekit-plugins-google's
+# OUTPUT_AUDIO_SAMPLE_RATE). Forcing 16 kHz here down-samples every reply and
+# makes the voice sound like a phone call.
+SAMPLE_RATE = 24000
 MAX_VERIFY_ATTEMPTS = 3
 VERIFY_TIMEOUT_SEC = 20
 # Longer than VERIFY_TIMEOUT_SEC: the client now runs a liveness challenge
@@ -142,6 +146,16 @@ async def connect(ctx: agents.JobContext):
         llm=google.beta.realtime.RealtimeModel(
             model="models/gemini-2.5-flash-native-audio-latest",
             voice="Kore",
+            # Gemini decides when the user's turn ended; AgentSession's own
+            # endpointing settings are ignored for a RealtimeModel. Left
+            # unset, Gemini waits ~800 ms of silence before replying. 500 ms
+            # is the low end of Google's recommended range — raise it if the
+            # agent starts cutting in while the user pauses mid-sentence.
+            realtime_input_config=genai_types.RealtimeInputConfig(
+                automatic_activity_detection=genai_types.AutomaticActivityDetection(
+                    silence_duration_ms=500,
+                ),
+            ),
         )
     )
 
@@ -236,6 +250,12 @@ async def connect(ctx: agents.JobContext):
     def on_conversation_item(event):
         asyncio.create_task(handle_conversation(event))
 
+    # The DB insert now runs in a worker thread, so it yields to the loop. Two
+    # items arriving back to back (user turn, then the assistant reply) could
+    # otherwise be stored and published in the opposite order. Held only around
+    # persist + publish: the voice check below awaits speech and must not.
+    conversation_lock = asyncio.Lock()
+
     async def handle_conversation(event):
         role = event.item.role
         text = event.item.text_content
@@ -247,21 +267,23 @@ async def connect(ctx: agents.JobContext):
 
         # ================= USER =================
         if role == "user":
-            insert_conversation_log(
-                session_id=room_state["conversation_session_id"],
-                role=role,
-                content=text
-            )
+            async with conversation_lock:
+                await asyncio.to_thread(
+                    insert_conversation_log,
+                    session_id=room_state["conversation_session_id"],
+                    role=role,
+                    content=text
+                )
 
-            await room.local_participant.publish_data(
-                json.dumps({
-                    "type": "USER_MESSAGE",
-                    "text": text,
-                    "ts": time.time()
-                }).encode(),
-                reliable=True,
-                topic="chat"
-            )
+                await room.local_participant.publish_data(
+                    json.dumps({
+                        "type": "USER_MESSAGE",
+                        "text": text,
+                        "ts": time.time()
+                    }).encode(),
+                    reliable=True,
+                    topic="chat"
+                )
 
             # # ================= VOICE CHECK =================
             # if not room_state["is_voice_verified"]:
@@ -293,22 +315,24 @@ async def connect(ctx: agents.JobContext):
 
         # ================= ASSISTANT =================
         elif role == "assistant":
-            if room_state["conversation_session_id"]:
-                insert_conversation_log(
-                    session_id=room_state["conversation_session_id"],
-                    role=role,
-                    content=text
-                )
+            async with conversation_lock:
+                if room_state["conversation_session_id"]:
+                    await asyncio.to_thread(
+                        insert_conversation_log,
+                        session_id=room_state["conversation_session_id"],
+                        role=role,
+                        content=text
+                    )
 
-            await room.local_participant.publish_data(
-                json.dumps({
-                    "type": "AGENT_MESSAGE",
-                    "text": text,
-                    "ts": time.time()
-                }).encode(),
-                reliable=True,
-                topic="chat"
-            )
+                await room.local_participant.publish_data(
+                    json.dumps({
+                        "type": "AGENT_MESSAGE",
+                        "text": text,
+                        "ts": time.time()
+                    }).encode(),
+                    reliable=True,
+                    topic="chat"
+                )
 
     # ================= VERIFICATION =================
     async def start_verification():
@@ -398,7 +422,8 @@ async def connect(ctx: agents.JobContext):
             if room_state["conversation_session_id"]:
                 return
 
-            session_id = create_conversation_session(
+            session_id = await asyncio.to_thread(
+                create_conversation_session,
                 user_id=room_state["user_id"],
                 label="New session"
             )

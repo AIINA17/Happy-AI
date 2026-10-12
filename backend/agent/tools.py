@@ -194,7 +194,8 @@ async def search_product(
     """
     try:
         # Fetch ALL products (API does not support server-side filtering)
-        response = requests.get(
+        response = await asyncio.to_thread(
+            requests.get,
             f"{BASE_URL}/api/products",
             timeout=10
         )
@@ -289,7 +290,11 @@ async def get_product_detail(product_id: int) -> str:
     Returns: name, price, category, rating, stock, description, image URL, and product link.
     """
     try:
-        response = requests.get(f"{BASE_URL}/api/products/{product_id}", timeout=10)
+        response = await asyncio.to_thread(
+            requests.get,
+            f"{BASE_URL}/api/products/{product_id}", 
+            timeout=10
+        )
 
         if response.status_code == 200:
             data = response.json()
@@ -359,7 +364,12 @@ async def get_product_from_search_index(index: int) -> str:
 async def get_weather(city: str) -> str:
     """Get current weather for a given city."""
     try:
-        response = requests.get(f"https://wttr.in/{city}?format=3", timeout=10)
+        response = await asyncio.to_thread(
+            requests.get,
+            f"https://wttr.in/{city}?format=3", 
+            timeout=10
+        )
+
         if response.status_code == 200:
             logging.info(f"Weather for {city}: {response.text.strip()}")
             return response.text.strip()
@@ -408,7 +418,8 @@ async def login_with_stored_credentials() -> str:
         )
 
     try:
-        response = requests.post(
+        response = await asyncio.to_thread(
+            requests.post,
             f"{BASE_URL}/api/auth/token",
             json={"username": account["username"], "password": account["password"]},
             headers={"Content-Type": "application/json"},
@@ -520,7 +531,8 @@ async def get_shopkupay_balance() -> str:
         return "Lo harus login dulu buat cek saldo ShopKuPay."
 
     try:
-        response = requests.get(
+        response = await asyncio.to_thread(
+            requests.get,
             f"{BASE_URL}/api/user",
             headers=get_headers(),
             timeout=10
@@ -556,7 +568,8 @@ async def add_to_cart(product_id: int, quantity: int = 1) -> str:
         return "Lo harus login dulu sebelum bisa nambahin ke keranjang."
 
     try:
-        response = requests.post(
+        response = await asyncio.to_thread(
+            requests.post,
             f"{BASE_URL}/api/cart",
             json={"product_id": product_id, "quantity": quantity},
             headers=get_headers(),
@@ -584,7 +597,8 @@ async def get_cart() -> str:
         return "Lo harus login dulu buat liat keranjang."
 
     try:
-        response = requests.get(
+        response = await asyncio.to_thread(
+            requests.get,
             f"{BASE_URL}/api/cart",
             headers=get_headers(),
             timeout=10
@@ -636,7 +650,8 @@ async def remove_from_cart(cart_id: int) -> str:
         return "Lo harus login dulu."
 
     try:
-        response = requests.delete(
+        response = await asyncio.to_thread(
+            requests.delete,
             f"{BASE_URL}/api/cart?cart_id={cart_id}",
             headers=get_headers(),
             timeout=10
@@ -669,7 +684,8 @@ async def checkout(payment_method: str = "GoPay") -> str:
         return "Lo harus login dulu sebelum checkout."
 
     try:
-        cart_response = requests.get(
+        cart_response = await asyncio.to_thread(
+            requests.get,
             f"{BASE_URL}/api/cart",
             headers=get_headers(),
             timeout=10
@@ -690,7 +706,8 @@ async def checkout(payment_method: str = "GoPay") -> str:
         )
 
         if payment_method == "ShopKuPay":
-            user_response = requests.get(
+            user_response = await asyncio.to_thread(
+                requests.get,
                 f"{BASE_URL}/api/user",
                 headers=get_headers(),
                 timeout=10
@@ -711,7 +728,8 @@ async def checkout(payment_method: str = "GoPay") -> str:
                 "name": product.get("name"),
             })
 
-        response = requests.post(
+        response = await asyncio.to_thread(
+            requests.post,
             f"{BASE_URL}/api/orders",
             json={"payment_method": payment_method, "items": items},
             headers=get_headers(),
@@ -725,12 +743,15 @@ async def checkout(payment_method: str = "GoPay") -> str:
             if data.get("success"):
                 order = data.get("data", {})
 
-                for item in cart_items:
-                    requests.delete(
+                await asyncio.gather(*[
+                    asyncio.to_thread(
+                        requests.delete,
                         f"{BASE_URL}/api/cart?cart_id={item.get('id')}",
                         headers=get_headers(),
                         timeout=5
                     )
+                    for item in cart_items
+                ])
 
                 return (
                     f"🎉 Pesanan berhasil dibuat!\n\n"
@@ -760,7 +781,8 @@ async def get_order_history() -> str:
         return "Lo harus login dulu buat liat riwayat pesanan."
 
     try:
-        response = requests.get(
+        response = await asyncio.to_thread(
+            requests.get,
             f"{BASE_URL}/api/orders",
             headers=get_headers(),
             timeout=10
@@ -806,7 +828,8 @@ async def get_order_detail(order_id: int) -> str:
         return "Lo harus login dulu buat liat detail pesanan."
 
     try:
-        response = requests.get(
+        response = await asyncio.to_thread(
+            requests.get,
             f"{BASE_URL}/api/orders/{order_id}",
             headers=get_headers(),
             timeout=10
@@ -869,7 +892,8 @@ async def pay_order(order_id: int) -> str:
         return "Lo harus login dulu sebelum bayar."
 
     try:
-        check_response = requests.get(
+        check_response = await asyncio.to_thread(
+            requests.get,
             f"{BASE_URL}/api/orders/{order_id}",
             headers=get_headers(),
             timeout=10
@@ -889,7 +913,8 @@ async def pay_order(order_id: int) -> str:
             }.get(order_data.get('status'), order_data.get('status'))
             return f"Order #{order_id} {status_label}, gak bisa dibayar lagi."
 
-        response = requests.post(
+        response = await asyncio.to_thread(
+            requests.post,
             f"{BASE_URL}/api/orders/{order_id}/pay",
             headers=get_headers(),
             timeout=10

@@ -1,8 +1,9 @@
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException
+from fastapi import APIRouter, Request, UploadFile, File, Form, HTTPException
 import numpy as np
 
 from face_recognition.arcface_model import ArcFaceModel
 from face_recognition.face_service import FaceRecognitionService
+from voiceverification.auth.auth_utils import get_user_id_from_request
 from voiceverification.db import face_repo, face_verification_logs
 
 # Mounted into voiceverification/server.py under this prefix (see
@@ -169,6 +170,25 @@ def delete_face_enrollment(user_id: str):
         "status": "DELETED",
         "user_id": user_id,
         "message": "Face enrollment berhasil dihapus."
+    }
+
+
+@router.get("/verification-metrics")
+def get_verification_metrics(request: Request):
+    """Per-user face verification metrics for the Analysis dashboard.
+
+    Unlike /verification-logs (global, operator/debug), this is scoped to
+    the caller's own user_id via their Supabase JWT, matching
+    /verification-metrics on the voice side.
+    """
+    user_id = get_user_id_from_request(request)
+    logs = face_verification_logs.get_verification_logs_for_user(user_id)
+
+    return {
+        "status": "OK",
+        "total": len(logs),
+        "logs": logs,
+        "threshold": face_service.threshold,
     }
 
 

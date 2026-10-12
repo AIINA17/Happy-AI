@@ -20,6 +20,26 @@ def get_verification_logs() -> list[dict]:
     return res.data or []
 
 
+def get_verification_logs_for_user(user_id: str, limit: int = 200) -> list[dict]:
+    """Scoped variant for the per-user Analysis dashboard.
+
+    get_verification_logs() stays global/unscoped for the existing
+    operator-facing /face/verification-logs endpoint.
+    """
+    sb = get_supabase()
+
+    res = (
+        sb.table("face_verification_logs")
+        .select("*")
+        .eq("user_id", user_id)
+        .order("created_at", desc=True)
+        .limit(limit)
+        .execute()
+    )
+
+    return res.data or []
+
+
 def clear_verification_logs() -> None:
     sb = get_supabase()
 

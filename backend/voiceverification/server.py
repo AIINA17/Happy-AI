@@ -43,6 +43,11 @@ from voiceverification.db.spectrogram_repo import (
     save_spectrogram,
 )
 from voiceverification.db.speaker_repo import count_enrollments, load_all_embeddings, save_embedding
+from voiceverification.db.voice_verification_logs import (
+    append_verification_log,
+    get_verification_logs,
+)
+from voiceverification.core.decision_engine import DecisionConfig
 from voiceverification.services.biometric_service import BiometricService
 from voiceverification.utils.audio import normalize_audio, save_audio
 from voiceverification.utils.spectrogram import render_spectrogram_png
@@ -201,6 +206,20 @@ async def verify_voice(request: Request, audio: UploadFile = File(...)):
 
         if matched_label and updated_profile:
             save_behavior_profile(user_id, matched_label, updated_profile)
+
+        try:
+            append_verification_log({
+                "user_id": user_id,
+                "label": matched_label,
+                "decision": result["decision"],
+                "reason": result["reason"],
+                "speaker_score": result["score"],
+                "spoof_prob": result["spoof_prob"],
+                "behavior_score": result.get("behavior_score"),
+            })
+        except Exception:
+            # Metrics logging must never break a verification response.
+            traceback.print_exc()
 
         return {
             "verified": result["verified"],
@@ -511,6 +530,33 @@ async def get_spectrograms(request: Request):
         "status": "OK",
         "total": len(profiles),
         "profiles": profiles,
+    }
+
+# VERIFICATION METRICS FOR THE ANALYSIS DASHBOARD
+#
+# speaker_score/spoof_prob per attempt, plus the current DecisionConfig
+# thresholds, so the dashboard can plot them against each other and the
+# thresholds can be re-evaluated against production data (see ROADMAP.md
+# "Metric & monitoring untuk skor verifikasi") instead of only the n=37
+# calibration set referenced in decision_engine.py's comments.
+@app.get("/verification-metrics")
+async def get_verification_metrics(request: Request):
+    user_id = get_user_id_from_request(request)
+
+    logs = get_verification_logs(user_id)
+    config = DecisionConfig()
+
+    return {
+        "status": "OK",
+        "total": len(logs),
+        "logs": logs,
+        "thresholds": {
+            "voice_accept": config.voice_accept,
+            "voice_repeat": config.voice_repeat,
+            "abs_min_speaker": config.abs_min_speaker,
+            "replay_deny": config.replay_deny,
+            "replay_warn": config.replay_warn,
+        },
     }
 
 # DELETE ENROLLMENT BY ID

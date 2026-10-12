@@ -9,6 +9,13 @@ import { useRouter } from "next/navigation";
 import type { Session } from "@supabase/supabase-js";
 
 import { supabase } from "@/lib/supabase";
+import VerificationMetrics, {
+    type DecisionThresholds,
+    type VerificationLogEntry,
+} from "@/components/VerificationMetrics";
+import FaceVerificationMetrics, {
+    type FaceVerificationLogEntry,
+} from "@/components/FaceVerificationMetrics";
 
 interface SpectrogramProfile {
     id: string;
@@ -43,6 +50,20 @@ export default function AnalysisPage() {
     const [profiles, setProfiles] = useState<SpectrogramProfile[]>([]);
     const [isFetching, setIsFetching] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    const [verificationLogs, setVerificationLogs] = useState<
+        VerificationLogEntry[]
+    >([]);
+    const [thresholds, setThresholds] = useState<DecisionThresholds | null>(
+        null,
+    );
+    const [metricsError, setMetricsError] = useState<string | null>(null);
+
+    const [faceLogs, setFaceLogs] = useState<FaceVerificationLogEntry[]>([]);
+    const [faceThreshold, setFaceThreshold] = useState<number | null>(null);
+    const [faceMetricsError, setFaceMetricsError] = useState<string | null>(
+        null,
+    );
 
     const apiBaseUrl = normalizePublicServerUrl(
         process.env.NEXT_PUBLIC_SERVER_URL,
@@ -118,6 +139,72 @@ export default function AnalysisPage() {
         loadSpectrograms();
     }, [apiBaseUrl, session]);
 
+    useEffect(() => {
+        const loadVerificationMetrics = async () => {
+            if (!session?.access_token || !apiBaseUrl) return;
+
+            try {
+                const res = await fetch(`${apiBaseUrl}/verification-metrics`, {
+                    headers: {
+                        Authorization: `Bearer ${session.access_token}`,
+                    },
+                });
+
+                const data = await res.json().catch(() => null);
+
+                if (!res.ok || data?.status !== "OK") {
+                    setMetricsError(
+                        data?.detail || `Gagal memuat metrik verifikasi (${res.status}).`,
+                    );
+                    return;
+                }
+
+                setVerificationLogs(data.logs || []);
+                setThresholds(data.thresholds || null);
+                setMetricsError(null);
+            } catch {
+                setMetricsError(
+                    "Tidak bisa menghubungi backend untuk metrik verifikasi.",
+                );
+            }
+        };
+
+        loadVerificationMetrics();
+    }, [apiBaseUrl, session]);
+
+    useEffect(() => {
+        const loadFaceMetrics = async () => {
+            if (!session?.access_token || !apiBaseUrl) return;
+
+            try {
+                const res = await fetch(`${apiBaseUrl}/face/verification-metrics`, {
+                    headers: {
+                        Authorization: `Bearer ${session.access_token}`,
+                    },
+                });
+
+                const data = await res.json().catch(() => null);
+
+                if (!res.ok || data?.status !== "OK") {
+                    setFaceMetricsError(
+                        data?.detail || `Gagal memuat metrik verifikasi wajah (${res.status}).`,
+                    );
+                    return;
+                }
+
+                setFaceLogs(data.logs || []);
+                setFaceThreshold(data.threshold ?? null);
+                setFaceMetricsError(null);
+            } catch {
+                setFaceMetricsError(
+                    "Tidak bisa menghubungi backend untuk metrik verifikasi wajah.",
+                );
+            }
+        };
+
+        loadFaceMetrics();
+    }, [apiBaseUrl, session]);
+
     if (isLoading) {
         return (
             <main className="h-screen bg-(--bg-primary) flex items-center justify-center">
@@ -144,6 +231,29 @@ export default function AnalysisPage() {
                         {error}
                     </div>
                 )}
+
+                {metricsError && (
+                    <div className="mb-6 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-sm text-red-400">
+                        {metricsError}
+                    </div>
+                )}
+
+                {faceMetricsError && (
+                    <div className="mb-6 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-sm text-red-400">
+                        {faceMetricsError}
+                    </div>
+                )}
+
+                <div className="mb-10">
+                    <VerificationMetrics
+                        logs={verificationLogs}
+                        thresholds={thresholds}
+                    />
+                </div>
+
+                <div className="mb-10">
+                    <FaceVerificationMetrics logs={faceLogs} threshold={faceThreshold} />
+                </div>
 
                 {isFetching && (
                     <p className="text-sm text-(--text-muted)">

@@ -11,22 +11,6 @@ from livekit.agents.llm import function_tool
 # Base URL untuk e-commerce website
 BASE_URL = "https://dummy-ecommerce-tau.vercel.app"
 
-# `requests` bersifat sinkron: dipanggil langsung di dalam tool async, ia
-# menghentikan event loop agent, padahal loop yang sama mengirim frame audio ke
-# user (hasilnya suara terpotong selama request berjalan, 400 ms - 1 detik).
-# Jalankan di thread supaya loop tetap bebas.
-async def _get(*args, **kwargs):
-    return await asyncio.to_thread(requests.get, *args, **kwargs)
-
-
-async def _post(*args, **kwargs):
-    return await asyncio.to_thread(requests.post, *args, **kwargs)
-
-
-async def _delete(*args, **kwargs):
-    return await asyncio.to_thread(requests.delete, *args, **kwargs)
-
-
 # Interval untuk re-verifikasi (10 menit)
 REVERIFY_INTERVAL = 600
 
@@ -105,7 +89,7 @@ def require_voice_verification(action_name: str, params=None) -> str | None:
         else:
             remaining = int(lockout_until - now)
             return (
-                f"Maaf, verifikassi gagal beberapa kali."
+                f"Maaf, verifikasi gagal beberapa kali. "
                 f"Coba lagi sekitar {remaining} detik lagi sebelum {action_name}."
             )
 

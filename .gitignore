@@ -39,3 +39,8 @@ pretrained_models/
 
 # voice verification dataset (wav samples, embeddings cache, viz output)
 backend/voiceverification/dataset/
+
+# internal docs, not meant to be shared via the repo
+PROJECT_SUMMARY.md
+ROADMAP.md
+TECHNICAL_DOCUMENTATION.md

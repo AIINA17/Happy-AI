@@ -1,7 +1,33 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 from voiceverification.core.behavior_profile import BehaviorProfile
 from voiceverification.db.connection import get_supabase
+
+
+def _parse_ts(value) -> datetime | None:
+    """
+    Supabase mengembalikan kolom timestamp sebagai string ISO 8601
+    (misal '2026-10-18T08:33:33.000+00:00'). Parse ke datetime object
+    dengan tz-aware (UTC). Return None kalau nilainya kosong.
+    """
+    if value is None or value == "":
+        return None
+    if isinstance(value, datetime):
+        return value
+    try:
+        # 'Z' bukan format yang dikenali fromisoformat sampai Python 3.11
+        if isinstance(value, str) and value.endswith("Z"):
+            value = value[:-1] + "+00:00"
+        dt = datetime.fromisoformat(value)
+        # Kalau naive, anggap UTC
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt
+    except (ValueError, TypeError):
+        return None
+
 
 def load_behavior_profile(user_id: str, label:str) -> BehaviorProfile:
     sb = get_supabase()

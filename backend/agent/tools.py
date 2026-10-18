@@ -162,6 +162,7 @@ async def send_product_cards(products: list) -> str:
 async def search_product(
     query: str = "",
     category: str = "",
+    city: str = "",
     min_price: int = 0,
     max_price: int = 0,
     min_rating: float = 0.0,
@@ -174,6 +175,7 @@ async def search_product(
     Args:
         query: Search keyword for product name (optional, matches partial name)
         category: Filter by category — one of: "Gadget & Tech", "Lifestyle", "Home & Living", "Lain-lain"
+        city: Filter by store city (e.g., "Jakarta", "Bandung", "Yogyakarta"). Case-insensitive.
         min_price: Minimum price filter
         max_price: Maximum price filter
         min_rating: Minimum rating filter (0.0-5.0)
@@ -220,6 +222,13 @@ async def search_product(
         if min_rating > 0:
             products = [p for p in products if (p.get("rating") or 0) >= min_rating]
 
+        if city:
+            city_lower = city.lower()
+            products = [
+                p for p in products
+                if (p.get("store") or {}).get("city", "").lower() == city_lower
+            ]
+
         # ── Sorting ──
         if sort_by == "price_asc":
             products.sort(key=lambda p: p.get("price") or 0)
@@ -245,12 +254,18 @@ async def search_product(
         result = f"Ketemu {len(products)} produk untuk '{search_term}'. Gue tampilin {min(len(products), 8)} di layar.\n\n"
         result += "Daftar produk yang ditampilkan:\n"
         for i, p in enumerate(products[:8], 1):
+            store = p.get("store") or {}
+            store_label = (
+                f" | Toko: {store.get('name', '-')} ({store.get('city', '-')})"
+                if store
+                else ""
+            )
             result += (
                 f"{i}. {p.get('name', 'Unknown')}\n"
                 f"   ID: {p.get('id', '-')} | "
                 f"Harga: Rp {p.get('price', 0):,} | "
-                f"Stok: {p.get('stock', 0)} | "
-                f"Kategori: {p.get('category', '-')}\n"
+                f"Rating: {p.get('rating', 0)}⭐ | "
+                f"Stok: {p.get('stock', 0)}{store_label}\n"
             )
 
         if len(products) > 8:
@@ -296,6 +311,31 @@ async def get_product_detail(product_id: int) -> str:
             else:
                 stock_status = "❌ Habis"
 
+            # Build store section (kalau ada)
+            store = p.get("store") or {}
+            store_section = ""
+            if store:
+                store_section = (
+                    f"\n🏪 Toko:\n"
+                    f"• Nama: {store.get('name', '-')}\n"
+                    f"• Kota: {store.get('city', '-')}\n"
+                    f"• Alamat: {store.get('address', '-')}\n"
+                )
+
+            # Build reviews section (tampilkan max 5 review)
+            reviews = p.get("reviews") or []
+            reviews_section = ""
+            if reviews:
+                reviews_section = f"\n💬 Review Pembeli ({len(reviews)} total):\n"
+                for r in reviews[:5]:
+                    reviews_section += (
+                        f"• {r.get('reviewer_name', 'Anonim')} "
+                        f"({r.get('rating', 0)}⭐): "
+                        f"{r.get('comment', '')}\n"
+                    )
+                if len(reviews) > 5:
+                    reviews_section += f"(ada {len(reviews) - 5} review lagi)\n"
+
             return (
                 f"📦 Detail Produk:\n"
                 f"• Nama: {name}\n"
@@ -303,12 +343,12 @@ async def get_product_detail(product_id: int) -> str:
                 f"• Kategori: {category}\n"
                 f"• Rating: {rating}⭐\n"
                 f"• Stok: {stock_status}\n\n"
-                f"📝 Deskripsi:\n{description}\n\n"
+                f"📝 Deskripsi:\n{description}\n"
+                f"{store_section}"
+                f"{reviews_section}\n"
                 f"🖼️ Foto Produk: {image_url}\n"
                 f"🔗 Link Produk: {product_link}"
             )
-
-        return "Produk tidak ditemukan."
 
     except Exception as e:
         logging.error(f"Get product error: {e}")

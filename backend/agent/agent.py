@@ -17,6 +17,8 @@ VOICEVERIFICATION_DIR = os.path.join(BACKEND_DIR, "voiceverification")
 ENV_PATH = os.path.join(BACKEND_DIR, ".env")
 load_dotenv(ENV_PATH)
 
+if BACKEND_DIR not in sys.path:
+    sys.path.insert(0, BACKEND_DIR)
 if VOICEVERIFICATION_DIR not in sys.path:
     sys.path.insert(0, VOICEVERIFICATION_DIR)
 
@@ -24,8 +26,8 @@ from livekit import agents
 from livekit.agents import Agent, AgentServer, AgentSession, cli, room_io
 from livekit.plugins import google, noise_cancellation
 
-from voiceverification.agent.prompts import AGENT_INSTRUCTION, SESSION_INSTRUCTION
-from voiceverification.agent.tools import (
+from agent.prompts import AGENT_INSTRUCTION, SESSION_INSTRUCTION
+from agent.tools import (
     add_to_cart,
     auth_state,
     check_login_status,

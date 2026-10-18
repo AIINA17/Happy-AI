@@ -1,8 +1,9 @@
 import subprocess
 import os
+import shutil
 
 def ensure_ffmpeg():
-    if os.system("which ffmpeg > /dev/null") != 0:
+    if shutil.which("ffmpeg") is None:
         raise RuntimeError("ffmpeg not installed")
 
 def webm_to_wav(src: str, dst: str):

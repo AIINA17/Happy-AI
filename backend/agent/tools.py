@@ -152,6 +152,36 @@ async def _send_product_cards_internal(products: list):
             logging.error(f"❌ Failed realtime PRODUCT_CARDS: {e}")
 
 
+# ==================== USER CONTEXT TOOLS ====================
+
+@function_tool
+async def get_user_city() -> str:
+    """
+    Get the user's current city, auto-detected from their browser's GPS.
+
+    Returns the city name if GPS permission was granted when they loaded
+    the app (e.g. "Jakarta Selatan", "Ngemplak", "Yogyakarta"), or a
+    message saying it's unknown if they denied permission.
+
+    Use this to:
+    - Prioritize stores in the user's city when recommending products
+    - Suggest nearby stores (lower shipping cost)
+    - Decide whether to filter by city or just show all
+
+    If this returns "unknown", ask the user manually what city they're in,
+    then remember it for the rest of the conversation.
+    """
+    state = auth_state.get("agent_state") or {}
+    city = state.get("user_city")
+
+    if city:
+        return f"User's detected city: {city}"
+
+    return (
+        "User's city is unknown (they denied GPS permission or GPS failed). "
+        "Ask them manually what city they're in."
+    )
+
 # ==================== PRODUCT TOOLS ====================
 
 @function_tool

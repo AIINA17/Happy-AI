@@ -266,7 +266,7 @@ async def search_product(
     Fetches all products from every store then filters locally by the given
     criteria.
 
-    Every product in the results carries a "source" code (e.g. "tau",
+    Every product in the results carries a "source" code (e.g. "oren",
     "hijau") — pass that same source back into get_product_detail,
     add_to_cart, checkout and the other per-store tools.
 
@@ -410,7 +410,7 @@ async def send_review_cards(product_id: int, source: str) -> str:
 
     Args:
         product_id: the product's ID
-        source: store code the product belongs to (from search_product results), e.g. "tau" or "hijau"
+        source: store code the product belongs to (from search_product results), e.g. "oren" or "hijau"
 
     After calling this, briefly summarize the overall sentiment in your
     voice response (e.g. "nih review-nya, mostly positif soal kamera, tapi
@@ -462,7 +462,7 @@ async def get_product_detail(product_id: int, source: str) -> str:
 
     Args:
         product_id: the product's ID
-        source: store code the product belongs to (from search_product results), e.g. "tau" or "hijau"
+        source: store code the product belongs to (from search_product results), e.g. "oren" or "hijau"
     """
     adapter, _, error = _resolve_account(source)
     if error:
@@ -649,7 +649,7 @@ async def login(source: str = "") -> str:
     Log in to the user's own linked e-commerce account(s).
 
     Args:
-        source: store code to log into, e.g. "tau" or "hijau". Leave empty
+        source: store code to log into, e.g. "oren" or "hijau". Leave empty
             to log into every store the user has linked an account to.
 
     ⚠️ This action requires voice verification for security.
@@ -667,7 +667,7 @@ async def logout(source: str = "") -> str:
     Logout from one (or all) e-commerce store(s).
 
     Args:
-        source: store code to log out of, e.g. "tau" or "hijau". Leave empty
+        source: store code to log out of, e.g. "oren" or "hijau". Leave empty
             to log out of every store.
 
     ⚠️ This action requires voice verification for security.
@@ -698,7 +698,7 @@ async def check_login_status(source: str = "") -> str:
     Check if the user is currently logged in.
 
     Args:
-        source: store code to check, e.g. "tau" or "hijau". Leave empty to
+        source: store code to check, e.g. "oren" or "hijau". Leave empty to
             check every store.
     """
     targets = [source] if source else list_sources()
@@ -753,7 +753,7 @@ async def get_shopkupay_balance(source: str) -> str:
     Get user's ShopKuPay balance/saldo on a specific store.
 
     Args:
-        source: store code, e.g. "tau" or "hijau"
+        source: store code, e.g. "oren" or "hijau"
 
     ⚠️ This action requires voice verification for security.
     """
@@ -789,7 +789,7 @@ async def add_to_cart(product_id: int, source: str, quantity: int = 1) -> str:
 
     Args:
         product_id: the product's ID
-        source: store code the product belongs to, e.g. "tau" or "hijau"
+        source: store code the product belongs to, e.g. "oren" or "hijau"
         quantity: how many units to add
 
     ⚠️ This action requires voice verification for security.
@@ -822,7 +822,7 @@ async def get_cart(source: str) -> str:
     Get current items in the shopping cart of a specific store, with cart link.
 
     Args:
-        source: store code, e.g. "tau" or "hijau"
+        source: store code, e.g. "oren" or "hijau"
     """
     adapter, account, error = _resolve_account(source)
     if error:
@@ -866,7 +866,7 @@ async def remove_from_cart(cart_id: int, source: str) -> str:
 
     Args:
         cart_id: the cart entry's ID (from get_cart results)
-        source: store code, e.g. "tau" or "hijau"
+        source: store code, e.g. "oren" or "hijau"
 
     ⚠️ This action requires voice verification for security.
     """
@@ -901,7 +901,7 @@ async def checkout(source: str, payment_method: str = "GoPay") -> str:
     Payment methods: VA_BCA, VA_BRI, VA_Mandiri, GoPay, OVO, ShopeePay, DANA, ShopKuPay
 
     Args:
-        source: store code to checkout on, e.g. "tau" or "hijau"
+        source: store code to checkout on, e.g. "oren" or "hijau"
         payment_method: one of the payment methods listed above
 
     ⚠️ This action requires voice verification for security.
@@ -980,7 +980,7 @@ async def get_order_history(source: str) -> str:
     Get order history with links, for a specific store.
 
     Args:
-        source: store code, e.g. "tau" or "hijau"
+        source: store code, e.g. "oren" or "hijau"
     """
     adapter, account, error = _resolve_account(source)
     if error:
@@ -1027,7 +1027,7 @@ async def get_order_detail(order_id: int, source: str) -> str:
 
     Args:
         order_id: the order's ID
-        source: store code, e.g. "tau" or "hijau"
+        source: store code, e.g. "oren" or "hijau"
     """
     adapter, account, error = _resolve_account(source)
     if error:
@@ -1083,7 +1083,7 @@ async def pay_order(order_id: int, source: str) -> str:
 
     Args:
         order_id: the order's ID
-        source: store code, e.g. "tau" or "hijau"
+        source: store code, e.g. "oren" or "hijau"
 
     ⚠️ This action requires voice verification for security.
     """

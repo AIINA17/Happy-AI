@@ -1,9 +1,12 @@
 import asyncio
 import json
 import os
+import math
+import statistics
 import sys
 import time
 
+import numpy as np
 from dotenv import load_dotenv
 
 # ================= PATH FIX =================
@@ -20,8 +23,9 @@ load_dotenv(ENV_PATH)
 if VOICEVERIFICATION_DIR not in sys.path:
     sys.path.insert(0, VOICEVERIFICATION_DIR)
 
-from livekit import agents
+from livekit import agents, rtc
 from livekit.agents import Agent, AgentServer, AgentSession, cli, room_io
+from livekit.agents.metrics import RealtimeModelMetrics
 from google.genai import types as genai_types
 from livekit.plugins import google, noise_cancellation
 
@@ -57,6 +61,18 @@ from voiceverification.db.conversation_sessions import create_conversation_sessi
 # OUTPUT_AUDIO_SAMPLE_RATE). Forcing 16 kHz here down-samples every reply and
 # makes the voice sound like a phone call.
 SAMPLE_RATE = 24000
+
+# Silence Gemini waits for before it treats the user's turn as over. Shared by
+# the model config below and the turn-latency log so the two can't drift.
+VAD_SILENCE_MS = 500
+
+# Transport time the turn log adds on top of what the agent can observe: the
+# user's last word reaching the agent, plus the reply reaching the user.
+# Measured 2026-10 over a real LiveKit room with hard-cut tone bursts: 217-284 ms
+# (median 275 ms) one way, i.e. propagation (~115 ms RTT per link) plus codec
+# and jitter-buffer time that no region change removes. Outbound is assumed to
+# match; it is an estimate. Re-measure and set the env var after moving region.
+NETWORK_ESTIMATE_SEC = float(os.getenv("LATENCY_NETWORK_ESTIMATE_SEC", "0.5"))
 MAX_VERIFY_ATTEMPTS = 3
 VERIFY_TIMEOUT_SEC = 20
 # Longer than VERIFY_TIMEOUT_SEC: the client now runs a liveness challenge
@@ -74,6 +90,123 @@ LOCKOUT_COOLDOWN_SEC = 60
 # the agent opts it out of automatic dispatch; server.py's dispatch call
 # must target this exact name too.
 AGENT_NAME = "happy-shopping-assistant"
+
+class UserSpeechTracker:
+    """Remembers when the user last made sound, from the audio the agent receives.
+
+    Gemini's server VAD never tells the agent where the user's speech ended:
+    the Google plugin reports "speech stopped" only once the *reply* has
+    finished, and "speech started" only on an interruption. So the one way to
+    know is to listen to the incoming audio ourselves.
+    """
+
+    THRESHOLD_DBFS = -45.0
+
+    def __init__(self):
+        self.last_speech_at: float | None = None
+
+    def feed(self, samples: np.ndarray, now: float) -> None:
+        if samples.size == 0:
+            return
+        rms = math.sqrt(float(np.mean(samples.astype(np.float32) ** 2)))
+        dbfs = 20 * math.log10(max(rms, 1.0) / 32768.0)
+        if dbfs > self.THRESHOLD_DBFS:
+            self.last_speech_at = now
+
+
+def install_turn_latency_logging(session) -> UserSpeechTracker:
+    """Log, per user turn, how long the agent took to start answering.
+
+    Measured at the agent: last user speech heard -> first reply audio frame
+    out (this already contains Gemini's VAD wait). The felt total adds the
+    network legs the agent cannot see, as an estimate.
+    """
+    tracker = UserSpeechTracker()
+    state = {"thinking_at": None, "tools": False, "samples": []}
+
+    @session.on("function_tools_executed")
+    def on_tools_executed(_ev):
+        state["tools"] = True
+
+    @session.on("agent_state_changed")
+    def on_agent_state_changed(ev):
+        if ev.new_state == "thinking":
+            state["thinking_at"] = ev.created_at
+            return
+        if ev.new_state != "speaking":
+            return
+
+        heard_at = tracker.last_speech_at
+        tracker.last_speech_at = None  # consumed: one reply per user turn
+        thinking_at, state["thinking_at"] = state["thinking_at"], None
+        used_tools, state["tools"] = state["tools"], False
+
+        if heard_at is None:  # greeting / proactive reply: no user turn to time
+            return
+        gap = ev.created_at - heard_at
+        if not 0 <= gap <= 30:  # stale: the user went quiet long ago
+            return
+
+        samples = state["samples"]
+        samples.append(gap)
+        think = f"{ev.created_at - thinking_at:.2f}s" if thinking_at else "n/a"
+        print(
+            f"⏱ TURN #{len(samples)} | last-speech->first-audio={gap:.2f}s "
+            f"({'with tools' if used_tools else 'no tools'}) "
+            f"| est. felt={gap + NETWORK_ESTIMATE_SEC:.2f}s "
+            f"(+{NETWORK_ESTIMATE_SEC:.2f}s network) "
+            f"| think->speak={think} "
+            f"| median={statistics.median(samples):.2f}s"
+        )
+
+    @session.on("metrics_collected")
+    def on_metrics_collected(ev):
+        m = ev.metrics
+        if isinstance(m, RealtimeModelMetrics) and not m.cancelled:
+            print(f"⏱ Gemini ttft={m.ttft:.2f}s total={m.duration:.2f}s")
+
+    return tracker
+
+
+def tap_user_audio(room, tracker: UserSpeechTracker):
+    """Feed the user's incoming audio to `tracker`.
+
+    Returns scan(): call it once the room is connected to pick up tracks that
+    were subscribed before this handler existed.
+    """
+    seen: set[str] = set()
+    tasks: set[asyncio.Task] = set()
+
+    async def consume(track):
+        stream = rtc.AudioStream(track, sample_rate=16000, num_channels=1)
+        try:
+            async for ev in stream:
+                tracker.feed(np.frombuffer(ev.frame.data, dtype=np.int16), time.time())
+        except Exception as e:
+            print(f"⚠️ user-audio tap stopped: {e}")
+        finally:
+            await stream.aclose()
+
+    def start(track):
+        if track.kind != rtc.TrackKind.KIND_AUDIO or track.sid in seen:
+            return
+        seen.add(track.sid)
+        task = asyncio.create_task(consume(track))
+        tasks.add(task)
+        task.add_done_callback(tasks.discard)
+
+    @room.on("track_subscribed")
+    def on_track_subscribed(track, _publication, _participant):
+        start(track)
+
+    def scan():
+        for participant in room.remote_participants.values():
+            for publication in participant.track_publications.values():
+                if publication.track is not None:
+                    start(publication.track)
+
+    return scan
+
 
 # ================= AGENT =================
 class ShoppingAgent(Agent):
@@ -153,7 +286,7 @@ async def connect(ctx: agents.JobContext):
             # agent starts cutting in while the user pauses mid-sentence.
             realtime_input_config=genai_types.RealtimeInputConfig(
                 automatic_activity_detection=genai_types.AutomaticActivityDetection(
-                    silence_duration_ms=500,
+                    silence_duration_ms=VAD_SILENCE_MS,
                 ),
             ),
         )
@@ -334,6 +467,9 @@ async def connect(ctx: agents.JobContext):
                     topic="chat"
                 )
 
+    turn_tracker = install_turn_latency_logging(session)
+    scan_user_audio = tap_user_audio(room, turn_tracker)
+
     # ================= VERIFICATION =================
     async def start_verification():
         if room_state["is_voice_verified"]:
@@ -442,6 +578,8 @@ async def connect(ctx: agents.JobContext):
             ),
         ),
     )
+
+    scan_user_audio()
 
     participants = list(room.remote_participants.values())
     if participants:

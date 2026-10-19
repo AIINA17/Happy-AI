@@ -19,17 +19,36 @@ interface Props {
     onClose: () => void;
 }
 
-export default function EcommerceAccountLink({ token, isOpen, onClose }: Props) {
+// Mirrors backend/ecommerce_sources.py — keep in sync when a store is added
+// or removed there.
+const STORES = [
+    { key: "oren", label: "Toko Oren" },
+    { key: "hijau", label: "Toko Hijau" },
+];
+
+interface AccountStatus {
+    label: string;
+    linked: boolean;
+    username: string | null;
+}
+
+export default function EcommerceAccountLink({
+    token,
+    isOpen,
+    onClose,
+}: Props) {
     const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL;
 
-    const [linked, setLinked] = useState(false);
-    const [linkedUsername, setLinkedUsername] = useState<string | null>(null);
+    const [source, setSource] = useState(STORES[0].key);
+    const [accounts, setAccounts] = useState<Record<string, AccountStatus>>({});
     const [isLoading, setIsLoading] = useState(true);
     const [isEditing, setIsEditing] = useState(false);
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    const current = accounts[source];
 
     const fetchStatus = async () => {
         if (!token) return;
@@ -40,9 +59,7 @@ export default function EcommerceAccountLink({ token, isOpen, onClose }: Props) 
             });
             const data = await res.json();
             if (data.status === "OK") {
-                setLinked(data.linked);
-                setLinkedUsername(data.username);
-                setIsEditing(!data.linked);
+                setAccounts(data.accounts);
             }
         } catch (err) {
             console.error("Fetch ecommerce account error:", err);
@@ -55,6 +72,13 @@ export default function EcommerceAccountLink({ token, isOpen, onClose }: Props) 
         if (isOpen) fetchStatus();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen, token]);
+
+    useEffect(() => {
+        setIsEditing(!current?.linked);
+        setError(null);
+        setUsername("");
+        setPassword("");
+    }, [source, current?.linked]);
 
     const handleSave = async () => {
         if (!token) return;
@@ -72,7 +96,11 @@ export default function EcommerceAccountLink({ token, isOpen, onClose }: Props) 
                     Authorization: `Bearer ${token}`,
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify({ username: username.trim(), password }),
+                body: JSON.stringify({
+                    username: username.trim(),
+                    password,
+                    source,
+                }),
             });
             const data = await res.json();
 
@@ -94,13 +122,11 @@ export default function EcommerceAccountLink({ token, isOpen, onClose }: Props) 
         if (!token) return;
         setIsSaving(true);
         try {
-            await fetch(`${SERVER_URL}/ecommerce-account`, {
+            await fetch(`${SERVER_URL}/ecommerce-account?source=${source}`, {
                 method: "DELETE",
                 headers: { Authorization: `Bearer ${token}` },
             });
-            setLinked(false);
-            setLinkedUsername(null);
-            setIsEditing(true);
+            await fetchStatus();
             setUsername("");
         } catch (err) {
             console.error("Unlink ecommerce account error:", err);
@@ -122,20 +148,37 @@ export default function EcommerceAccountLink({ token, isOpen, onClose }: Props) 
                 <p className="text-sm text-muted-foreground -mt-2">
                     Happy login pakai akun ini setiap kali suara kamu berhasil
                     diverifikasi — bukan akun bersama, ini akun kamu sendiri.
+                    Tiap toko punya akunnya masing-masing.
                 </p>
+
+                <div className="flex gap-2">
+                    {STORES.map((store) => (
+                        <Button
+                            key={store.key}
+                            size="sm"
+                            variant={
+                                source === store.key ? "default" : "secondary"
+                            }
+                            className="flex-1"
+                            onClick={() => setSource(store.key)}>
+                            {store.label}
+                            {accounts[store.key]?.linked ? " ✓" : ""}
+                        </Button>
+                    ))}
+                </div>
 
                 {isLoading ? (
                     <div className="text-sm text-muted-foreground py-4 text-center">
                         Memuat...
                     </div>
-                ) : linked && !isEditing ? (
+                ) : current?.linked && !isEditing ? (
                     <div className="space-y-3">
                         <div className="p-3 rounded-lg bg-muted">
                             <p className="text-xs text-muted-foreground mb-1">
                                 Terhubung sebagai
                             </p>
                             <p className="text-foreground font-medium">
-                                {linkedUsername}
+                                {current.username}
                             </p>
                         </div>
                         <div className="flex gap-2">
@@ -181,7 +224,7 @@ export default function EcommerceAccountLink({ token, isOpen, onClose }: Props) 
                             <p className="text-xs text-destructive">{error}</p>
                         )}
                         <div className="flex gap-2">
-                            {linked && (
+                            {current?.linked && (
                                 <Button
                                     variant="secondary"
                                     className="flex-1"
@@ -196,7 +239,9 @@ export default function EcommerceAccountLink({ token, isOpen, onClose }: Props) 
                                 className="flex-1"
                                 onClick={handleSave}
                                 disabled={isSaving}>
-                                {isSaving ? "Menyimpan..." : "Simpan & Hubungkan"}
+                                {isSaving
+                                    ? "Menyimpan..."
+                                    : "Simpan & Hubungkan"}
                             </Button>
                         </div>
                     </div>

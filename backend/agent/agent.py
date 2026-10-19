@@ -22,6 +22,7 @@ if VOICEVERIFICATION_DIR not in sys.path:
 
 from livekit import agents
 from livekit.agents import Agent, AgentServer, AgentSession, cli, room_io
+from google import genai
 from google.genai import types as genai_types
 from livekit.plugins import google, noise_cancellation
 
@@ -50,7 +51,10 @@ from agent.tools import (
 )
 
 from voiceverification.db.conversation_logs import insert_conversation_log
-from voiceverification.db.conversation_sessions import create_conversation_session
+from voiceverification.db.conversation_sessions import (
+    create_conversation_session,
+    update_conversation_session_label,
+)
 
 # ================= CONFIG =================
 # Gemini native audio emits 24 kHz (livekit-plugins-google's
@@ -65,6 +69,12 @@ VERIFY_TIMEOUT_SEC = 20
 # ML model load time.
 FACE_VERIFY_TIMEOUT_SEC = 35
 LOCKOUT_COOLDOWN_SEC = 60
+
+# Text model used only to title a finished session from its transcript —
+# unrelated to the realtime voice model above.
+LABEL_MODEL = "gemini-3.5-flash-lite"
+MAX_LABEL_TRANSCRIPT_TURNS = 20
+_label_client = genai.Client(api_key=os.environ.get("GOOGLE_API_KEY"))
 
 # An unnamed/default agent gets LiveKit's automatic dispatch to every new
 # room *in addition to* our own explicit create_dispatch() call in
@@ -128,6 +138,8 @@ async def connect(ctx: agents.JobContext):
     # ================= ROOM STATE =================
     room_state = {
         "conversation_session_id": None,
+        "transcript": [],
+        "label_set": False,
         "user_id": None,
         "is_voice_verified": False,
         "is_verifying": False,
@@ -265,6 +277,9 @@ async def connect(ctx: agents.JobContext):
 
         await ensure_conversation_session()
 
+        if len(room_state["transcript"]) < MAX_LABEL_TRANSCRIPT_TURNS:
+            room_state["transcript"].append({"role": role, "text": text})
+
         # ================= USER =================
         if role == "user":
             async with conversation_lock:
@@ -284,6 +299,10 @@ async def connect(ctx: agents.JobContext):
                     reliable=True,
                     topic="chat"
                 )
+
+            if not room_state["label_set"]:
+                room_state["label_set"] = True
+                asyncio.create_task(label_session_from_transcript())
 
         # ================= ASSISTANT =================
         elif role == "assistant":
@@ -403,6 +422,50 @@ async def connect(ctx: agents.JobContext):
             room_state["conversation_session_id"] = session_id
             print("📝 Session created:", session_id)
 
+    # ================= AUTO-LABEL SESSION =================
+    async def label_session_from_transcript():
+        # Replaces the placeholder "New session" label with a short title
+        # derived from what was actually said. Called once right after the
+        # user's first turn (so the sidebar stops showing "New session" as
+        # soon as the user finishes speaking) and again when the call ends
+        # with the fuller transcript, to refine it. Runs as a background
+        # task so it never blocks the live conversation.
+        session_id = room_state["conversation_session_id"]
+        transcript = room_state["transcript"]
+        if not session_id or not transcript:
+            return
+
+        convo_text = "\n".join(
+            f"{'User' if turn['role'] == 'user' else 'Asisten'}: {turn['text']}"
+            for turn in transcript
+        )
+
+        try:
+            response = await asyncio.to_thread(
+                _label_client.models.generate_content,
+                model=LABEL_MODEL,
+                contents=(
+                    "Buat judul singkat (maksimal 6 kata, tanpa tanda kutip "
+                    "atau tanda baca penutup) dalam Bahasa Indonesia yang "
+                    "merangkum topik percakapan berikut antara user dan "
+                    "asisten belanja:\n\n" + convo_text
+                ),
+            )
+            label = (response.text or "").strip().strip('"').strip("'")
+        except Exception as e:
+            print("❌ Failed to generate session label:", e)
+            return
+
+        if not label:
+            return
+
+        await asyncio.to_thread(
+            update_conversation_session_label,
+            session_id=str(session_id),
+            new_label=label,
+        )
+        print("🏷️ Session label updated:", label)
+
     # ================= START SESSION =================
     await session.start(
         room=room,
@@ -434,6 +497,8 @@ async def connect(ctx: agents.JobContext):
 
     # ✅ Tahan coroutine agar connect() tidak exit — room tetap aktif
     await disconnected_event.wait()
+
+    await label_session_from_transcript()
 
 # ================= ENTRYPOINT =================
 if __name__ == "__main__":

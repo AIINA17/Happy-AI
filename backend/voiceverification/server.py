@@ -37,6 +37,7 @@ from voiceverification.db.ecommerce_repo import (
     has_ecommerce_account,
     save_ecommerce_account,
 )
+from ecommerce_sources import DEFAULT_SOURCE, ECOMMERCE_SOURCES
 from voiceverification.db.spectrogram_repo import (
     delete_spectrogram,
     get_spectrogram_url,
@@ -51,10 +52,6 @@ from voiceverification.core.decision_engine import DecisionConfig
 from voiceverification.services.biometric_service import BiometricService
 from voiceverification.utils.audio import normalize_audio, save_audio
 from voiceverification.utils.spectrogram import render_spectrogram_png
-
-# Same dummy e-commerce backend the shopping agent talks to (agent/tools.py
-# BASE_URL) — kept in sync manually since the two live in separate services.
-ECOMMERCE_BASE_URL = "https://dummy-ecommerce-tau.vercel.app"
 
 # Environment setup
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -673,27 +670,37 @@ async def rename_speaker_label(
     }
 
 # ECOMMERCE ACCOUNT LINKING
-# Lets each Supabase user attach their own dummy-ecommerce credentials so
-# the shopping agent logs in as them instead of one shared hardcoded
-# account. Deliberately a typed HTTP form, not something spoken to the
-# voice agent — voice input gets transcribed into conversation_logs in
-# plain text, which is not where a password should ever end up.
+# Lets each Supabase user attach their own dummy-ecommerce credentials, per
+# store (see backend/ecommerce_sources.py), so the shopping agent logs in as
+# them instead of one shared hardcoded account. Deliberately a typed HTTP
+# form, not something spoken to the voice agent — voice input gets
+# transcribed into conversation_logs in plain text, which is not where a
+# password should ever end up.
 class EcommerceAccountPayload(BaseModel):
     username: str
     password: str
+    source: str = DEFAULT_SOURCE
+
+def _resolve_source_or_400(source: str) -> str:
+    if source not in ECOMMERCE_SOURCES:
+        valid = ", ".join(ECOMMERCE_SOURCES.keys())
+        raise HTTPException(status_code=400, detail=f"Source tidak dikenal. Pilihan: {valid}")
+    return source
 
 @app.post("/ecommerce-account")
 async def link_ecommerce_account(payload: EcommerceAccountPayload, request: Request):
     user_id = get_user_id_from_request(request)
     username = payload.username.strip()
     password = payload.password
+    source = _resolve_source_or_400(payload.source)
+    base_url = ECOMMERCE_SOURCES[source]["base_url"]
 
     if not username or not password:
         raise HTTPException(status_code=400, detail="Username and password are required")
 
     try:
         register_resp = requests.post(
-            f"{ECOMMERCE_BASE_URL}/api/auth/register",
+            f"{base_url}/api/auth/register",
             json={"username": username, "password": password},
             timeout=10,
         )
@@ -702,7 +709,7 @@ async def link_ecommerce_account(payload: EcommerceAccountPayload, request: Requ
             # Account may already exist — validate these are real, working
             # credentials for it before we store them.
             login_resp = requests.post(
-                f"{ECOMMERCE_BASE_URL}/api/auth/token",
+                f"{base_url}/api/auth/token",
                 json={"username": username, "password": password},
                 timeout=10,
             )
@@ -714,24 +721,29 @@ async def link_ecommerce_account(payload: EcommerceAccountPayload, request: Requ
     except requests.RequestException:
         raise HTTPException(status_code=502, detail="Gagal menghubungi layanan e-commerce.")
 
-    save_ecommerce_account(user_id, username, password)
+    save_ecommerce_account(user_id, username, password, source)
 
-    return {"status": "OK", "username": username}
+    return {"status": "OK", "username": username, "source": source}
 
 @app.get("/ecommerce-account")
 async def get_ecommerce_account(request: Request):
     user_id = get_user_id_from_request(request)
-    account = has_ecommerce_account(user_id)
 
-    return {
-        "status": "OK",
-        "linked": account is not None,
-        "username": account["username"] if account else None,
-    }
+    accounts = {}
+    for source, cfg in ECOMMERCE_SOURCES.items():
+        account = has_ecommerce_account(user_id, source)
+        accounts[source] = {
+            "label": cfg["label"],
+            "linked": account is not None,
+            "username": account["username"] if account else None,
+        }
+
+    return {"status": "OK", "accounts": accounts}
 
 @app.delete("/ecommerce-account")
-async def unlink_ecommerce_account(request: Request):
+async def unlink_ecommerce_account(request: Request, source: str = DEFAULT_SOURCE):
     user_id = get_user_id_from_request(request)
-    delete_ecommerce_account(user_id)
+    source = _resolve_source_or_400(source)
+    delete_ecommerce_account(user_id, source)
 
     return {"status": "OK"}

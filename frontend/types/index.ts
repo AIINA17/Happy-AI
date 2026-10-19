@@ -14,6 +14,12 @@ export interface Product {
     category: string;
     image_url?: string;
     stock: number;
+    // Which e-commerce store this came from (see backend/ecommerce_sources.py)
+    // — search_product now queries every registered store at once, so cards
+    // can mix products from different sources.
+    source?: string;
+    source_label?: string;
+    link?: string;
 }
 
 export interface AgentCommand {

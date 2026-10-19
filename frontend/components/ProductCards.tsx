@@ -17,8 +17,10 @@ interface ProductCardsProps {
 export default function ProductCards({ products }: ProductCardsProps) {
     if (!products || products.length === 0) return null;
 
+    // Keyed by source+id, not just id — two different stores can hand out
+    // the same numeric product id for unrelated products.
     const uniqueProducts = Array.from(
-        new Map(products.map((p) => [p.id, p])).values(),
+        new Map(products.map((p) => [`${p.source ?? ""}-${p.id}`, p])).values(),
     );
 
     const formatPrice = (price: number) => {
@@ -43,8 +45,8 @@ export default function ProductCards({ products }: ProductCardsProps) {
             <div className="grid grid-cols-2 gap-3">
                 {uniqueProducts.map((product) => (
                     <Link
-                        key={product.id}
-                        href={`https://dummy-ecommerce-tau.vercel.app/product/${product.id}`}
+                        key={`${product.source ?? ""}-${product.id}`}
+                        href={product.link ?? "#"}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="block">
@@ -63,6 +65,11 @@ export default function ProductCards({ products }: ProductCardsProps) {
                                     <div className="w-full h-full flex items-center justify-center text-muted-foreground">
                                         <Package className="w-12 h-12" strokeWidth={1} />
                                     </div>
+                                )}
+                                {product.source_label && (
+                                    <Badge className="absolute top-2 left-2" variant="default">
+                                        {product.source_label}
+                                    </Badge>
                                 )}
                             </div>
 

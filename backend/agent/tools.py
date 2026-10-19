@@ -3,53 +3,26 @@ import json
 import logging
 import time
 
-import requests
 from langchain_community.tools import DuckDuckGoSearchRun
 from livekit.agents.llm import function_tool
+import requests
 
-
-# Base URL untuk e-commerce website
-BASE_URL = "https://dummy-ecommerce-tau.vercel.app"
-
-# `requests` bersifat sinkron: dipanggil langsung di dalam tool async, ia
-# menghentikan event loop agent, padahal loop yang sama mengirim frame audio ke
-# user (hasilnya suara terpotong selama request berjalan, 400 ms - 1 detik).
-# Jalankan di thread supaya loop tetap bebas.
-async def _get(*args, **kwargs):
-    return await asyncio.to_thread(requests.get, *args, **kwargs)
-
-
-async def _post(*args, **kwargs):
-    return await asyncio.to_thread(requests.post, *args, **kwargs)
-
-
-async def _delete(*args, **kwargs):
-    return await asyncio.to_thread(requests.delete, *args, **kwargs)
-
+from agent.adapters import ADAPTERS, get_adapter, list_sources
+from agent.adapters.base import _num
 
 # Interval untuk re-verifikasi (10 menit)
 REVERIFY_INTERVAL = 600
 
 
-def _num(value, default=0):
-    """Safely coerce API values (price, rating, balance, total, ...) to a number.
-
-    Supabase/Postgres numeric columns often come back as strings over the
-    REST API (e.g. "price": "13999000"), which breaks both arithmetic and
-    the ',' thousands-separator format spec if used directly.
-    """
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return default
-
 # ==================== GLOBAL AUTH STATE ====================
 auth_state = {
-    # Login state
-    "token": None,
-    "user_id": None,
-    "username": None,
-    "is_logged_in": False,
+    # Login state — one slot per registered e-commerce source (see
+    # backend/ecommerce_sources.py), since each store has its own account
+    # and cart.
+    "accounts": {
+        source: {"token": None, "user_id": None, "username": None, "is_logged_in": False}
+        for source in list_sources()
+    },
 
     # Voice verification state
     "voice_score": 0.0,
@@ -69,14 +42,6 @@ auth_state = {
 }
 
 
-def get_headers():
-    """Get headers with auth token if logged in"""
-    headers = {"Content-Type": "application/json"}
-    if auth_state["token"]:
-        headers["Authorization"] = f"Bearer {auth_state['token']}"
-    return headers
-
-
 def require_voice_verification(action_name: str, params=None) -> str | None:
     """Soft gate for sensitive actions. Returns error string or None if OK."""
     state = auth_state.get("agent_state", {})
@@ -93,6 +58,26 @@ def require_voice_verification(action_name: str, params=None) -> str | None:
 
     if status == "VERIFIED":
         return None
+
+    # Lockout check (voice + face gagal berkali kali)
+    lockout_until = state.get("lockout_until")
+    if lockout_until:
+        now = time.time()
+        if now >= lockout_until:
+            state["verify_attempts"] = 0
+            state["lockout_until"] = None
+            lockout_until = None
+        else:
+            remaining = int(lockout_until - now)
+            return (
+                f"Maaf, verifikasi gagal beberapa kali. "
+                f"Coba lagi sekitar {remaining} detik lagi sebelum {action_name}."
+            )
+
+    if not state.get("is_verifying") and not state.get("is_face_verifying"):
+        trigger = state.get("start_verification")
+        if trigger:
+            asyncio.create_task(trigger())
 
     if status == "EXPIRED":
         return (
@@ -117,6 +102,26 @@ def require_voice_verification(action_name: str, params=None) -> str | None:
         f"Sebelum gue {action_name}, gue perlu memastikan suara kamu dulu. "
         f"Coba ngobrol sebentar ya."
     )
+
+
+def _resolve_account(source: str):
+    """Validate a 'source' argument against the registry.
+
+    Returns (adapter, account_state, None) on success, or
+    (None, None, error_message) if `source` is missing/unknown — the error
+    message is meant to be returned straight to the LLM.
+    """
+    source = (source or "").strip()
+    if not source:
+        names = ", ".join(f'"{s}" ({a.label})' for s, a in ADAPTERS.items())
+        return None, None, f"Sebutin toko mana dulu ya — pilihannya: {names}."
+
+    adapter = get_adapter(source)
+    if not adapter:
+        names = ", ".join(f'"{s}"' for s in list_sources())
+        return None, None, f"Toko '{source}' gak dikenal. Pilihannya: {names}."
+
+    return adapter, auth_state["accounts"][source], None
 
 
 # ==================== INTERNAL HELPER ====================
@@ -199,8 +204,14 @@ async def search_product(
     sort_by: str = ""
 ) -> str:
     """
-    Search for products in the e-commerce website.
-    Fetches all products then filters locally by the given criteria.
+    Search for products across ALL registered e-commerce stores at once, so
+    the results can be compared store-to-store (price, rating, etc).
+    Fetches all products from every store then filters locally by the given
+    criteria.
+
+    Every product in the results carries a "source" code (e.g. "tau",
+    "hijau") — pass that same source back into get_product_detail,
+    add_to_cart, checkout and the other per-store tools.
 
     Args:
         query: Search keyword for product name (optional, matches partial name)
@@ -210,141 +221,156 @@ async def search_product(
         min_rating: Minimum rating filter (0.0-5.0)
         sort_by: Sort results (price_asc, price_desc, rating_desc, newest)
     """
-    try:
-        # Fetch ALL products (API does not support server-side filtering)
-        response = await _get(
-            f"{BASE_URL}/api/products",
-            timeout=10
+    results = await asyncio.gather(
+        *[adapter.search_products() for adapter in ADAPTERS.values()],
+        return_exceptions=True
+    )
+
+    products = []
+    failed_sources = []
+    for adapter, result in zip(ADAPTERS.values(), results):
+        if isinstance(result, Exception):
+            logging.error(f"Search product error ({adapter.source}): {result}")
+            failed_sources.append(adapter.label)
+            continue
+        products.extend(result)
+
+    if not products:
+        if failed_sources:
+            return f"Gagal mengakses toko: {', '.join(failed_sources)}."
+        return "Tidak ada produk di toko manapun saat ini."
+
+    # ── Client-side filtering (across the merged list) ──
+    if query:
+        q_lower = query.lower()
+        products = [
+            p for p in products
+            if q_lower in (p.get("name") or "").lower()
+            or q_lower in (p.get("description") or "").lower()
+            # Some stores (e.g. Toko Hijau) put searchable terms like
+            # "laptop"/"notebook" in a separate keywords field instead of
+            # the name/description — without this, their matching products
+            # silently never show up in results.
+            or q_lower in (p.get("keywords") or "").lower()
+        ]
+
+    if category:
+        cat_lower = category.lower()
+        products = [
+            p for p in products
+            if (p.get("category") or "").lower() == cat_lower
+        ]
+
+    if min_price > 0:
+        products = [p for p in products if (p.get("price") or 0) >= min_price]
+
+    if max_price > 0:
+        products = [p for p in products if (p.get("price") or 0) <= max_price]
+
+    if min_rating > 0:
+        products = [p for p in products if (p.get("rating") or 0) >= min_rating]
+
+    # ── Sorting ──
+    if sort_by == "price_asc":
+        products.sort(key=lambda p: p.get("price") or 0)
+    elif sort_by == "price_desc":
+        products.sort(key=lambda p: p.get("price") or 0, reverse=True)
+    elif sort_by == "rating_desc":
+        products.sort(key=lambda p: p.get("rating") or 0, reverse=True)
+    elif sort_by == "newest":
+        products.sort(key=lambda p: p.get("created_at") or "", reverse=True)
+    else:
+        # No explicit sort requested — products are still grouped store by
+        # store at this point (every oren result, then every hijau result,
+        # ...), so interleave them round-robin. Otherwise a store with many
+        # matches fills up the whole top-8 display before a store with
+        # fewer matches ever gets a turn, defeating the point of searching
+        # multiple stores for comparison.
+        buckets = {source: [] for source in ADAPTERS}
+        for p in products:
+            buckets.setdefault(p.get("source"), []).append(p)
+        interleaved = []
+        while any(buckets.values()):
+            for source in buckets:
+                if buckets[source]:
+                    interleaved.append(buckets[source].pop(0))
+        products = interleaved
+
+    if not products:
+        search_term = query if query else "filter yang diberikan"
+        return f"Gak nemu produk untuk '{search_term}'."
+
+    # ✅ Simpan ke memory agar bisa diakses tools lain
+    auth_state["last_search_products"] = products[:10]
+
+    # ✅ Kirim ke frontend via internal function (bukan @function_tool)
+    await _send_product_cards_internal(products[:8])
+
+    # ✅ Return daftar lengkap ke LLM agar agent tahu semua produk
+    search_term = query if query else "semua produk"
+    result = (
+        f"Ketemu {len(products)} produk untuk '{search_term}' dari "
+        f"{len(ADAPTERS)} toko. Gue tampilin {min(len(products), 8)} di layar.\n\n"
+    )
+    result += "Daftar produk yang ditampilkan (sebutin source-nya kalau mau add_to_cart/checkout):\n"
+    for i, p in enumerate(products[:8], 1):
+        result += (
+            f"{i}. {p.get('name', 'Unknown')} — toko: {p.get('source_label')} (source=\"{p.get('source')}\")\n"
+            f"   ID: {p.get('id', '-')} | "
+            f"Harga: Rp {p.get('price', 0):,.0f} | "
+            f"Stok: {p.get('stock', 0)} | "
+            f"Kategori: {p.get('category', '-')}\n"
         )
 
-        if response.status_code != 200:
-            return "Gagal mencari produk."
+    if len(products) > 8:
+        result += f"\n(Ada {len(products) - 8} produk lagi yang gak ditampilin.)\n"
 
-        data = response.json()
-        products = data.get("data", [])
+    if failed_sources:
+        result += f"\n⚠️ Toko yang gagal diakses: {', '.join(failed_sources)}.\n"
 
-        if not products:
-            return "Tidak ada produk di toko saat ini."
-
-        # Normalize price/rating (API sometimes returns them as strings)
-        for p in products:
-            p["price"] = _num(p.get("price"))
-            p["rating"] = _num(p.get("rating"))
-
-        # ── Client-side filtering ──
-        if query:
-            q_lower = query.lower()
-            products = [
-                p for p in products
-                if q_lower in (p.get("name") or "").lower()
-                or q_lower in (p.get("description") or "").lower()
-            ]
-
-        if category:
-            cat_lower = category.lower()
-            products = [
-                p for p in products
-                if (p.get("category") or "").lower() == cat_lower
-            ]
-
-        if min_price > 0:
-            products = [p for p in products if (p.get("price") or 0) >= min_price]
-
-        if max_price > 0:
-            products = [p for p in products if (p.get("price") or 0) <= max_price]
-
-        if min_rating > 0:
-            products = [p for p in products if (p.get("rating") or 0) >= min_rating]
-
-        # ── Sorting ──
-        if sort_by == "price_asc":
-            products.sort(key=lambda p: p.get("price") or 0)
-        elif sort_by == "price_desc":
-            products.sort(key=lambda p: p.get("price") or 0, reverse=True)
-        elif sort_by == "rating_desc":
-            products.sort(key=lambda p: p.get("rating") or 0, reverse=True)
-        elif sort_by == "newest":
-            products.sort(key=lambda p: p.get("created_at") or "", reverse=True)
-
-        if not products:
-            search_term = query if query else "filter yang diberikan"
-            return f"Gak nemu produk untuk '{search_term}'."
-
-        # ✅ Simpan ke memory agar bisa diakses tools lain
-        auth_state["last_search_products"] = products[:10]
-
-        # ✅ Kirim ke frontend via internal function (bukan @function_tool)
-        await _send_product_cards_internal(products[:8])
-
-        # ✅ Return daftar lengkap ke LLM agar agent tahu semua produk
-        search_term = query if query else "semua produk"
-        result = f"Ketemu {len(products)} produk untuk '{search_term}'. Gue tampilin {min(len(products), 8)} di layar.\n\n"
-        result += "Daftar produk yang ditampilkan:\n"
-        for i, p in enumerate(products[:8], 1):
-            result += (
-                f"{i}. {p.get('name', 'Unknown')}\n"
-                f"   ID: {p.get('id', '-')} | "
-                f"Harga: Rp {p.get('price', 0):,.0f} | "
-                f"Stok: {p.get('stock', 0)} | "
-                f"Kategori: {p.get('category', '-')}\n"
-            )
-
-        if len(products) > 8:
-            result += f"\n(Ada {len(products) - 8} produk lagi yang gak ditampilin.)\n"
-
-        result += "\nUser bisa minta detail atau tambahin ke keranjang dengan sebut nama/nomor produk."
-        return result
-
-    except Exception as e:
-        logging.error(f"Search product error: {e}")
-        return f"Search error: {str(e)}"
+    result += "\nUser bisa minta detail atau tambahin ke keranjang dengan sebut nama/nomor produk."
+    return result
 
 
 @function_tool
-async def get_product_detail(product_id: int) -> str:
+async def get_product_detail(product_id: int, source: str) -> str:
     """
-    Get detailed information about a specific product.
+    Get detailed information about a specific product from a specific store.
     Returns: name, price, category, rating, stock, description, image URL, and product link.
+
+    Args:
+        product_id: the product's ID
+        source: store code the product belongs to (from search_product results), e.g. "tau" or "hijau"
     """
+    adapter, _, error = _resolve_account(source)
+    if error:
+        return error
+
     try:
-        response = await _get(f"{BASE_URL}/api/products/{product_id}", timeout=10)
+        p = await adapter.get_product(product_id)
 
-        if response.status_code == 200:
-            data = response.json()
-            p = data.get("data", {})
+        if not p:
+            return f"Produk ID {product_id} gak ditemukan di {adapter.label}."
 
-            if not p:
-                return f"Produk ID {product_id} gak ditemukan."
+        stock = p.get('stock', 0)
+        if stock > 10:
+            stock_status = f"✅ Tersedia ({stock} unit)"
+        elif stock > 0:
+            stock_status = f"⚠️ Stok terbatas ({stock} unit)"
+        else:
+            stock_status = "❌ Habis"
 
-            name = p.get('name', 'Unknown')
-            price = _num(p.get('price'))
-            category = p.get('category', '-')
-            rating = _num(p.get('rating'))
-            stock = p.get('stock', 0)
-            description = p.get('description', 'Tidak ada deskripsi')
-            image_url = p.get('image_url', f"https://picsum.photos/seed/{product_id}/300/300")
-            product_link = f"{BASE_URL}/product/{product_id}"
-
-            if stock > 10:
-                stock_status = f"✅ Tersedia ({stock} unit)"
-            elif stock > 0:
-                stock_status = f"⚠️ Stok terbatas ({stock} unit)"
-            else:
-                stock_status = "❌ Habis"
-
-            return (
-                f"📦 Detail Produk:\n"
-                f"• Nama: {name}\n"
-                f"• Harga: Rp {price:,.0f}\n"
-                f"• Kategori: {category}\n"
-                f"• Rating: {rating}⭐\n"
-                f"• Stok: {stock_status}\n\n"
-                f"📝 Deskripsi:\n{description}\n\n"
-                f"🖼️ Foto Produk: {image_url}\n"
-                f"🔗 Link Produk: {product_link}"
-            )
-
-        return "Produk tidak ditemukan."
+        return (
+            f"📦 Detail Produk ({adapter.label}):\n"
+            f"• Nama: {p.get('name', 'Unknown')}\n"
+            f"• Harga: Rp {p.get('price', 0):,.0f}\n"
+            f"• Kategori: {p.get('category', '-')}\n"
+            f"• Rating: {p.get('rating', 0)}⭐\n"
+            f"• Stok: {stock_status}\n\n"
+            f"📝 Deskripsi:\n{p.get('description', 'Tidak ada deskripsi')}\n\n"
+            f"🖼️ Foto Produk: {p.get('image_url')}\n"
+            f"🔗 Link Produk: {p.get('link')}"
+        )
 
     except Exception as e:
         logging.error(f"Get product error: {e}")
@@ -354,8 +380,9 @@ async def get_product_detail(product_id: int) -> str:
 @function_tool
 async def get_product_from_search_index(index: int) -> str:
     """
-    Get product ID from the last search results by index (1-based).
-    Example: User says 'add product number 2 to cart', use this to get product ID.
+    Get product ID and source from the last search results by index (1-based).
+    Example: User says 'add product number 2 to cart', use this to get the
+    product ID + source, then pass both into add_to_cart.
     """
     if not auth_state["last_search_products"]:
         return "Gak ada hasil pencarian sebelumnya. Coba cari produk dulu."
@@ -364,11 +391,11 @@ async def get_product_from_search_index(index: int) -> str:
         return f"Index {index} gak valid. Hasil pencarian cuma ada {len(auth_state['last_search_products'])} produk."
 
     product = auth_state["last_search_products"][index - 1]
-    product_id = product.get("id")
-    product_name = product.get("name")
-    product_price = _num(product.get("price"))
-
-    return f"Produk nomor {index}: {product_name} (ID: {product_id}, Harga: Rp {product_price:,.0f})"
+    return (
+        f"Produk nomor {index}: {product.get('name')} "
+        f"(ID: {product.get('id')}, source: \"{product.get('source')}\" / {product.get('source_label')}, "
+        f"Harga: Rp {_num(product.get('price')):,.0f})"
+    )
 
 
 # ==================== GENERAL TOOLS ====================
@@ -377,7 +404,12 @@ async def get_product_from_search_index(index: int) -> str:
 async def get_weather(city: str) -> str:
     """Get current weather for a given city."""
     try:
-        response = await _get(f"https://wttr.in/{city}?format=3", timeout=10)
+        response = await asyncio.to_thread(
+            requests.get,
+            f"https://wttr.in/{city}?format=3",
+            timeout=10
+        )
+
         if response.status_code == 200:
             logging.info(f"Weather for {city}: {response.text.strip()}")
             return response.text.strip()
@@ -400,16 +432,16 @@ async def web_search(query: str) -> str:
 
 # ==================== AUTH TOOLS ====================
 
-async def login_with_stored_credentials() -> str:
+async def login_with_stored_credentials(source: str = "") -> str:
     """
-    Log in to the e-commerce site using the caller's own linked account
-    (db/ecommerce_repo.py), never credentials typed/spoken in conversation.
+    Log in to one (or every) linked e-commerce account using the caller's own
+    stored credentials (db/ecommerce_repo.py), never credentials typed/spoken
+    in conversation.
 
     Shared by the login() tool and by agent.py's auto-login-after-voice-
-    verification hook, so both paths behave identically.
+    verification hook, so both paths behave identically. An empty `source`
+    means "try every registered store the user has linked an account to".
     """
-    global auth_state
-
     state = auth_state.get("agent_state") or {}
     user_id = state.get("user_id")
 
@@ -418,43 +450,60 @@ async def login_with_stored_credentials() -> str:
 
     from db.ecommerce_repo import load_ecommerce_account
 
-    account = load_ecommerce_account(user_id)
-    if account is None:
+    if source:
+        adapter = get_adapter(source)
+        if not adapter:
+            names = ", ".join(f'"{s}"' for s in list_sources())
+            return f"Toko '{source}' gak dikenal. Pilihannya: {names}."
+        targets = [source]
+    else:
+        targets = list_sources()
+
+    results = []
+    any_linked = False
+
+    for src in targets:
+        adapter = get_adapter(src)
+        account = load_ecommerce_account(user_id, src)
+        if account is None:
+            continue
+        any_linked = True
+
+        login_result = await adapter.login(account["username"], account["password"])
+        acc_state = auth_state["accounts"][src]
+        if login_result["success"]:
+            acc_state["token"] = login_result["token"]
+            acc_state["user_id"] = login_result["user_id"]
+            acc_state["username"] = login_result["username"]
+            acc_state["is_logged_in"] = True
+            results.append(f"✅ {adapter.label}: login berhasil sebagai {acc_state['username']}")
+        else:
+            acc_state["is_logged_in"] = False
+            results.append(f"❌ {adapter.label}: login gagal — akun yang lo hubungkan sepertinya udah gak valid lagi")
+
+    if not any_linked:
+        if source:
+            adapter = get_adapter(source)
+            return (
+                f"Lo belum nyambungin akun {adapter.label}. "
+                f"Buka menu akun di aplikasi buat daftarin username & password dulu ya."
+            )
         return (
-            "Lo belum nyambungin akun e-commerce lo. "
+            "Lo belum nyambungin akun e-commerce manapun. "
             "Buka menu akun di aplikasi buat daftarin username & password dulu ya."
         )
 
-    try:
-        response = await _post(
-            f"{BASE_URL}/api/auth/token",
-            json={"username": account["username"], "password": account["password"]},
-            headers={"Content-Type": "application/json"},
-            timeout=10
-        )
-
-        logging.info(f"Login response: {response.status_code}")
-
-        if response.status_code == 200:
-            data = response.json()
-            if data.get("success"):
-                auth_state["token"] = data.get("token")
-                auth_state["user_id"] = data.get("user", {}).get("id")
-                auth_state["username"] = data.get("user", {}).get("username")
-                auth_state["is_logged_in"] = True
-                return f"Login berhasil! Selamat datang {auth_state['username']}."
-
-        return "Login gagal — akun e-commerce yang lo hubungkan sepertinya udah gak valid lagi."
-
-    except Exception as e:
-        logging.error(f"Login error: {e}")
-        return f"Login error: {str(e)}"
+    return "\n".join(results)
 
 
 @function_tool
-async def login() -> str:
+async def login(source: str = "") -> str:
     """
-    Log in to the e-commerce website using the user's own linked account.
+    Log in to the user's own linked e-commerce account(s).
+
+    Args:
+        source: store code to log into, e.g. "tau" or "hijau". Leave empty
+            to log into every store the user has linked an account to.
 
     ⚠️ This action requires voice verification for security.
     """
@@ -462,13 +511,17 @@ async def login() -> str:
     if voice_error:
         return voice_error
 
-    return await login_with_stored_credentials()
+    return await login_with_stored_credentials(source)
 
 
 @function_tool
-async def logout() -> str:
+async def logout(source: str = "") -> str:
     """
-    Logout from the e-commerce website.
+    Logout from one (or all) e-commerce store(s).
+
+    Args:
+        source: store code to log out of, e.g. "tau" or "hijau". Leave empty
+            to log out of every store.
 
     ⚠️ This action requires voice verification for security.
     """
@@ -476,20 +529,44 @@ async def logout() -> str:
     if voice_error:
         return voice_error
 
-    global auth_state
-    auth_state["token"] = None
-    auth_state["user_id"] = None
-    auth_state["username"] = None
-    auth_state["is_logged_in"] = False
-    return "Berhasil logout."
+    targets = [source] if source else list_sources()
+    logged_out = []
+    for src in targets:
+        if src not in auth_state["accounts"]:
+            continue
+        auth_state["accounts"][src] = {
+            "token": None, "user_id": None, "username": None, "is_logged_in": False
+        }
+        adapter = get_adapter(src)
+        logged_out.append(adapter.label if adapter else src)
+
+    if not logged_out:
+        return "Gak ada akun yang lagi login."
+    return f"Berhasil logout dari {', '.join(logged_out)}."
 
 
 @function_tool
-async def check_login_status() -> str:
-    """Check if user is currently logged in."""
-    if auth_state["is_logged_in"]:
-        return f"Lo udah login sebagai {auth_state['username']}."
-    return "Lo belum login. Login dulu ya buat belanja."
+async def check_login_status(source: str = "") -> str:
+    """
+    Check if the user is currently logged in.
+
+    Args:
+        source: store code to check, e.g. "tau" or "hijau". Leave empty to
+            check every store.
+    """
+    targets = [source] if source else list_sources()
+    lines = []
+    for src in targets:
+        adapter = get_adapter(src)
+        if not adapter:
+            continue
+        acc = auth_state["accounts"].get(src, {})
+        if acc.get("is_logged_in"):
+            lines.append(f"✅ {adapter.label}: login sebagai {acc.get('username')}")
+        else:
+            lines.append(f"⚪ {adapter.label}: belum login")
+
+    return "\n".join(lines) if lines else "Belum ada status login."
 
 
 @function_tool
@@ -524,9 +601,12 @@ async def check_voice_status() -> str:
 # ==================== USER TOOLS ====================
 
 @function_tool
-async def get_shopkupay_balance() -> str:
+async def get_shopkupay_balance(source: str) -> str:
     """
-    Get user's ShopKuPay balance/saldo.
+    Get user's ShopKuPay balance/saldo on a specific store.
+
+    Args:
+        source: store code, e.g. "tau" or "hijau"
 
     ⚠️ This action requires voice verification for security.
     """
@@ -534,23 +614,18 @@ async def get_shopkupay_balance() -> str:
     if voice_error:
         return voice_error
 
-    if not auth_state["is_logged_in"]:
-        return "Lo harus login dulu buat cek saldo ShopKuPay."
+    adapter, account, error = _resolve_account(source)
+    if error:
+        return error
+
+    if not account["is_logged_in"]:
+        return f"Lo harus login dulu ke {adapter.label} buat cek saldo ShopKuPay."
 
     try:
-        response = await _get(
-            f"{BASE_URL}/api/user",
-            headers=get_headers(),
-            timeout=10
-        )
-
-        if response.status_code == 200:
-            data = response.json()
-            user = data.get("data", {})
-            balance = _num(user.get("balance"))
-            return f"Saldo ShopKuPay lo: Rp {balance:,.0f}"
-
-        return "Gagal mengambil data saldo."
+        user = await adapter.get_user(account["token"])
+        if user is None:
+            return "Gagal mengambil data saldo."
+        return f"Saldo ShopKuPay lo di {adapter.label}: Rp {user.get('balance', 0):,.0f}"
 
     except Exception as e:
         logging.error(f"Get balance error: {e}")
@@ -560,9 +635,15 @@ async def get_shopkupay_balance() -> str:
 # ==================== CART TOOLS ====================
 
 @function_tool
-async def add_to_cart(product_id: int, quantity: int = 1) -> str:
+async def add_to_cart(product_id: int, source: str, quantity: int = 1) -> str:
     """
-    Add a product to the shopping cart. Requires login first.
+    Add a product to the shopping cart of a specific store. Requires login
+    to that store first.
+
+    Args:
+        product_id: the product's ID
+        source: store code the product belongs to, e.g. "tau" or "hijau"
+        quantity: how many units to add
 
     ⚠️ This action requires voice verification for security.
     """
@@ -570,25 +651,18 @@ async def add_to_cart(product_id: int, quantity: int = 1) -> str:
     if voice_error:
         return voice_error
 
-    if not auth_state["is_logged_in"]:
-        return "Lo harus login dulu sebelum bisa nambahin ke keranjang."
+    adapter, account, error = _resolve_account(source)
+    if error:
+        return error
+
+    if not account["is_logged_in"]:
+        return f"Lo harus login dulu ke {adapter.label} sebelum bisa nambahin ke keranjang."
 
     try:
-        response = await _post(
-            f"{BASE_URL}/api/cart",
-            json={"product_id": product_id, "quantity": quantity},
-            headers=get_headers(),
-            timeout=10
-        )
-
-        logging.info(f"Add to cart response: {response.status_code}")
-
-        if response.status_code == 200:
-            data = response.json()
-            if data.get("success"):
-                return f"Berhasil ditambahin ke keranjang! {data.get('message', '')}"
-
-        return "Gagal nambahin ke keranjang."
+        result = await adapter.add_to_cart(account["token"], product_id, quantity)
+        if result["success"]:
+            return f"Berhasil ditambahin ke keranjang {adapter.label}! {result.get('message', '')}"
+        return f"Gagal nambahin ke keranjang {adapter.label}."
 
     except Exception as e:
         logging.error(f"Add to cart error: {e}")
@@ -596,43 +670,42 @@ async def add_to_cart(product_id: int, quantity: int = 1) -> str:
 
 
 @function_tool
-async def get_cart() -> str:
-    """Get current items in the shopping cart with cart link."""
-    if not auth_state["is_logged_in"]:
-        return "Lo harus login dulu buat liat keranjang."
+async def get_cart(source: str) -> str:
+    """
+    Get current items in the shopping cart of a specific store, with cart link.
+
+    Args:
+        source: store code, e.g. "tau" or "hijau"
+    """
+    adapter, account, error = _resolve_account(source)
+    if error:
+        return error
+
+    if not account["is_logged_in"]:
+        return f"Lo harus login dulu ke {adapter.label} buat liat keranjang."
 
     try:
-        response = await _get(
-            f"{BASE_URL}/api/cart",
-            headers=get_headers(),
-            timeout=10
-        )
+        items = await adapter.get_cart(account["token"])
 
-        if response.status_code == 200:
-            data = response.json()
-            items = data.get("data", [])
+        if not items:
+            return f"Keranjang lo di {adapter.label} kosong."
 
-            if not items:
-                return "Keranjang lo kosong."
+        result = f"🛒 Keranjang lo di {adapter.label} ({len(items)} item):\n\n"
+        total = 0
 
-            result = f"🛒 Keranjang lo ({len(items)} item):\n\n"
-            total = 0
+        for item in items:
+            product = item.get("products", {})
+            price = _num(product.get("price"))
+            subtotal = price * item.get("quantity", 1)
+            total += subtotal
 
-            for item in items:
-                product = item.get("products", {})
-                price = _num(product.get("price"))
-                subtotal = price * item.get("quantity", 1)
-                total += subtotal
+            result += f"• {product.get('name', 'Unknown')}\n"
+            result += f"  {item.get('quantity')}x Rp {price:,.0f} = Rp {subtotal:,.0f}\n"
+            result += f"  (Cart ID: {item.get('id')})\n\n"
 
-                result += f"• {product.get('name', 'Unknown')}\n"
-                result += f"  {item.get('quantity')}x Rp {price:,.0f} = Rp {subtotal:,.0f}\n"
-                result += f"  (Cart ID: {item.get('id')})\n\n"
-
-            result += f"💰 Total: Rp {total:,.0f}\n\n"
-            result += f"🔗 Link Keranjang: {BASE_URL}/cart"
-            return result
-
-        return "Gagal mengambil data keranjang."
+        result += f"💰 Total: Rp {total:,.0f}\n\n"
+        result += f"🔗 Link Keranjang: {adapter.cart_link()}"
+        return result
 
     except Exception as e:
         logging.error(f"Get cart error: {e}")
@@ -640,9 +713,13 @@ async def get_cart() -> str:
 
 
 @function_tool
-async def remove_from_cart(cart_id: int) -> str:
+async def remove_from_cart(cart_id: int, source: str) -> str:
     """
-    Remove an item from the cart using cart_id.
+    Remove an item from a specific store's cart using cart_id.
+
+    Args:
+        cart_id: the cart entry's ID (from get_cart results)
+        source: store code, e.g. "tau" or "hijau"
 
     ⚠️ This action requires voice verification for security.
     """
@@ -650,17 +727,16 @@ async def remove_from_cart(cart_id: int) -> str:
     if voice_error:
         return voice_error
 
-    if not auth_state["is_logged_in"]:
-        return "Lo harus login dulu."
+    adapter, account, error = _resolve_account(source)
+    if error:
+        return error
+
+    if not account["is_logged_in"]:
+        return f"Lo harus login dulu ke {adapter.label}."
 
     try:
-        response = await _delete(
-            f"{BASE_URL}/api/cart?cart_id={cart_id}",
-            headers=get_headers(),
-            timeout=10
-        )
-
-        if response.status_code == 200:
+        ok = await adapter.remove_from_cart(account["token"], cart_id)
+        if ok:
             return "Item berhasil dihapus dari keranjang!"
         return "Gagal menghapus item."
 
@@ -672,10 +748,14 @@ async def remove_from_cart(cart_id: int) -> str:
 # ==================== CHECKOUT TOOLS (PROTECTED) ====================
 
 @function_tool
-async def checkout(payment_method: str = "GoPay") -> str:
+async def checkout(source: str, payment_method: str = "GoPay") -> str:
     """
-    Complete the purchase and create an order from cart items.
+    Complete the purchase and create an order from a specific store's cart items.
     Payment methods: VA_BCA, VA_BRI, VA_Mandiri, GoPay, OVO, ShopeePay, DANA, ShopKuPay
+
+    Args:
+        source: store code to checkout on, e.g. "tau" or "hijau"
+        payment_method: one of the payment methods listed above
 
     ⚠️ This action requires voice verification for security.
     """
@@ -683,24 +763,18 @@ async def checkout(payment_method: str = "GoPay") -> str:
     if voice_error:
         return voice_error
 
-    if not auth_state["is_logged_in"]:
-        return "Lo harus login dulu sebelum checkout."
+    adapter, account, error = _resolve_account(source)
+    if error:
+        return error
+
+    if not account["is_logged_in"]:
+        return f"Lo harus login dulu ke {adapter.label} sebelum checkout."
 
     try:
-        cart_response = await _get(
-            f"{BASE_URL}/api/cart",
-            headers=get_headers(),
-            timeout=10
-        )
-
-        if cart_response.status_code != 200:
-            return "Gagal mengambil data keranjang."
-
-        cart_data = cart_response.json()
-        cart_items = cart_data.get("data", [])
+        cart_items = await adapter.get_cart(account["token"])
 
         if not cart_items:
-            return "Keranjang kosong. Gak ada yang bisa di-checkout."
+            return f"Keranjang {adapter.label} kosong. Gak ada yang bisa di-checkout."
 
         total = sum(
             _num(item.get("products", {}).get("price")) * item.get("quantity", 1)
@@ -708,14 +782,9 @@ async def checkout(payment_method: str = "GoPay") -> str:
         )
 
         if payment_method == "ShopKuPay":
-            user_response = await _get(
-                f"{BASE_URL}/api/user",
-                headers=get_headers(),
-                timeout=10
-            )
-            if user_response.status_code == 200:
-                user_data = user_response.json()
-                balance = _num(user_data.get("data", {}).get("balance"))
+            user = await adapter.get_user(account["token"])
+            if user is not None:
+                balance = _num(user.get("balance"))
                 if balance < total:
                     return f"Saldo ShopKuPay tidak cukup. Saldo: Rp {balance:,.0f}, Total: Rp {total:,.0f}"
 
@@ -729,40 +798,27 @@ async def checkout(payment_method: str = "GoPay") -> str:
                 "name": product.get("name"),
             })
 
-        response = await _post(
-            f"{BASE_URL}/api/orders",
-            json={"payment_method": payment_method, "items": items},
-            headers=get_headers(),
-            timeout=10
+        result = await adapter.checkout(account["token"], payment_method, items)
+
+        if not result["success"]:
+            return f"Checkout gagal: {result.get('message', 'Unknown error')}"
+
+        order = result["order"]
+
+        await asyncio.gather(*[
+            adapter.remove_from_cart(account["token"], item.get("id"))
+            for item in cart_items
+        ])
+
+        return (
+            f"🎉 Pesanan berhasil dibuat di {adapter.label}!\n\n"
+            f"📦 Order ID: {order.get('id')}\n"
+            f"💳 Metode Bayar: {payment_method}\n"
+            f"💰 Total: Rp {_num(order.get('total')):,.0f}\n"
+            f"📋 Status: {order.get('status', 'pending')}\n\n"
+            f"🔗 Link Pesanan: {adapter.order_link(order.get('id'))}\n"
+            f"🔗 Semua Pesanan: {adapter.orders_link()}"
         )
-
-        logging.info(f"Checkout response: {response.status_code} - {response.text}")
-
-        if response.status_code == 200:
-            data = response.json()
-            if data.get("success"):
-                order = data.get("data", {})
-
-                for item in cart_items:
-                    await _delete(
-                        f"{BASE_URL}/api/cart?cart_id={item.get('id')}",
-                        headers=get_headers(),
-                        timeout=5
-                    )
-
-                return (
-                    f"🎉 Pesanan berhasil dibuat!\n\n"
-                    f"📦 Order ID: {order.get('id')}\n"
-                    f"💳 Metode Bayar: {payment_method}\n"
-                    f"💰 Total: Rp {_num(order.get('total')):,.0f}\n"
-                    f"📋 Status: {order.get('status', 'pending')}\n\n"
-                    f"🔗 Link Pesanan: {BASE_URL}/orders/{order.get('id')}\n"
-                    f"🔗 Semua Pesanan: {BASE_URL}/orders"
-                )
-            else:
-                return f"Checkout gagal: {data.get('message', 'Unknown error')}"
-
-        return f"Checkout gagal dengan status {response.status_code}"
 
     except Exception as e:
         logging.error(f"Checkout error: {e}")
@@ -772,71 +828,28 @@ async def checkout(payment_method: str = "GoPay") -> str:
 # ==================== ORDER TOOLS ====================
 
 @function_tool
-async def get_order_history() -> str:
-    """Get order history with links."""
-    if not auth_state["is_logged_in"]:
-        return "Lo harus login dulu buat liat riwayat pesanan."
+async def get_order_history(source: str) -> str:
+    """
+    Get order history with links, for a specific store.
+
+    Args:
+        source: store code, e.g. "tau" or "hijau"
+    """
+    adapter, account, error = _resolve_account(source)
+    if error:
+        return error
+
+    if not account["is_logged_in"]:
+        return f"Lo harus login dulu ke {adapter.label} buat liat riwayat pesanan."
 
     try:
-        response = await _get(
-            f"{BASE_URL}/api/orders",
-            headers=get_headers(),
-            timeout=10
-        )
+        orders = await adapter.get_order_history(account["token"])
 
-        if response.status_code == 200:
-            data = response.json()
-            orders = data.get("data", [])
+        if not orders:
+            return f"Belum ada pesanan di {adapter.label}."
 
-            if not orders:
-                return "Belum ada pesanan."
-
-            result = f"📋 Riwayat pesanan ({len(orders)}):\n\n"
-            for order in orders[:10]:
-                status_label = {
-                    "pending": "⏳ Menunggu Pembayaran",
-                    "paid": "✅ Dibayar",
-                    "shipped": "🚚 Dikirim",
-                    "completed": "✔️ Selesai",
-                    "cancelled": "❌ Dibatalkan"
-                }.get(order.get('status'), order.get('status'))
-
-                result += f"• Order #{order.get('id')}\n"
-                result += f"  Total: Rp {_num(order.get('total')):,.0f}\n"
-                result += f"  Status: {status_label}\n"
-                result += f"  Metode Bayar: {order.get('payment_method', '-')}\n"
-                result += f"  🔗 Link: {BASE_URL}/orders/{order.get('id')}\n\n"
-
-            result += f"🔗 Lihat Semua Pesanan: {BASE_URL}/orders"
-            return result
-
-        return "Gagal mengambil riwayat pesanan."
-
-    except Exception as e:
-        logging.error(f"Get orders error: {e}")
-        return f"Error: {str(e)}"
-
-
-@function_tool
-async def get_order_detail(order_id: int) -> str:
-    """Get detailed information about a specific order by order ID."""
-    if not auth_state["is_logged_in"]:
-        return "Lo harus login dulu buat liat detail pesanan."
-
-    try:
-        response = await _get(
-            f"{BASE_URL}/api/orders/{order_id}",
-            headers=get_headers(),
-            timeout=10
-        )
-
-        if response.status_code == 200:
-            data = response.json()
-            order = data.get("data", {})
-
-            if not order:
-                return f"Order #{order_id} gak ditemukan."
-
+        result = f"📋 Riwayat pesanan di {adapter.label} ({len(orders)}):\n\n"
+        for order in orders[:10]:
             status_label = {
                 "pending": "⏳ Menunggu Pembayaran",
                 "paid": "✅ Dibayar",
@@ -845,27 +858,70 @@ async def get_order_detail(order_id: int) -> str:
                 "cancelled": "❌ Dibatalkan"
             }.get(order.get('status'), order.get('status'))
 
-            result = f"📦 Detail Order #{order.get('id')}:\n\n"
-            result += f"📋 Status: {status_label}\n"
-            result += f"💳 Metode Bayar: {order.get('payment_method', '-')}\n"
-            result += f"💰 Total: Rp {_num(order.get('total')):,.0f}\n\n"
-            result += "🛍️ Produk yang dipesan:\n"
+            result += f"• Order #{order.get('id')}\n"
+            result += f"  Total: Rp {_num(order.get('total')):,.0f}\n"
+            result += f"  Status: {status_label}\n"
+            result += f"  Metode Bayar: {order.get('payment_method', '-')}\n"
+            result += f"  🔗 Link: {adapter.order_link(order.get('id'))}\n\n"
 
-            items = order.get("order_items", [])
-            for item in items:
-                price_at_purchase = _num(item.get('price_at_purchase'))
-                subtotal = price_at_purchase * item.get('quantity', 1)
-                result += f"• {item.get('name_snapshot', 'Unknown')}\n"
-                result += f"  {item.get('quantity')}x Rp {price_at_purchase:,.0f} = Rp {subtotal:,.0f}\n"
+        result += f"🔗 Lihat Semua Pesanan: {adapter.orders_link()}"
+        return result
 
-            result += f"\n🔗 Link Pesanan: {BASE_URL}/orders/{order_id}"
+    except Exception as e:
+        logging.error(f"Get orders error: {e}")
+        return f"Error: {str(e)}"
 
-            if order.get('status') == 'pending':
-                result += f"\n\n⚠️ Pesanan ini belum dibayar. Mau bayar sekarang?"
 
-            return result
+@function_tool
+async def get_order_detail(order_id: int, source: str) -> str:
+    """
+    Get detailed information about a specific order by order ID, on a
+    specific store.
 
-        return f"Order #{order_id} tidak ditemukan."
+    Args:
+        order_id: the order's ID
+        source: store code, e.g. "tau" or "hijau"
+    """
+    adapter, account, error = _resolve_account(source)
+    if error:
+        return error
+
+    if not account["is_logged_in"]:
+        return f"Lo harus login dulu ke {adapter.label} buat liat detail pesanan."
+
+    try:
+        order = await adapter.get_order_detail(account["token"], order_id)
+
+        if not order:
+            return f"Order #{order_id} gak ditemukan di {adapter.label}."
+
+        status_label = {
+            "pending": "⏳ Menunggu Pembayaran",
+            "paid": "✅ Dibayar",
+            "shipped": "🚚 Dikirim",
+            "completed": "✔️ Selesai",
+            "cancelled": "❌ Dibatalkan"
+        }.get(order.get('status'), order.get('status'))
+
+        result = f"📦 Detail Order #{order.get('id')} ({adapter.label}):\n\n"
+        result += f"📋 Status: {status_label}\n"
+        result += f"💳 Metode Bayar: {order.get('payment_method', '-')}\n"
+        result += f"💰 Total: Rp {_num(order.get('total')):,.0f}\n\n"
+        result += "🛍️ Produk yang dipesan:\n"
+
+        items = order.get("order_items", [])
+        for item in items:
+            price_at_purchase = _num(item.get('price_at_purchase'))
+            subtotal = price_at_purchase * item.get('quantity', 1)
+            result += f"• {item.get('name_snapshot', 'Unknown')}\n"
+            result += f"  {item.get('quantity')}x Rp {price_at_purchase:,.0f} = Rp {subtotal:,.0f}\n"
+
+        result += f"\n🔗 Link Pesanan: {adapter.order_link(order_id)}"
+
+        if order.get('status') == 'pending':
+            result += f"\n\n⚠️ Pesanan ini belum dibayar. Mau bayar sekarang?"
+
+        return result
 
     except Exception as e:
         logging.error(f"Get order detail error: {e}")
@@ -873,9 +929,14 @@ async def get_order_detail(order_id: int) -> str:
 
 
 @function_tool
-async def pay_order(order_id: int) -> str:
+async def pay_order(order_id: int, source: str) -> str:
     """
-    Pay for a pending order. Only works for orders with 'pending' status.
+    Pay for a pending order on a specific store. Only works for orders with
+    'pending' status.
+
+    Args:
+        order_id: the order's ID
+        source: store code, e.g. "tau" or "hijau"
 
     ⚠️ This action requires voice verification for security.
     """
@@ -883,20 +944,18 @@ async def pay_order(order_id: int) -> str:
     if voice_error:
         return voice_error
 
-    if not auth_state["is_logged_in"]:
-        return "Lo harus login dulu sebelum bayar."
+    adapter, account, error = _resolve_account(source)
+    if error:
+        return error
+
+    if not account["is_logged_in"]:
+        return f"Lo harus login dulu ke {adapter.label} sebelum bayar."
 
     try:
-        check_response = await _get(
-            f"{BASE_URL}/api/orders/{order_id}",
-            headers=get_headers(),
-            timeout=10
-        )
+        order_data = await adapter.get_order_detail(account["token"], order_id)
 
-        if check_response.status_code != 200:
-            return f"Order #{order_id} gak ditemukan."
-
-        order_data = check_response.json().get("data", {})
+        if not order_data:
+            return f"Order #{order_id} gak ditemukan di {adapter.label}."
 
         if order_data.get("status") != "pending":
             status_label = {
@@ -907,16 +966,13 @@ async def pay_order(order_id: int) -> str:
             }.get(order_data.get('status'), order_data.get('status'))
             return f"Order #{order_id} {status_label}, gak bisa dibayar lagi."
 
-        response = await _post(
-            f"{BASE_URL}/api/orders/{order_id}/pay",
-            headers=get_headers(),
-            timeout=10
-        )
+        result = await adapter.pay_order(account["token"], order_id)
 
-        if response.status_code == 200:
-            data = response.json()
-            if data.get("success"):
-                return f"🎉 Pembayaran berhasil!\nOrder #{order_id} sudah dibayar.\nTotal: Rp {_num(order_data.get('total')):,.0f}"
+        if result["success"]:
+            return (
+                f"🎉 Pembayaran berhasil!\nOrder #{order_id} di {adapter.label} sudah dibayar.\n"
+                f"Total: Rp {_num(order_data.get('total')):,.0f}"
+            )
 
         return "Pembayaran gagal. Coba lagi nanti."
 

@@ -126,6 +126,16 @@ export default function Home() {
     setMessages([]);
     setProducts([]);
     setSessionsRefreshKey((key) => key + 1);
+
+    // Ending a call triggers this immediately, but the backend only
+    // relabels the session (agent.py's label_session_from_transcript)
+    // after its own "disconnected" event arrives and a Gemini call
+    // finishes — both happen after this refresh fires, so the sidebar
+    // would otherwise show the stale label. Refresh again shortly after
+    // to pick up that update.
+    setTimeout(() => {
+      setSessionsRefreshKey((key) => key + 1);
+    }, 3000);
   };
 
   const handleLogout = async () => {

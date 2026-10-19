@@ -151,6 +151,32 @@ async def _send_product_cards_internal(products: list):
         except Exception as e:
             logging.error(f"❌ Failed realtime PRODUCT_CARDS: {e}")
 
+async def _send_review_cards_internal(product_name: str, reviews: list):
+    """
+    Internal function untuk kirim review cards ke frontend.
+    Mirip _send_product_cards_internal, tapi untuk reviews.
+    """
+    room = auth_state.get("room_ref")
+    if not room:
+        logging.error("❌ REVIEW_CARDS NOT SENT: room_ref is None")
+        return
+
+    try:
+        await asyncio.sleep(0.5)
+        payload = json.dumps({
+            "type": "REVIEW_CARDS",
+            "product_name": product_name,
+            "reviews": reviews,
+        }).encode("utf-8")
+        await room.local_participant.publish_data(
+            payload,
+            reliable=True,
+            topic="PRODUCT_DATA"
+        )
+        logging.info(f"📤 REVIEW_CARDS SENT ({len(reviews)} reviews for '{product_name}')")
+    except Exception as e:
+        logging.error(f"❌ Failed to send REVIEW_CARDS: {e}")
+
 
 # ==================== USER CONTEXT TOOLS ====================
 
@@ -325,6 +351,57 @@ async def search_product(
         logging.error(f"Search product error: {e}")
         return f"Search error: {str(e)}"
 
+@function_tool
+async def send_review_cards(product_id: int) -> str:
+    """
+    Fetch reviews for a product and display them as cards in the chat.
+
+    Use this when the user asks about reviews, ratings, or wants to see
+    what other buyers said about a product (e.g. "review-nya gimana?",
+    "mana review-nya?", "orang bilang gimana soal ini?").
+
+    After calling this, briefly summarize the overall sentiment in your
+    voice response (e.g. "nih review-nya, mostly positif soal kamera, tapi
+    beberapa complain soal baterai"). The actual review cards will appear
+    automatically in the chat.
+    """
+    try:
+        response = requests.get(f"{BASE_URL}/api/products/{product_id}", timeout=10)
+        if response.status_code != 200:
+            return f"Gagal ambil review untuk produk {product_id}."
+
+        data = response.json()
+        p = data.get("data", {})
+        if not p:
+            return f"Produk {product_id} gak ditemukan."
+
+        product_name = p.get("name", "Produk ini")
+        reviews = p.get("reviews") or []
+
+        if not reviews:
+            return f"Produk '{product_name}' belum ada review-nya."
+
+        # Kirim ke frontend
+        await _send_review_cards_internal(product_name, reviews[:10])
+
+        # Return summary buat LLM
+        avg_rating = sum(r.get("rating", 0) for r in reviews) / len(reviews)
+        summary = (
+            f"✅ Review cards sent for '{product_name}'.\n"
+            f"Total reviews: {len(reviews)}\n"
+            f"Average rating: {avg_rating:.1f}⭐\n\n"
+            f"Sample reviews:\n"
+        )
+        for r in reviews[:3]:
+            summary += (
+                f"• {r.get('reviewer_name', 'Anonim')} "
+                f"({r.get('rating', 0)}⭐): {r.get('comment', '')}\n"
+            )
+        return summary
+
+    except Exception as e:
+        logging.error(f"Send review cards error: {e}")
+        return f"Error: {str(e)}"
 
 @function_tool
 async def get_product_detail(product_id: int) -> str:
@@ -358,7 +435,6 @@ async def get_product_detail(product_id: int) -> str:
             else:
                 stock_status = "❌ Habis"
 
-            # Build store section (kalau ada)
             store = p.get("store") or {}
             store_section = ""
             if store:
@@ -369,7 +445,6 @@ async def get_product_detail(product_id: int) -> str:
                     f"• Alamat: {store.get('address', '-')}\n"
                 )
 
-            # Build reviews section (tampilkan max 5 review)
             reviews = p.get("reviews") or []
             reviews_section = ""
             if reviews:

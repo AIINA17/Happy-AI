@@ -10,7 +10,7 @@ import ChatArea from "@/components/ChatArea";
 import Sidebar from "@/components/Sidebar";
 import { useVerificationToast } from "@/hooks/useVerificationToast";
 import { supabase } from "@/lib/supabase";
-import { Message, Product } from "@/types";
+import { Message, Product, Review } from "@/types";
 
 type VerificationStatus = "VERIFIED" | "REPEAT" | "DENIED" | null;
 
@@ -84,13 +84,23 @@ export default function Home() {
     return () => subscription.unsubscribe();
   }, [router]);
 
-  const addMessage = (role: "user" | "assistant", text: string) => {
-    if (!text || text.trim() === "") return;
+  const addMessage = (
+    role: "user" | "assistant",
+    text: string,
+    extras?: {
+      reviews?: Review[];
+      reviewProductName?: string;
+    },
+  ) => {
+    const trimmedText = text?.trim() || "";
+    if (!trimmedText && !extras?.reviews) return;
 
     const newMessage: Message = {
       role,
-      text: text.trim(),
+      text: trimmedText,
       timestamp: new Date(),
+      reviews: extras?.reviews,
+      reviewProductName: extras?.reviewProductName,
     };
 
     setMessages((prev) => [...prev, newMessage]);

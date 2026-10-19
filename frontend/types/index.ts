@@ -1,36 +1,56 @@
-// Shared TypeScript interfaces for chat messages, products, and verification.
+export interface Store {
+  id: number;
+  name: string;
+  city: string;
+  address?: string;
+  created_at?: string;
+}
+
+export interface Review {
+  id: number;
+  product_id: number;
+  reviewer_name: string;
+  rating: number;
+  comment: string;
+  created_at: string;
+}
 
 export interface Message {
-    role: "user" | "assistant";
-    text: string;
-    timestamp: Date;
+  role: "user" | "assistant";
+  text: string;
+  timestamp: Date;
+  reviews?: Review[];
+  reviewProductName?: string;
 }
 
 export interface Product {
-    id: number;
-    name: string;
-    price: number;
-    rating: number;
-    category: string;
-    image_url?: string;
-    stock: number;
+  id: number;
+  name: string;
+  price: number;
+  rating: number;
+  category: string;
+  image_url?: string;
+  stock: number;
+  store?: Store | null;
 }
 
 export interface AgentCommand {
-    type: string;
-    action?: string;
-    products?: Product[];
-    text?: string;
-    role?: string;
-    [key: string]: unknown;
+  type: string;
+  action?: string;
+  products?: Product[];
+  reviews?: Review[];
+  product_name?: string;
+  text?: string;
+  role?: string;
+  [key: string]: unknown;
 }
 
 export interface VerificationResult {
-    decision: string;
-    reason: string | null;
-    best_label: string | null;
-    verified: boolean;
-    status: string;
-    score: number;
-    spoof_prob?: number;
+  decision: string;
+  reason: string | null;
+  best_label: string | null;
+  verified: boolean;
+  status: string;
+  score: number;
+  spoof_prob?: number;
 }

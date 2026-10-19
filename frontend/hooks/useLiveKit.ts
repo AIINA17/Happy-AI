@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Room, RoomEvent, Track, createLocalAudioTrack } from "livekit-client";
 
 import { supabase } from "@/lib/supabase";
-import { Product, VerificationResult } from "@/types";
+import { Product, Review, VerificationResult } from "@/types";
 
 function normalizePublicServerUrl(raw: string | undefined) {
   const trimmed = raw?.trim();
@@ -83,7 +83,14 @@ type VerificationStatus = "VERIFIED" | "REPEAT" | "DENIED" | null;
 interface UseLiveKitProps {
   token: string | null;
   userCity: string | null;
-  onMessage: (role: "user" | "assistant", text: string) => void;
+  onMessage: (
+    role: "user" | "assistant",
+    text: string,
+    extras?: {
+      reviews?: Review[];
+      reviewProductName?: string;
+    },
+  ) => void;
   onVerifyStatus: (status: string) => void;
   onRoomStatus: (status: string) => void;
   onScore: (score: number | null) => void;
@@ -165,6 +172,8 @@ export function useLiveKit({
       type?: string;
       action?: string;
       products?: Product[];
+      reviews?: Review[];
+      product_name?: string;
       text?: string;
       role?: string;
     };
@@ -181,6 +190,14 @@ export function useLiveKit({
 
     if (msg.type === "PRODUCT_CARDS" && msg.products) {
       onProductCardsRef.current?.(msg.products);
+      return;
+    }
+
+    if (msg.type === "REVIEW_CARDS" && msg.reviews) {
+      onMessageRef.current("assistant", "", {
+        reviews: msg.reviews,
+        reviewProductName: msg.product_name || "produk ini",
+      });
       return;
     }
 

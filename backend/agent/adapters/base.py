@@ -58,6 +58,19 @@ class EcommerceAdapter:
         p["source"] = self.source
         p["source_label"] = self.label
         p["link"] = self.product_link(p.get("id"))
+
+        # Some sources (e.g. Toko Hijau) don't nest store info under a
+        # "store" object like Toko Oren does — they return flat
+        # shop_name/shop_city fields instead. Normalize both shapes to the
+        # same "store" dict so downstream code (search_product filtering,
+        # product cards, ...) doesn't need to know which source it's from.
+        if not p.get("store") and (p.get("shop_name") or p.get("shop_city")):
+            p["store"] = {
+                "name": p.get("shop_name"),
+                "city": p.get("shop_city"),
+                "address": None,
+            }
+
         return p
 
     def product_link(self, product_id) -> str:

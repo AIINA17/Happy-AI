@@ -80,17 +80,18 @@ export default function ProductCards({ products }: ProductCardsProps) {
                 </h3>
 
                 {product.store && (
-                  <div className="flex items-center gap-1 mb-2 text-[0.7rem] text-muted-foreground">
-                    <MapPin className="w-3 h-3 flex-shrink-0" />
-                    <span className="truncate">
-                      {product.store.name}
+                  <div className="flex items-start gap-1 mb-2 text-[0.7rem]">
+                    <MapPin className="w-3 h-3 flex-shrink-0 mt-0.5 text-muted-foreground" />
+                    <div className="min-w-0 flex-1 leading-tight">
+                      <div className="truncate text-foreground font-medium">
+                        {product.store.name}
+                      </div>
                       {product.store.city && (
-                        <span className="text-muted-foreground/80">
-                          {" · "}
+                        <div className="truncate text-muted-foreground">
                           {product.store.city}
-                        </span>
+                        </div>
                       )}
-                    </span>
+                    </div>
                   </div>
                 )}
 

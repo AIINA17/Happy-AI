@@ -27,7 +27,7 @@ import ConfirmDialog from "./ConfirmDialog";
 import EcommerceAccountLink from "./EcommerceAccountLink";
 import VoiceEnrollment from "./VoiceEnrollment";
 import FaceEnrollment from "./FaceEnrollment";
-import FaceVerifyTest from "./FaceVerifyTest";
+import FaceVerification from "./FaceVerification";
 
 interface ConversationSession {
   id: string;
@@ -364,7 +364,7 @@ export default function Sidebar({
 
         {/* Voice Enrollment Section - Hidden when collapsed */}
         {!isCollapsed && (
-          <div className="px-6 pb-6">
+          <div className="px-6 pb-6 space-y-3">
             <VoiceEnrollment
               token={token}
               setVerifyStatus={setVerifyStatus}
@@ -372,7 +372,7 @@ export default function Sidebar({
               setShowEnrollmentList={setShowEnrollmentList}
             />
             <FaceEnrollment userId={userId} setVerifyStatus={setVerifyStatus} />
-            <FaceVerifyTest userId={userId} />
+            <FaceVerification userId={userId} setVerifyStatus={setVerifyStatus} />
           </div>
         )}
 

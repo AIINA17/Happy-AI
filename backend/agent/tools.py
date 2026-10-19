@@ -170,6 +170,62 @@ async def _send_product_cards_internal(products: list):
         except Exception as e:
             logging.error(f"❌ Failed realtime PRODUCT_CARDS: {e}")
 
+async def _send_review_cards_internal(product_name: str, reviews: list):
+    """
+    Internal function untuk kirim review cards ke frontend.
+    Mirip _send_product_cards_internal, tapi untuk reviews.
+    """
+    room = auth_state.get("room_ref")
+    if not room:
+        logging.error("❌ REVIEW_CARDS NOT SENT: room_ref is None")
+        return
+
+    try:
+        await asyncio.sleep(0.5)
+        payload = json.dumps({
+            "type": "REVIEW_CARDS",
+            "product_name": product_name,
+            "reviews": reviews,
+        }).encode("utf-8")
+        await room.local_participant.publish_data(
+            payload,
+            reliable=True,
+            topic="PRODUCT_DATA"
+        )
+        logging.info(f"📤 REVIEW_CARDS SENT ({len(reviews)} reviews for '{product_name}')")
+    except Exception as e:
+        logging.error(f"❌ Failed to send REVIEW_CARDS: {e}")
+
+
+# ==================== USER CONTEXT TOOLS ====================
+
+@function_tool
+async def get_user_city() -> str:
+    """
+    Get the user's current city, auto-detected from their browser's GPS.
+
+    Returns the city name if GPS permission was granted when they loaded
+    the app (e.g. "Jakarta Selatan", "Ngemplak", "Yogyakarta"), or a
+    message saying it's unknown if they denied permission.
+
+    Use this to:
+    - Prioritize stores in the user's city when recommending products
+    - Suggest nearby stores (lower shipping cost)
+    - Decide whether to filter by city or just show all
+
+    If this returns "unknown", ask the user manually what city they're in,
+    then remember it for the rest of the conversation.
+    """
+    state = auth_state.get("agent_state") or {}
+    city = state.get("user_city")
+
+    if city:
+        return f"User's detected city: {city}"
+
+    return (
+        "User's city is unknown (they denied GPS permission or GPS failed). "
+        "Ask them manually what city they're in."
+    )
 
 # ==================== PRODUCT TOOLS ====================
 
@@ -198,6 +254,7 @@ async def send_product_cards(products: list) -> str:
 async def search_product(
     query: str = "",
     category: str = "",
+    city: str = "",
     min_price: int = 0,
     max_price: int = 0,
     min_rating: float = 0.0,
@@ -216,6 +273,7 @@ async def search_product(
     Args:
         query: Search keyword for product name (optional, matches partial name)
         category: Filter by category — one of: "Gadget & Tech", "Lifestyle", "Home & Living", "Lain-lain"
+        city: Filter by store city (e.g., "Jakarta", "Bandung", "Yogyakarta"). Case-insensitive.
         min_price: Minimum price filter
         max_price: Maximum price filter
         min_rating: Minimum rating filter (0.0-5.0)
@@ -270,6 +328,13 @@ async def search_product(
     if min_rating > 0:
         products = [p for p in products if (p.get("rating") or 0) >= min_rating]
 
+    if city:
+        city_lower = city.lower()
+        products = [
+            p for p in products
+            if (p.get("store") or {}).get("city", "").lower() == city_lower
+        ]
+
     # ── Sorting ──
     if sort_by == "price_asc":
         products.sort(key=lambda p: p.get("price") or 0)
@@ -314,10 +379,13 @@ async def search_product(
     )
     result += "Daftar produk yang ditampilkan (sebutin source-nya kalau mau add_to_cart/checkout):\n"
     for i, p in enumerate(products[:8], 1):
+        store = p.get("store") or {}
+        store_label = f" ({store.get('city')})" if store.get("city") else ""
         result += (
-            f"{i}. {p.get('name', 'Unknown')} — toko: {p.get('source_label')} (source=\"{p.get('source')}\")\n"
+            f"{i}. {p.get('name', 'Unknown')} — toko: {p.get('source_label')}{store_label} (source=\"{p.get('source')}\")\n"
             f"   ID: {p.get('id', '-')} | "
             f"Harga: Rp {p.get('price', 0):,.0f} | "
+            f"Rating: {p.get('rating', 0)}⭐ | "
             f"Stok: {p.get('stock', 0)} | "
             f"Kategori: {p.get('category', '-')}\n"
         )
@@ -331,6 +399,60 @@ async def search_product(
     result += "\nUser bisa minta detail atau tambahin ke keranjang dengan sebut nama/nomor produk."
     return result
 
+@function_tool
+async def send_review_cards(product_id: int, source: str) -> str:
+    """
+    Fetch reviews for a product and display them as cards in the chat.
+
+    Use this when the user asks about reviews, ratings, or wants to see
+    what other buyers said about a product (e.g. "review-nya gimana?",
+    "mana review-nya?", "orang bilang gimana soal ini?").
+
+    Args:
+        product_id: the product's ID
+        source: store code the product belongs to (from search_product results), e.g. "tau" or "hijau"
+
+    After calling this, briefly summarize the overall sentiment in your
+    voice response (e.g. "nih review-nya, mostly positif soal kamera, tapi
+    beberapa complain soal baterai"). The actual review cards will appear
+    automatically in the chat.
+    """
+    adapter, _, error = _resolve_account(source)
+    if error:
+        return error
+
+    try:
+        p = await adapter.get_product(product_id)
+        if not p:
+            return f"Produk ID {product_id} gak ditemukan di {adapter.label}."
+
+        product_name = p.get("name", "Produk ini")
+        reviews = p.get("reviews") or []
+
+        if not reviews:
+            return f"Produk '{product_name}' belum ada review-nya."
+
+        # Kirim ke frontend
+        await _send_review_cards_internal(product_name, reviews[:10])
+
+        # Return summary buat LLM
+        avg_rating = sum(r.get("rating", 0) for r in reviews) / len(reviews)
+        summary = (
+            f"✅ Review cards sent for '{product_name}'.\n"
+            f"Total reviews: {len(reviews)}\n"
+            f"Average rating: {avg_rating:.1f}⭐\n\n"
+            f"Sample reviews:\n"
+        )
+        for r in reviews[:3]:
+            summary += (
+                f"• {r.get('reviewer_name', 'Anonim')} "
+                f"({r.get('rating', 0)}⭐): {r.get('comment', '')}\n"
+            )
+        return summary
+
+    except Exception as e:
+        logging.error(f"Send review cards error: {e}")
+        return f"Error: {str(e)}"
 
 @function_tool
 async def get_product_detail(product_id: int, source: str) -> str:
@@ -360,6 +482,29 @@ async def get_product_detail(product_id: int, source: str) -> str:
         else:
             stock_status = "❌ Habis"
 
+        store = p.get("store") or {}
+        store_section = ""
+        if store:
+            store_section = (
+                f"\n🏪 Toko:\n"
+                f"• Nama: {store.get('name', '-')}\n"
+                f"• Kota: {store.get('city', '-')}\n"
+                f"• Alamat: {store.get('address', '-')}\n"
+            )
+
+        reviews = p.get("reviews") or []
+        reviews_section = ""
+        if reviews:
+            reviews_section = f"\n💬 Review Pembeli ({len(reviews)} total):\n"
+            for r in reviews[:5]:
+                reviews_section += (
+                    f"• {r.get('reviewer_name', 'Anonim')} "
+                    f"({r.get('rating', 0)}⭐): "
+                    f"{r.get('comment', '')}\n"
+                )
+            if len(reviews) > 5:
+                reviews_section += f"(ada {len(reviews) - 5} review lagi)\n"
+
         return (
             f"📦 Detail Produk ({adapter.label}):\n"
             f"• Nama: {p.get('name', 'Unknown')}\n"
@@ -367,7 +512,9 @@ async def get_product_detail(product_id: int, source: str) -> str:
             f"• Kategori: {p.get('category', '-')}\n"
             f"• Rating: {p.get('rating', 0)}⭐\n"
             f"• Stok: {stock_status}\n\n"
-            f"📝 Deskripsi:\n{p.get('description', 'Tidak ada deskripsi')}\n\n"
+            f"📝 Deskripsi:\n{p.get('description', 'Tidak ada deskripsi')}\n"
+            f"{store_section}"
+            f"{reviews_section}\n"
             f"🖼️ Foto Produk: {p.get('image_url')}\n"
             f"🔗 Link Produk: {p.get('link')}"
         )
@@ -794,7 +941,7 @@ async def checkout(source: str, payment_method: str = "GoPay") -> str:
             items.append({
                 "product_id": product.get("id"),
                 "quantity": item.get("quantity"),
-                "price": product.get("price"),
+                "price": _num(product.get("price")),
                 "name": product.get("name"),
             })
 

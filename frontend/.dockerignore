@@ -1,6 +1,8 @@
 node_modules/
 .next/
 out/
+build/
+*.log
 
 # Secrets — never bake these into a build layer
 .env

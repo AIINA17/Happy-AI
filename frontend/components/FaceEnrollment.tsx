@@ -26,6 +26,8 @@ type EnrollmentPhase =
   | "success"
   | "error";
 
+const STABILITY_DURATION_MS = 1500;
+
 export default function FaceEnrollment({ userId, setVerifyStatus }: Props) {
     // face_recognition is now mounted under /face on the same backend as
   // voice verification (see backend/README.md), not a separate service.
@@ -43,12 +45,14 @@ export default function FaceEnrollment({ userId, setVerifyStatus }: Props) {
     width: number;
     height: number;
   } | null>(null);
+  const [stableProgress, setStableProgress] = useState(0);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const faceDetectorRef = useRef<FaceDetector | null>(null);
   const animationFrameRef = useRef<number | null>(null);
+  const stableSinceRef = useRef<number | null>(null);
 
   const startCamera = useCallback(async () => {
     try {
@@ -83,7 +87,9 @@ export default function FaceEnrollment({ userId, setVerifyStatus }: Props) {
       animationFrameRef.current = null;
     }
 
+    setStableProgress(0);
     setDetectionBox(null);
+    stableSinceRef.current = null;
 
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => track.stop());
@@ -180,73 +186,84 @@ export default function FaceEnrollment({ userId, setVerifyStatus }: Props) {
     setErrorMessage("");
   }, [stopCamera]);
 
-  const captureAndEnroll = useCallback(async () => {
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    if (!video || !canvas || !userId) return;
+  const captureFrame = useCallback((): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
 
-    setPhase("capturing");
+      if (!video || !canvas) {
+        reject(new Error("Video atau canvas belum siap"));
+        return;
+      }
+
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        reject(new Error("Canvas context tidak tersedia"));
+        return;
+      }
+
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      canvas.toBlob(
+        (blob) => {
+          if (blob) resolve(blob);
+          else reject(new Error("Gagal convert canvas ke image"));
+        },
+        "image/jpeg",
+        0.92,
+      );
+    });
+  }, []);
+
+  const captureAndEnroll = useCallback(async () => {
+    if (!userId) return;
+
     setErrorMessage("");
 
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) {
-      setErrorMessage("Gagal mengambil gambar dari kamera.");
+    try {
+      const blob = await captureFrame();
+
+      const form = new FormData();
+      form.append("user_id", userId);
+      form.append("image", blob, "face.jpg");
+
+      const res = await fetch(`${SERVER_URL}/enroll-face`, {
+        method: "POST",
+        body: form,
+      });
+
+      const result = await res.json();
+
+      if (res.ok && result.status === "ENROLLMENT_SUCCESS") {
+        stopCamera();
+        setPhase("success");
+        setIsEnrolled(true);
+        toast.success("Wajah berhasil didaftarkan!");
+        setVerifyStatus("Face enrollment berhasil!");
+        // Beri jeda sebentar biar notifikasinya kelihatan dulu sebelum
+        // modal-nya ketutup, bukan langsung hilang.
+        setTimeout(closeModal, 1200);
+      } else {
+        const message =
+          result.detail || result.message || "Enrollment gagal.";
+        setErrorMessage(message);
+        setPhase("error");
+        toast.error(message);
+        setVerifyStatus(`Face enrollment error: ${message}`);
+      }
+    } catch (err) {
+      console.error("Face enroll upload error:", err);
+      const message =
+        err instanceof Error ? err.message : "Gagal menghubungi server.";
+      setErrorMessage(message);
       setPhase("error");
-      return;
+      toast.error(message);
+      setVerifyStatus(`Face enrollment error: ${message}`);
     }
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    canvas.toBlob(
-      async (blob) => {
-        if (!blob) {
-          setErrorMessage("Gagal memproses gambar.");
-          setPhase("error");
-          return;
-        }
-
-        try {
-          const form = new FormData();
-          form.append("user_id", userId);
-          form.append("image", blob, "face.jpg");
-
-          const res = await fetch(`${SERVER_URL}/enroll-face`, {
-            method: "POST",
-            body: form,
-          });
-
-          const result = await res.json();
-
-          if (res.ok && result.status === "ENROLLMENT_SUCCESS") {
-            stopCamera();
-            setPhase("success");
-            setIsEnrolled(true);
-            toast.success("Wajah berhasil didaftarkan!");
-            setVerifyStatus("Face enrollment berhasil!");
-            // Beri jeda sebentar biar notifikasinya kelihatan dulu sebelum
-            // modal-nya ketutup, bukan langsung hilang.
-            setTimeout(closeModal, 1200);
-          } else {
-            const message =
-              result.detail || result.message || "Enrollment gagal.";
-            setErrorMessage(message);
-            setPhase("error");
-            toast.error(message);
-            setVerifyStatus(`Face enrollment error: ${message}`);
-          }
-        } catch (err) {
-          console.error("Face enroll upload error:", err);
-          setErrorMessage("Gagal menghubungi server.");
-          setPhase("error");
-          toast.error("Gagal menghubungi server.");
-          setVerifyStatus("Face enrollment error: gagal menghubungi server.");
-        }
-      },
-      "image/jpeg",
-      0.92,
-    );
-  }, [userId, SERVER_URL, setVerifyStatus, closeModal, stopCamera]);
+  }, [userId, SERVER_URL, setVerifyStatus, closeModal, stopCamera, captureFrame]);
 
   // Held in a ref (rather than referencing the useCallback binding by name
   // from inside itself) so the recursive requestAnimationFrame call doesn't
@@ -287,14 +304,24 @@ export default function FaceEnrollment({ userId, setVerifyStatus }: Props) {
           height: bbox.height / video.videoHeight,
         });
 
-        console.log("Face detected:", {
-          confidence: detection.categories[0]?.score.toFixed(2),
-          x: bbox.originX,
-          y: bbox.originY,
-        });
+        if (stableSinceRef.current === null) {
+          stableSinceRef.current = performance.now();
+        }
+
+        const stableDuration = performance.now() - stableSinceRef.current;
+
+        const progress = Math.min(stableDuration / STABILITY_DURATION_MS, 1);
+        setStableProgress(progress);
+
+        if (stableDuration >= STABILITY_DURATION_MS) {
+          setPhase("capturing");
+          return;
+        }
       }
     } else {
       setDetectionBox(null);
+      stableSinceRef.current = null;
+      setStableProgress(0);
     }
 
     animationFrameRef.current = requestAnimationFrame(() =>
@@ -317,8 +344,22 @@ export default function FaceEnrollment({ userId, setVerifyStatus }: Props) {
   useEffect(() => {
     if (phase === "scanning") {
       detectionLoop();
+
+      return () => {
+        if (animationFrameRef.current !== null) {
+          cancelAnimationFrame(animationFrameRef.current);
+          animationFrameRef.current = null;
+        }
+        stableSinceRef.current = null;
+      };
     }
   }, [phase, detectionLoop]);
+
+  useEffect(() => {
+    if (phase === "capturing") {
+      captureAndEnroll();
+    }
+  }, [phase, captureAndEnroll]);
 
   useEffect(() => {
     return () => {
@@ -339,15 +380,7 @@ export default function FaceEnrollment({ userId, setVerifyStatus }: Props) {
             <DialogTitle>Face Enrollment</DialogTitle>
           </DialogHeader>
 
-          <div
-            className={`relative w-full aspect-[4/3] bg-black rounded-lg overflow-hidden mb-4 flex items-center justify-center border-4 transition-colors duration-300 ${
-              phase === "scanning"
-                ? detectionBox
-                  ? "border-green-400 shadow-[0_0_20px_rgba(74,222,128,0.4)]"
-                  : "border-yellow-400/70"
-                : "border-transparent"
-            }`}
-          >
+          <div className="relative w-full aspect-[4/3] bg-black rounded-lg overflow-hidden mb-4 flex items-center justify-center">
             <video
               ref={videoRef}
               autoPlay
@@ -357,6 +390,89 @@ export default function FaceEnrollment({ userId, setVerifyStatus }: Props) {
             />
 
             <canvas ref={canvasRef} className="hidden" />
+
+            {phase === "scanning" && (
+              <svg
+                className="absolute inset-0 w-full h-full pointer-events-none"
+                viewBox="0 0 100 100"
+                preserveAspectRatio="none"
+              >
+                {/* Waiting state: kuning kalau belum ada wajah */}
+                {!detectionBox && (
+                  <rect
+                    x="1"
+                    y="1"
+                    width="98"
+                    height="98"
+                    rx="1.5"
+                    ry="1.5"
+                    fill="none"
+                    stroke="rgb(250, 204, 21)"
+                    strokeOpacity="0.7"
+                    strokeWidth="4"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                )}
+
+                {/* Face detected: dua ring - background hijau redup + progress ring hijau terang */}
+                {detectionBox && (
+                  <>
+                    {/* Background track: hijau redup, static */}
+                    <rect
+                      x="1"
+                      y="1"
+                      width="98"
+                      height="98"
+                      rx="1.5"
+                      ry="1.5"
+                      fill="none"
+                      stroke="rgb(74, 222, 128)"
+                      strokeOpacity="0.25"
+                      strokeWidth="4"
+                      vectorEffect="non-scaling-stroke"
+                    />
+                    {/* Progress ring: hijau terang, ngisi searah jarum jam */}
+                    <rect
+                      x="1"
+                      y="1"
+                      width="98"
+                      height="98"
+                      rx="1.5"
+                      ry="1.5"
+                      fill="none"
+                      stroke="rgb(74, 222, 128)"
+                      strokeWidth="4"
+                      vectorEffect="non-scaling-stroke"
+                      pathLength="100"
+                      strokeDasharray="100"
+                      strokeDashoffset={100 - stableProgress * 100}
+                      strokeLinecap="round"
+                    />
+                  </>
+                )}
+              </svg>
+            )}
+
+            {phase === "capturing" && (
+              <svg
+                className="absolute inset-0 w-full h-full pointer-events-none animate-pulse"
+                viewBox="0 0 100 100"
+                preserveAspectRatio="none"
+              >
+                <rect
+                  x="1"
+                  y="1"
+                  width="98"
+                  height="98"
+                  rx="1.5"
+                  ry="1.5"
+                  fill="none"
+                  stroke="rgb(74, 222, 128)"
+                  strokeWidth="4"
+                  vectorEffect="non-scaling-stroke"
+                />
+              </svg>
+            )}
 
             {phase === "loading" && (
               <div className="absolute inset-0 flex items-center justify-center bg-black/60 text-white">
@@ -375,21 +491,10 @@ export default function FaceEnrollment({ userId, setVerifyStatus }: Props) {
             {phase === "idle" && "Persiapkan wajah kamu di depan kamera"}
             {phase === "loading" && "Menyiapkan kamera..."}
             {phase === "scanning" && "Arahkan wajah ke kamera..."}
-            {phase === "capturing" && "Menyimpan wajah..."}
+            {phase === "capturing" && "Wajah terdeteksi, menyimpan wajah..."}
             {phase === "success" && "Wajah berhasil didaftarkan!"}
             {phase === "error" && errorMessage}
           </p>
-
-          {phase === "scanning" && (
-            <Button
-              onClick={captureAndEnroll}
-              disabled={!detectionBox}
-              className="w-full max-w-xs mx-auto mb-2"
-            >
-              <ScanFace size={18} />
-              <span>Ambil & Daftarkan Wajah</span>
-            </Button>
-          )}
 
           <Button
             onClick={closeModal}

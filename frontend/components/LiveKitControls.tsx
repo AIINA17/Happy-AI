@@ -7,6 +7,7 @@ import React, { useEffect } from "react";
 import VoiceButton from "./VoiceButton";
 import FaceLivenessCapture from "./FaceLivenessCapture";
 import { useLiveKit } from "@/hooks/useLiveKit";
+import { useUserLocation } from "@/hooks/useUserLocation";
 import { Product } from "@/types";
 
 interface LiveKitControlsProps {
@@ -40,6 +41,8 @@ export default function LiveKitControls({
     setVerificationResult,
     onEndChat,
 }: LiveKitControlsProps) {
+    const { city: userCity } = useUserLocation();
+
     const {
         toggleRoom,
         uiState,
@@ -50,6 +53,7 @@ export default function LiveKitControls({
         onFaceVerifyResult,
     } = useLiveKit({
         token,
+        userCity,
         onMessage: addMessage,
         onProductCards,
         onVerifyStatus: setVerifyStatus,

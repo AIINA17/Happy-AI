@@ -5,6 +5,7 @@ verification services for speaker enrollment and spoof detection.
 """
 
 import asyncio
+import json
 import os
 import time
 from datetime import datetime, timezone
@@ -53,7 +54,7 @@ from voiceverification.services.biometric_service import BiometricService
 from voiceverification.utils.audio import normalize_audio, save_audio
 from voiceverification.utils.spectrogram import render_spectrogram_png
 
-# Environment setup
+
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ENV_PATH = os.path.join(BASE_DIR, ".env")
 load_dotenv(ENV_PATH)
@@ -63,21 +64,17 @@ load_dotenv(ENV_PATH)
 LIVEKIT_API_KEY = os.getenv("LIVEKIT_API_KEY")
 LIVEKIT_API_SECRET = os.getenv("LIVEKIT_API_SECRET")
 
-# Must match agent/agent.py's AGENT_NAME — an unnamed dispatch would target
-# LiveKit's automatic-dispatch agent instead of (or in addition to) this
-# named one.
 AGENT_NAME = "happy-shopping-assistant"
 
 if not LIVEKIT_API_KEY or not LIVEKIT_API_SECRET:
     raise RuntimeError("LIVEKIT credentials not set")
 
 
-# FastAPI application
 app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # ⚠️ restrict in production
+    allow_origins=["*"], 
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"]
@@ -114,6 +111,14 @@ async def startup_event():
 async def join_token(request: Request):
     user_id = get_user_id_from_request(request)
     room_name = f"user-{user_id}"
+    user_city: str | None = None
+    try:
+        body = await request.json()
+        raw_city = body.get("user_city")
+        if isinstance(raw_city, str) and raw_city.strip():
+            user_city = raw_city.strip()
+    except Exception:
+        pass
 
     grant = VideoGrants(
         room_join=True,
@@ -130,9 +135,6 @@ async def join_token(request: Request):
     token.with_identity(user_id)
     token.with_grants(grant)
 
-    # Dispatch agent to room — guard against a double click / duplicate
-    # request creating two dispatches (and so two agents talking over each
-    # other in the same room).
     async with LiveKitAPI(
         url=os.getenv("LIVEKIT_URL"),
         api_key=LIVEKIT_API_KEY,
@@ -146,10 +148,15 @@ async def join_token(request: Request):
                 raise
             existing = []
         if not any(d.agent_name == AGENT_NAME for d in existing):
-            await lk.agent_dispatch.create_dispatch(
-                CreateAgentDispatchRequest(room=room_name, agent_name=AGENT_NAME)
-            )
 
+            metadata_payload = json.dumps({"user_city": user_city})
+            await lk.agent_dispatch.create_dispatch(
+                CreateAgentDispatchRequest(
+                    room=room_name,
+                    agent_name=AGENT_NAME,
+                    metadata=metadata_payload,
+                )
+            )
 
     return {
         "status": "OK",
@@ -158,7 +165,6 @@ async def join_token(request: Request):
     }
 
 
-# VOICE VERIFICATION ONLY
 @app.post("/verify-voice")
 async def verify_voice(request: Request, audio: UploadFile = File(...)):
     user_id = get_user_id_from_request(request)

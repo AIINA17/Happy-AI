@@ -4,18 +4,18 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { MessageSquareText, Package } from "lucide-react";
+import { MapPin, MessageSquareText, Package } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Product } from "@/types";
 
 interface ProductCardsProps {
-    products: Product[];
+  products: Product[];
 }
 
 export default function ProductCards({ products }: ProductCardsProps) {
-    if (!products || products.length === 0) return null;
+  if (!products || products.length === 0) return null;
 
     // Keyed by source+id, not just id — two different stores can hand out
     // the same numeric product id for unrelated products.
@@ -23,13 +23,13 @@ export default function ProductCards({ products }: ProductCardsProps) {
         new Map(products.map((p) => [`${p.source ?? ""}-${p.id}`, p])).values(),
     );
 
-    const formatPrice = (price: number) => {
-        return new Intl.NumberFormat("id-ID", {
-            style: "currency",
-            currency: "IDR",
-            minimumFractionDigits: 0,
-        }).format(price);
-    };
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      minimumFractionDigits: 0,
+    }).format(price);
+  };
 
     return (
         <div className="w-full">
@@ -84,6 +84,22 @@ export default function ProductCards({ products }: ProductCardsProps) {
                                 <h3 className="text-sm font-semibold text-foreground mb-2 line-clamp-2 leading-tight">
                                     {product.name}
                                 </h3>
+
+                                {product.store && (
+                                    <div className="flex items-start gap-1 mb-2 text-[0.7rem]">
+                                        <MapPin className="w-3 h-3 flex-shrink-0 mt-0.5 text-muted-foreground" />
+                                        <div className="min-w-0 flex-1 leading-tight">
+                                            <div className="truncate text-foreground font-medium">
+                                                {product.store.name}
+                                            </div>
+                                            {product.store.city && (
+                                                <div className="truncate text-muted-foreground">
+                                                    {product.store.city}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
 
                                 <div className="flex items-baseline gap-1.5 mb-2">
                                     <span className="text-base font-bold text-foreground">

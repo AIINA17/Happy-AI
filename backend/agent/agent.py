@@ -9,17 +9,14 @@ import time
 import numpy as np
 from dotenv import load_dotenv
 
-# ================= PATH FIX =================
-# agent/ lives alongside voiceverification/ under backend/ (not nested
-# inside it), but its db.* imports below are unqualified — voiceverification/
-# needs to be on sys.path for those to resolve, same as when server.py runs
-# with voiceverification/ as its own cwd.
 AGENT_DIR = os.path.dirname(os.path.abspath(__file__))
 BACKEND_DIR = os.path.dirname(AGENT_DIR)
 VOICEVERIFICATION_DIR = os.path.join(BACKEND_DIR, "voiceverification")
 ENV_PATH = os.path.join(BACKEND_DIR, ".env")
 load_dotenv(ENV_PATH)
 
+if BACKEND_DIR not in sys.path:
+    sys.path.insert(0, BACKEND_DIR)
 if VOICEVERIFICATION_DIR not in sys.path:
     sys.path.insert(0, VOICEVERIFICATION_DIR)
 
@@ -35,6 +32,7 @@ from agent.tools import (
     auth_state,
     check_login_status,
     check_voice_status,
+    get_user_city,
     get_weather,
     login,
     login_with_stored_credentials,
@@ -43,6 +41,7 @@ from agent.tools import (
     remove_from_cart,
     search_product,
     send_product_cards,
+    send_review_cards,
     get_shopkupay_balance,
     get_product_detail,
     get_product_from_search_index,
@@ -214,6 +213,7 @@ class ShoppingAgent(Agent):
         super().__init__(
             instructions=AGENT_INSTRUCTION,
             tools=[
+                get_user_city,
                 get_weather,
                 web_search,
                 login,
@@ -225,6 +225,7 @@ class ShoppingAgent(Agent):
                 get_product_detail,
                 get_product_from_search_index,
                 send_product_cards,
+                send_review_cards,
                 add_to_cart,
                 get_cart,
                 remove_from_cart,
@@ -258,10 +259,23 @@ async def connect(ctx: agents.JobContext):
 
     print(f"🤖 Agent CONNECT ke room: {room_name}")
 
-    # ================= ROOM STATE =================
+    user_city: str | None = None
+    try:
+        raw_metadata = ctx.job.metadata or ""
+        if raw_metadata:
+            parsed = json.loads(raw_metadata)
+            raw_city = parsed.get("user_city")
+            if isinstance(raw_city, str) and raw_city.strip():
+                user_city = raw_city.strip()
+    except (json.JSONDecodeError, AttributeError):
+        pass
+
+    print(f"User city from metadata: {user_city or '(not provided)'}")
+    
     room_state = {
         "conversation_session_id": None,
         "user_id": None,
+        "user_city": user_city, 
         "is_voice_verified": False,
         "is_verifying": False,
         "is_face_verifying": False,

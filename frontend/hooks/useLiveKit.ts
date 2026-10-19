@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Room, RoomEvent, Track, createLocalAudioTrack } from "livekit-client";
 
 import { supabase } from "@/lib/supabase";
-import { Product, VerificationResult } from "@/types";
+import { Product, Review, VerificationResult } from "@/types";
 
 type UiState =
     | "IDLE"
@@ -20,37 +20,46 @@ type UiState =
 type VerificationStatus = "VERIFIED" | "REPEAT" | "DENIED" | null;
 
 interface UseLiveKitProps {
-    token: string | null;
-    onMessage: (role: "user" | "assistant", text: string) => void;
-    onVerifyStatus: (status: string) => void;
-    onRoomStatus: (status: string) => void;
-    onScore: (score: number | null) => void;
-    onProductCards?: (products: Product[]) => void;
-    onVerificationResult?: (
-        status: VerificationStatus,
-        score: number | null,
-        reason: string | null,
-    ) => void;
+  token: string | null;
+  userCity: string | null;
+  onMessage: (
+    role: "user" | "assistant",
+    text: string,
+    extras?: {
+      reviews?: Review[];
+      reviewProductName?: string;
+    },
+  ) => void;
+  onVerifyStatus: (status: string) => void;
+  onRoomStatus: (status: string) => void;
+  onScore: (score: number | null) => void;
+  onProductCards?: (products: Product[]) => void;
+  onVerificationResult?: (
+    status: VerificationStatus,
+    score: number | null,
+    reason: string | null,
+  ) => void;
 }
 
 export function useLiveKit({
-    token,
-    onMessage,
-    onVerifyStatus,
-    onRoomStatus,
-    onScore,
-    onProductCards,
-    onVerificationResult,
+  token,
+  userCity,
+  onMessage,
+  onVerifyStatus,
+  onRoomStatus,
+  onScore,
+  onProductCards,
+  onVerificationResult,
 }: UseLiveKitProps) {
-    const roomRef = useRef<Room | null>(null);
-    const isJoiningRef = useRef(false);
+  const roomRef = useRef<Room | null>(null);
+  const isJoiningRef = useRef(false);
 
-    const recorderRef = useRef<MediaRecorder | null>(null);
-    const chunksRef = useRef<Blob[]>([]);
-    const rafRef = useRef<number | null>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const rafRef = useRef<number | null>(null);
 
-    const [uiState, setUiState] = useState<UiState>("IDLE");
-    const [isAgentSpeaking, setIsAgentSpeaking] = useState(false);
+  const [uiState, setUiState] = useState<UiState>("IDLE");
+  const [isAgentSpeaking, setIsAgentSpeaking] = useState(false);
 
     const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL!;
     const LIVEKIT_URL = process.env.NEXT_PUBLIC_LIVEKIT_URL!;
@@ -62,73 +71,85 @@ export function useLiveKit({
     const onProductCardsRef = useRef(onProductCards);
     const onVerificationResultRef = useRef(onVerificationResult);
     const tokenRef = useRef(token);
+    const userCityRef = useRef(userCity);
 
-    useEffect(() => {
-        onMessageRef.current = onMessage;
-    }, [onMessage]);
-    useEffect(() => {
-        onVerifyStatusRef.current = onVerifyStatus;
-    }, [onVerifyStatus]);
-    useEffect(() => {
-        onRoomStatusRef.current = onRoomStatus;
-    }, [onRoomStatus]);
-    useEffect(() => {
-        onScoreRef.current = onScore;
-    }, [onScore]);
-    useEffect(() => {
-        onProductCardsRef.current = onProductCards;
-    }, [onProductCards]);
-    useEffect(() => {
-        onVerificationResultRef.current = onVerificationResult;
-    }, [onVerificationResult]);
-    useEffect(() => {
-        tokenRef.current = token;
-    }, [token]);
+  useEffect(() => {
+    onMessageRef.current = onMessage;
+  }, [onMessage]);
+  useEffect(() => {
+    onVerifyStatusRef.current = onVerifyStatus;
+  }, [onVerifyStatus]);
+  useEffect(() => {
+    onRoomStatusRef.current = onRoomStatus;
+  }, [onRoomStatus]);
+  useEffect(() => {
+    onScoreRef.current = onScore;
+  }, [onScore]);
+  useEffect(() => {
+    onProductCardsRef.current = onProductCards;
+  }, [onProductCards]);
+  useEffect(() => {
+    onVerificationResultRef.current = onVerificationResult;
+  }, [onVerificationResult]);
+  useEffect(() => {
+    tokenRef.current = token;
+  }, [token]);
+  useEffect(() => {
+    userCityRef.current = userCity;
+  }, [userCity]);
 
-    /* ================= HANDLE AGENT DATA ================= */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- kept to match RoomEvent.DataReceived's call signature below
+  const handleAgentDataRef = useRef((payload: Uint8Array, _topic?: string) => {
+    const text = new TextDecoder().decode(payload).trim();
+    if (!text.startsWith("{")) return;
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- kept to match RoomEvent.DataReceived's call signature below
-    const handleAgentDataRef = useRef((payload: Uint8Array, _topic?: string) => {
-        const text = new TextDecoder().decode(payload).trim();
-        if (!text.startsWith("{")) return;
+    let msg: {
+      type?: string;
+      action?: string;
+      products?: Product[];
+      reviews?: Review[];
+      product_name?: string;
+      text?: string;
+      role?: string;
+    };
+    try {
+      msg = JSON.parse(text);
+    } catch {
+      return;
+    }
 
-        let msg: {
-            type?: string;
-            action?: string;
-            products?: Product[];
-            text?: string;
-            role?: string;
-        };
-        try {
-            msg = JSON.parse(text);
-        } catch {
-            return;
-        }
+    if (msg.type === "VOICE_CMD" && msg.action === "START_RECORD") {
+      startVADRecordingRef.current();
+      return;
+    }
 
-        if (msg.type === "VOICE_CMD" && msg.action === "START_RECORD") {
-            startVADRecordingRef.current();
-            return;
-        }
+    if (msg.type === "PRODUCT_CARDS" && msg.products) {
+      onProductCardsRef.current?.(msg.products);
+      return;
+    }
 
-        if (msg.type === "FACE_CMD" && msg.action === "START_FACE_CAPTURE") {
-            startFaceVerificationRef.current();
-            return;
-        }
+    if (msg.type === "FACE_CMD" && msg.action === "START_FACE_CAPTURE") {
+      startFaceVerificationRef.current();
+      return;
+    }
 
-        if (msg.type === "PRODUCT_CARDS" && msg.products) {
-            onProductCardsRef.current?.(msg.products);
-            return;
-        }
+    if (msg.type === "REVIEW_CARDS" && msg.reviews) {
+      onMessageRef.current("assistant", "", {
+        reviews: msg.reviews,
+        reviewProductName: msg.product_name || "produk ini",
+      });
+      return;
+    }
 
-        if (msg.type === "AGENT_MESSAGE" && msg.text) {
-            onMessageRef.current("assistant", msg.text);
-            return;
-        }
+    if (msg.type === "AGENT_MESSAGE" && msg.text) {
+      onMessageRef.current("assistant", msg.text);
+      return;
+    }
 
-        if (msg.type === "USER_MESSAGE" && msg.text) {
-            onMessageRef.current("user", msg.text);
-        }
-    });
+    if (msg.type === "USER_MESSAGE" && msg.text) {
+      onMessageRef.current("user", msg.text);
+    }
+  });
 
     /* ================= VOICE RECORDING ================= */
 
@@ -389,6 +410,7 @@ export function useLiveKit({
                     "Content-Type": "application/json",
                     Authorization: `Bearer ${accessToken}`,
                 },
+                body: JSON.stringify({ user_city: userCityRef.current }),
             });
 
             if (!res.ok) {

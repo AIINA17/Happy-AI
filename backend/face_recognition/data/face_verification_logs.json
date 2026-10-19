@@ -338,5 +338,75 @@
     "threshold": 0.45,
     "error_message": "Terdeteksi lebih dari satu wajah. Gunakan gambar dengan satu wajah saja.",
     "timestamp": "2026-06-11T04:38:27.493064+00:00"
+  },
+  {
+    "user_id": "izz",
+    "image_filename": "me1.jpg",
+    "verified": true,
+    "status": "VERIFIED",
+    "similarity": 0.6867907047271729,
+    "threshold": 0.45,
+    "error_message": null,
+    "timestamp": "2026-09-10T06:23:33.250178+00:00"
+  },
+  {
+    "user_id": "izz",
+    "image_filename": "WhatsApp Image 2026-06-06 at 19.32.17.jpeg",
+    "verified": false,
+    "status": "DENIED",
+    "similarity": 0.043944887816905975,
+    "threshold": 0.45,
+    "error_message": null,
+    "timestamp": "2026-09-10T06:24:03.298048+00:00"
+  },
+  {
+    "user_id": "2bcb135d-56f7-47b9-8b08-4234f2382aa1",
+    "image_filename": "verify.jpg",
+    "verified": false,
+    "status": "NO_FACE_ENROLLMENT",
+    "similarity": null,
+    "threshold": 0.45,
+    "error_message": "User belum memiliki face embedding.",
+    "timestamp": "2026-09-23T02:27:13.715330+00:00"
+  },
+  {
+    "user_id": "2bcb135d-56f7-47b9-8b08-4234f2382aa1",
+    "image_filename": "verify.jpg",
+    "verified": true,
+    "status": "VERIFIED",
+    "similarity": 0.8353491425514221,
+    "threshold": 0.45,
+    "error_message": null,
+    "timestamp": "2026-09-23T02:28:37.257387+00:00"
+  },
+  {
+    "user_id": "2bcb135d-56f7-47b9-8b08-4234f2382aa1",
+    "image_filename": "verify.jpg",
+    "verified": true,
+    "status": "VERIFIED",
+    "similarity": 0.854350745677948,
+    "threshold": 0.45,
+    "error_message": null,
+    "timestamp": "2026-09-23T02:28:55.011583+00:00"
+  },
+  {
+    "user_id": "2bcb135d-56f7-47b9-8b08-4234f2382aa1",
+    "image_filename": "verify.jpg",
+    "verified": true,
+    "status": "VERIFIED",
+    "similarity": 0.7207088470458984,
+    "threshold": 0.45,
+    "error_message": null,
+    "timestamp": "2026-09-23T02:29:30.618372+00:00"
+  },
+  {
+    "user_id": "2bcb135d-56f7-47b9-8b08-4234f2382aa1",
+    "image_filename": "verify.jpg",
+    "verified": false,
+    "status": "DENIED",
+    "similarity": 0.1121629998087883,
+    "threshold": 0.45,
+    "error_message": null,
+    "timestamp": "2026-09-23T02:29:57.086316+00:00"
   }
 ]

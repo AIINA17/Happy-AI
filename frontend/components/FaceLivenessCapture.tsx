@@ -195,6 +195,7 @@ export default function FaceLivenessCapture({
     const overlayCanvasRef = useRef<HTMLCanvasElement | null>(null);
     const streamRef = useRef<MediaStream | null>(null);
     const landmarkerRef = useRef<FaceLandmarker | null>(null);
+    const landmarkerPromiseRef = useRef<Promise<FaceLandmarker> | null>(null);
     const animationFrameRef = useRef<number | null>(null);
     const livenessTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
         null,
@@ -227,6 +228,45 @@ export default function FaceLivenessCapture({
     // this specific attempt actually went through a fresh, server-issued
     // challenge (see file header comment above).
     const livenessTokenRef = useRef<string | null>(null);
+
+    // Loading this (WASM + GPU-delegate init, model download) used to only
+    // ever happen inline inside startSession, the first time face
+    // verification was actually triggered (3 failed voice attempts in) —
+    // several seconds of main-thread-heavy work landing right when the user
+    // is mid-call, on the same tab/thread as the live LiveKit audio
+    // pipeline, which looked indistinguishable from the agent going
+    // completely silent. Warming it up in the background as soon as this
+    // component mounts (well before it's ever needed) moves that cost out
+    // of the critical path.
+    const ensureLandmarker = useCallback(async (): Promise<FaceLandmarker> => {
+        if (landmarkerRef.current) return landmarkerRef.current;
+        if (!landmarkerPromiseRef.current) {
+            landmarkerPromiseRef.current = FilesetResolver.forVisionTasks(
+                "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm",
+            ).then((vision) =>
+                FaceLandmarker.createFromOptions(vision, {
+                    baseOptions: {
+                        modelAssetPath:
+                            "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
+                        delegate: "GPU",
+                    },
+                    outputFaceBlendshapes: true,
+                    runningMode: "VIDEO",
+                    numFaces: MAX_FACES_TRACKED,
+                }),
+            );
+        }
+        const landmarker = await landmarkerPromiseRef.current;
+        landmarkerRef.current = landmarker;
+        return landmarker;
+    }, []);
+
+    useEffect(() => {
+        ensureLandmarker().catch((err) => {
+            console.error("Face landmarker preload failed, will retry when actually needed:", err);
+            landmarkerPromiseRef.current = null;
+        });
+    }, [ensureLandmarker]);
 
     const clearTimers = useCallback(() => {
         if (livenessTimeoutRef.current) {
@@ -586,24 +626,7 @@ export default function FaceLivenessCapture({
                 videoRef.current.srcObject = stream;
             }
 
-            if (!landmarkerRef.current) {
-                const vision = await FilesetResolver.forVisionTasks(
-                    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm",
-                );
-                landmarkerRef.current = await FaceLandmarker.createFromOptions(
-                    vision,
-                    {
-                        baseOptions: {
-                            modelAssetPath:
-                                "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
-                            delegate: "GPU",
-                        },
-                        outputFaceBlendshapes: true,
-                        runningMode: "VIDEO",
-                        numFaces: MAX_FACES_TRACKED,
-                    },
-                );
-            }
+            await ensureLandmarker();
 
             livenessTrackRef.current = {
                 sawLow: false,
@@ -641,7 +664,7 @@ export default function FaceLivenessCapture({
                 2500,
             );
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps -- detectionLoop/closeModal are stable refs/callbacks by construction; re-running this on their identity would restart an in-progress session
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- detectionLoop/closeModal/ensureLandmarker are stable refs/callbacks by construction; re-running this on their identity would restart an in-progress session
     }, []);
 
     useEffect(() => {

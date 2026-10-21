@@ -77,7 +77,15 @@ VAD_SILENCE_MS = 500
 # match; it is an estimate. Re-measure and set the env var after moving region.
 NETWORK_ESTIMATE_SEC = float(os.getenv("LATENCY_NETWORK_ESTIMATE_SEC", "0.5"))
 MAX_VERIFY_ATTEMPTS = 3
-VERIFY_TIMEOUT_SEC = 20
+# Must comfortably exceed the client's own worst case: up to MAX_RECORD_MS
+# (15s, see useLiveKit.ts's startVADRecordingRef) of recording, plus the
+# upload + /verify-voice inference round trip. Logs show real attempts
+# regularly taking 20s+ end to end — 20 was firing before the client ever
+# reported back, resetting is_verifying mid-flight (harmless since the
+# client's own recorderRef guard prevents a real double-recording, but it
+# meant every other VOICE_RESULT arrived after the backend had already
+# "given up" on it).
+VERIFY_TIMEOUT_SEC = 30
 # Longer than VERIFY_TIMEOUT_SEC: the client now runs a liveness challenge
 # (blink/mouth/turn, up to 15s — see FaceLivenessCapture.tsx's
 # LIVENESS_TIMEOUT_MS) before it even captures a photo, on top of camera +
@@ -315,6 +323,16 @@ async def connect(ctx: agents.JobContext):
                     silence_duration_ms=VAD_SILENCE_MS,
                 ),
             ),
+            # Without this, Gemini's context window fills up as the call
+            # goes on and the server sends a GoAway + forces a reconnect
+            # (visible as "Gemini server indicates disconnection soon" in
+            # logs, felt as the agent going silent for several seconds mid-
+            # call). Sliding-window compression lets Gemini drop/condense
+            # older turns instead, so sessions can run far longer before
+            # that reconnect cycle is ever needed.
+            context_window_compression=genai_types.ContextWindowCompressionConfig(
+                sliding_window=genai_types.SlidingWindow(),
+            ),
         )
     )
 
@@ -350,7 +368,7 @@ async def connect(ctx: agents.JobContext):
                 room_state["voice_status"] = "VERIFIED"
                 room_state["verify_attempts"] = 0
                 room_state["last_verified_at"] = time.time()
-                asyncio.create_task(auto_login_after_verification())
+                asyncio.create_task(_announce_verified("suara"))
 
             elif decision == "DENIED":
                 room_state["voice_status"] = "DENIED"
@@ -388,7 +406,7 @@ async def connect(ctx: agents.JobContext):
                 room_state["verify_attempts"] = 0
                 room_state["lockout_until"] = None
                 room_state["last_verified_at"] = time.time()
-                asyncio.create_task(auto_login_after_verification())
+                asyncio.create_task(_announce_verified("wajah"))
             else:
                 # Wajah juga gagal (termasuk belum enroll wajah / error kamera)
                 # — jatuh ke cooldown yang sama seperti voice lockout biasa.
@@ -572,6 +590,23 @@ async def connect(ctx: agents.JobContext):
             return
         result = await login_with_stored_credentials()
         print(f"🔐 Auto-login after verification: {result}")
+
+    # ================= ANNOUNCE VERIFIED =================
+    async def _announce_verified(method: str):
+        # Without this, successful verification (voice or face) only updates
+        # room_state silently — nothing ever prompts Gemini to say anything,
+        # so the agent just goes quiet right when the user is waiting to
+        # hear whether it worked. Wait for auto-login to finish first so the
+        # reply can also confirm the user is logged in, not just verified.
+        await auto_login_after_verification()
+        await session.generate_reply(
+            instructions=(
+                f"Verifikasi {method} kamu barusan berhasil dan kamu udah "
+                f"otomatis login ke toko yang kamu hubungin. Kasih tau "
+                f"dengan santai kalau semuanya udah beres, terus tanya lagi "
+                f"mau lanjutin yang tadi atau butuh apa."
+            )
+        )
 
     # ================= SESSION =================
     async def ensure_conversation_session():

@@ -1,0 +1,37 @@
+name: Backend biometric tests
+
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - "backend/voiceverification/core/**"
+      - "backend/voiceverification/tests/**"
+      - ".github/workflows/backend-tests.yml"
+  pull_request:
+    paths:
+      - "backend/voiceverification/core/**"
+      - "backend/voiceverification/tests/**"
+      - ".github/workflows/backend-tests.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      # Only the dependencies the pure-logic test suite under
+      # voiceverification/tests/ actually needs (decision_engine,
+      # behavior_profile/scoring, calibration, trusted_update — see their
+      # imports) — not the full requirements.txt, which also pulls in
+      # torch/speechbrain for the speaker-verification model and isn't
+      # needed to run these unit tests.
+      - name: Install test dependencies
+        run: pip install pytest==9.1.1 numpy==1.26.4
+
+      - name: Run biometric decision-logic tests
+        working-directory: backend/voiceverification
+        run: pytest tests/ -v

@@ -10,7 +10,7 @@ import ChatArea from "@/components/ChatArea";
 import Sidebar from "@/components/Sidebar";
 import { useVerificationToast } from "@/hooks/useVerificationToast";
 import { supabase } from "@/lib/supabase";
-import { Message, Product } from "@/types";
+import { Message, Product, Review } from "@/types";
 
 function normalizePublicServerUrl(raw: string | undefined) {
     const trimmed = raw?.trim();
@@ -156,7 +156,7 @@ export default function HistoryDetailPage() {
                 if (!res.ok) return;
                 const data = await res.json();
 
-                const newMessages: Message[] = (data.logs || []).map(
+                const logMessages: Message[] = (data.logs || []).map(
                     (log: {
                         role: "user" | "assistant";
                         content: string;
@@ -166,6 +166,26 @@ export default function HistoryDetailPage() {
                         text: log.content,
                         timestamp: new Date(log.created_at),
                     }),
+                );
+
+                const reviewMessages: Message[] = (
+                    data.review_cards || []
+                ).map(
+                    (card: {
+                        product_name?: string;
+                        reviews?: Review[];
+                        created_at: string;
+                    }) => ({
+                        role: "assistant",
+                        text: "",
+                        timestamp: new Date(card.created_at),
+                        reviews: card.reviews || [],
+                        reviewProductName: card.product_name || "produk ini",
+                    }),
+                );
+
+                const newMessages = [...logMessages, ...reviewMessages].sort(
+                    (a, b) => a.timestamp.getTime() - b.timestamp.getTime(),
                 );
 
                 const allProducts: Product[] = (

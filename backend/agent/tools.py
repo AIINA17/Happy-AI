@@ -172,9 +172,31 @@ async def _send_product_cards_internal(products: list):
 
 async def _send_review_cards_internal(product_name: str, reviews: list):
     """
-    Internal function untuk kirim review cards ke frontend.
+    Internal function untuk kirim review cards ke frontend dan DB.
     Mirip _send_product_cards_internal, tapi untuk reviews.
     """
+    from voiceverification.db.connection import get_supabase
+
+    state = auth_state.get("agent_state", {})
+    session_id = state.get("conversation_session_id")
+
+    # Save to DB
+    if session_id:
+        try:
+            sb = get_supabase()
+            await asyncio.to_thread(
+                lambda: sb.table("review_cards").insert({
+                    "session_id": str(session_id),
+                    "product_name": product_name,
+                    "reviews": reviews,
+                }).execute()
+            )
+            logging.info(f"✅ REVIEW_CARDS SAVED (session={session_id}, count={len(reviews)})")
+        except Exception as e:
+            logging.error(f"❌ Failed to save review cards: {e}")
+    else:
+        logging.error("❌ REVIEW_CARDS NOT SAVED: conversation_session_id is None")
+
     room = auth_state.get("room_ref")
     if not room:
         logging.error("❌ REVIEW_CARDS NOT SENT: room_ref is None")

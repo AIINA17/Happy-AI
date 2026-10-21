@@ -406,11 +406,20 @@ async def get_conversation_logs(
         .execute()
     )
 
+    review_cards = (
+        sb.table("review_cards")
+        .select("id, product_name, reviews, created_at")
+        .eq("session_id", session_id)
+        .order("created_at")
+        .execute()
+    )
+
     return {
         "status": "OK",
         "session_id": session_id,
         "logs": logs.data or [],
-        "product_cards": product_cards.data or []
+        "product_cards": product_cards.data or [],
+        "review_cards": review_cards.data or []
     }
 
 # UPDATE SESSION LABEL

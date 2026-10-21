@@ -23,6 +23,12 @@ const nextConfig: NextConfig = {
                 hostname: "**",
             },
         ],
+        // Allow SVG images from remote sources (needed for DummyEcommerce
+        // product thumbnails which are served as SVG from /api/thumb/*).
+        // The CSP below mitigates XSS risks from untrusted SVG content.
+        dangerouslyAllowSVG: true,
+        contentDispositionType: "attachment",
+        contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
     },
 };
 

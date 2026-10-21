@@ -62,6 +62,79 @@ def test_custom_config_is_respected():
     assert decision == Decision.DENIED
 
 
+def test_verified_unaffected_by_behavior_score_when_profile_too_new():
+    # n_samples below behavior_min_samples -> behavior_score is ignored
+    # entirely, even if it looks like a severe anomaly (0.0).
+    config = DecisionConfig()
+    decision, _ = decide(
+        speaker_score=0.9,
+        replay_prob=0.01,
+        behavior_score=0.0,
+        behavior_n_samples=config.behavior_min_samples - 1,
+        config=config,
+    )
+    assert decision == Decision.VERIFIED
+
+
+def test_verified_unaffected_by_mild_behavior_deviation():
+    # A loose/mild behavior_score (above behavior_repeat) must not
+    # downgrade an otherwise-clean VERIFIED result — ordinary day-to-day
+    # variation in pitch/rate shouldn't add friction.
+    config = DecisionConfig()
+    decision, _ = decide(
+        speaker_score=0.9,
+        replay_prob=0.01,
+        behavior_score=config.behavior_repeat + 0.1,
+        behavior_n_samples=config.behavior_min_samples,
+        config=config,
+    )
+    assert decision == Decision.VERIFIED
+
+
+def test_repeat_when_behavior_score_severely_anomalous_with_enough_history():
+    config = DecisionConfig()
+    decision, reason = decide(
+        speaker_score=0.9,
+        replay_prob=0.01,
+        behavior_score=config.behavior_repeat - 0.01,
+        behavior_n_samples=config.behavior_min_samples,
+        config=config,
+    )
+    assert decision == Decision.REPEAT
+    assert "behavior" in reason.lower()
+
+
+def test_behavior_score_never_denies_on_its_own():
+    # Even a worst-case behavior_score (0.0) with enough history only ever
+    # downgrades to REPEAT, never DENIED, on an otherwise-clean match.
+    config = DecisionConfig()
+    decision, _ = decide(
+        speaker_score=0.9,
+        replay_prob=0.01,
+        behavior_score=0.0,
+        behavior_n_samples=config.behavior_min_samples,
+        config=config,
+    )
+    assert decision == Decision.REPEAT
+
+
+def test_behavior_score_ignored_outside_the_voice_accept_branch():
+    # A speaker_score that only reaches the voice_repeat band must stay
+    # REPEAT for that reason — behavior scoring only ever applies to an
+    # otherwise-VERIFIED match, not to already-uncertain ones.
+    config = DecisionConfig(abs_min_speaker=0.0)
+    mid_speaker = (config.voice_repeat + config.voice_accept) / 2
+    decision, reason = decide(
+        speaker_score=mid_speaker,
+        replay_prob=0.0,
+        behavior_score=0.0,
+        behavior_n_samples=config.behavior_min_samples,
+        config=config,
+    )
+    assert decision == Decision.REPEAT
+    assert "Uncertain verification" in reason
+
+
 def test_REGRESSION_voice_repeat_is_unreachable_with_default_config():
     """
     Documents current (unintended-looking) behavior: abs_min_speaker

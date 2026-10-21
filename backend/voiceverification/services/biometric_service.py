@@ -67,54 +67,62 @@ class BiometricService:
         # 1.4s, well inside impostor territory. Denying that punishes the
         # speaker for answering briefly, so ask for another take instead.
         speech_sec = _speech_duration(live_wav)
+
+        behavior_score = None
+        pitch, rate = None, None
+        z_pitch = z_rate = None
+        behavior_profile = behavior_profiles.get(best_label)
+        updated_behavior_profile: BehaviorProfile | None = None
+
         if speech_sec < MIN_SPEECH_SEC:
             decision = Decision.REPEAT
             reason = "Suaranya terlalu singkat, coba ucapkan satu kalimat penuh"
         else:
-            decision, reason = decide(
-                speaker_score=best_score,
-                replay_prob=spoof_prob,
-            )
-
-        # 4. Behavior
-        behavior_score = None
-        pitch, rate = None, None
-        z_pitch = z_rate = None
-        updated_behavior_profile: BehaviorProfile | None = None
-
-        if decision == Decision.VERIFIED:
+            # Pitch/rate (and, if there's enough history, behavior_score)
+            # are computed up front for every attempt now — decide() needs
+            # them to decide whether to downgrade a voiceprint match that
+            # looks unusual against this user's own history, not just to
+            # log them after the fact.
             y, sr = librosa.load(live_wav, sr=16000)
             pitch = float(np.nanmean(librosa.yin(y, fmin=50, fmax=300, sr=sr)))
             rate = float(len(y) / sr)
 
-            behavior_profile = behavior_profiles.get(best_label)
-
-            if behavior_profile is None:
-                behavior_profile = BehaviorProfile()
-                behavior_profile.update(pitch, rate, datetime.now(timezone.utc))
-                updated_behavior_profile = behavior_profile
-            else:
-                # 🧠 compute behavior score
+            if behavior_profile is not None and behavior_profile.n_samples > 0:
                 behavior_score, z_pitch, z_rate, _, _ = compute_behavior_score(
                     pitch,
                     rate,
                     behavior_profile
                 )
 
-                # 🔒 trusted adaptive update
-                if self.policy.should_update(
-                    decision=decision.value,
-                    speaker_score=best_score,
-                    spoof_prob=spoof_prob,
-                    behavior_score=behavior_score,
-                    n_samples=behavior_profile.n_samples,
-                    z_pitch=z_pitch,
-                    z_rate=z_rate,
-                    last_update_time=behavior_profile.last_update_ts,
-                    is_retry=is_retry,
-                ):
-                    behavior_profile.update(pitch, rate, datetime.now(timezone.utc))
-                    updated_behavior_profile = behavior_profile 
+            decision, reason = decide(
+                speaker_score=best_score,
+                replay_prob=spoof_prob,
+                behavior_score=behavior_score,
+                behavior_n_samples=behavior_profile.n_samples if behavior_profile else 0,
+            )
+
+        # 4. Trusted adaptive update — only for a genuinely VERIFIED result
+        # (a behavior-triggered downgrade to REPEAT above means `decision`
+        # is no longer VERIFIED here, so should_update's own decision check
+        # already skips it; no separate handling needed).
+        if decision == Decision.VERIFIED:
+            if behavior_profile is None:
+                behavior_profile = BehaviorProfile()
+                behavior_profile.update(pitch, rate, datetime.now(timezone.utc))
+                updated_behavior_profile = behavior_profile
+            elif self.policy.should_update(
+                decision=decision.value,
+                speaker_score=best_score,
+                spoof_prob=spoof_prob,
+                behavior_score=behavior_score,
+                n_samples=behavior_profile.n_samples,
+                z_pitch=z_pitch,
+                z_rate=z_rate,
+                last_update_time=behavior_profile.last_update_ts,
+                is_retry=is_retry,
+            ):
+                behavior_profile.update(pitch, rate, datetime.now(timezone.utc))
+                updated_behavior_profile = behavior_profile
 
         # 5. Log
         print(

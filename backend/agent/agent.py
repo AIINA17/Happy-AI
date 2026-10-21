@@ -331,6 +331,26 @@ async def connect(ctx: agents.JobContext):
     # ================= VOICE / FACE RESULT =================
     @room.on("data_received")
     def on_data(packet):
+        if packet.topic not in ("VOICE_RESULT", "FACE_RESULT"):
+            return
+
+        # These decisions gate login/checkout, so they must come from our
+        # own backend's server-side push (voiceverification/utils/
+        # room_notify.py), never from a browser. rtc.DataPacket.participant
+        # is None only when the packet was sent via the LiveKit admin API
+        # (RoomService.send_data) rather than by any room participant's
+        # own `localParticipant.publishData` — which any client in the
+        # room (including a forged one, e.g. from devtools) could
+        # otherwise call directly to fake a VERIFIED result and bypass
+        # biometric verification entirely. Any packet with a participant
+        # attached is untrusted and dropped.
+        if packet.participant is not None:
+            print(
+                f"⚠️ Ignoring forged {packet.topic} from participant "
+                f"{packet.participant.identity!r} (not server-sent)"
+            )
+            return
+
         if packet.topic == "VOICE_RESULT":
             _handle_voice_result(packet)
         elif packet.topic == "FACE_RESULT":

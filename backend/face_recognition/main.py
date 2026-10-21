@@ -1,3 +1,5 @@
+import time
+
 from fastapi import APIRouter, Request, UploadFile, File, Form, HTTPException
 import numpy as np
 
@@ -10,6 +12,7 @@ from face_recognition.liveness_challenge import (
 )
 from voiceverification.auth.auth_utils import get_user_id_from_request
 from voiceverification.db import face_repo, face_verification_logs
+from voiceverification.utils.room_notify import publish_room_result
 
 # Mounted into voiceverification/server.py under this prefix (see
 # app.include_router there) so face recognition shares the same FastAPI
@@ -88,6 +91,22 @@ async def verify_face(
     liveness_token: str | None = Form(None),
 ):
     image_filename = image.filename
+    room_name = f"user-{user_id}"
+
+    # Server-authoritative push to the agent for every exit path below —
+    # see room_notify.py's docstring for why the agent can no longer trust
+    # the client to self-report its own FACE_RESULT over the room's data
+    # channel. Mirrors /verify-voice's push in voiceverification/server.py.
+    async def notify(verified: bool, similarity: float | None = None) -> None:
+        await publish_room_result(
+            room_name=room_name,
+            topic="FACE_RESULT",
+            payload={
+                "decision": "VERIFIED" if verified else "DENIED",
+                "similarity": similarity,
+                "ts": time.time(),
+            },
+        )
 
     # Only gated when a liveness_token is actually presented — the manual
     # test button intentionally skips this so it stays a quick
@@ -112,6 +131,7 @@ async def verify_face(
                 "error_message": "invalid, expired, or already-used liveness_token"
             })
 
+            await notify(False)
             return result
 
     try:
@@ -135,6 +155,7 @@ async def verify_face(
                 "error_message": "User belum memiliki face embedding."
             })
 
+            await notify(False)
             return result
 
         image_bytes = await image.read()
@@ -158,6 +179,7 @@ async def verify_face(
             "error_message": None
         })
 
+        await notify(result["verified"], result.get("similarity"))
         return result
 
     except ValueError as error:
@@ -171,6 +193,7 @@ async def verify_face(
             "error_message": str(error)
         })
 
+        await notify(False)
         raise HTTPException(status_code=400, detail=str(error))
 
     except Exception as error:
@@ -184,6 +207,7 @@ async def verify_face(
             "error_message": str(error)
         })
 
+        await notify(False)
         raise HTTPException(status_code=500, detail=f"Terjadi kesalahan server: {str(error)}")
 
 

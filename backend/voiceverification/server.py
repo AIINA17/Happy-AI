@@ -52,6 +52,7 @@ from voiceverification.db.voice_verification_logs import (
 from voiceverification.core.decision_engine import DecisionConfig
 from voiceverification.services.biometric_service import BiometricService
 from voiceverification.utils.audio import normalize_audio, save_audio
+from voiceverification.utils.room_notify import publish_room_result
 from voiceverification.utils.spectrogram import render_spectrogram_png
 
 
@@ -223,6 +224,19 @@ async def verify_voice(request: Request, audio: UploadFile = File(...)):
         except Exception:
             # Metrics logging must never break a verification response.
             traceback.print_exc()
+
+        # Server-authoritative push to the agent — see room_notify.py's
+        # docstring for why this can't just be left to the client to
+        # report over the room's data channel (topic="VOICE_RESULT").
+        await publish_room_result(
+            room_name=f"user-{user_id}",
+            topic="VOICE_RESULT",
+            payload={
+                "decision": result["decision"],
+                "score": result["score"],
+                "ts": time.time(),
+            },
+        )
 
         return {
             "verified": result["verified"],

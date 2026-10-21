@@ -273,12 +273,16 @@ export function useLiveKit({
     /* ================= VERIFY ================= */
 
     const sendForVerificationRef = useRef(async (blob: Blob) => {
-        // Whatever happens below, the agent is blocked waiting for a
-        // VOICE_RESULT packet before it will ever try verifying again
-        // (see agent.py room_state["is_verifying"]). If we bail out early
-        // without sending one, verification gets stuck forever for the
-        // rest of the session. So every exit path funnels through
-        // `finally` and always reports *some* result back.
+        // The agent learns the outcome from the backend's own server-side
+        // push (voiceverification/server.py's /verify-voice publishes
+        // VOICE_RESULT itself via the LiveKit admin API — see
+        // utils/room_notify.py) rather than from us republishing it here.
+        // A client-published VOICE_RESULT would be indistinguishable from
+        // one forged by anyone else in the room (e.g. from devtools), so
+        // the agent now ignores any VOICE_RESULT/FACE_RESULT that isn't
+        // server-sent (see agent.py's data_received handler). This
+        // function only needs to update our own local UI from the
+        // response.
         let status: VerificationStatus = "DENIED";
         let score: number | null = null;
         let reason: string | null = null;
@@ -313,18 +317,6 @@ export function useLiveKit({
         } finally {
             onScoreRef.current(score);
             onVerificationResultRef.current?.(status, score, reason);
-
-            await roomRef.current?.localParticipant.publishData(
-                new TextEncoder().encode(
-                    JSON.stringify({
-                        decision: status,
-                        score,
-                        ts: Date.now(),
-                    }),
-                ),
-                { reliable: true, topic: "VOICE_RESULT" },
-            );
-
             setUiState("CHATTING");
         }
     });
@@ -346,11 +338,11 @@ export function useLiveKit({
 
     const handleFaceVerifyResult = useCallback(
         async (outcome: { decision: "VERIFIED" | "DENIED" | "ERROR"; similarity: number | null }) => {
-            // Same reasoning as sendForVerificationRef: the agent is blocked
-            // waiting for a FACE_RESULT packet (see agent.py
-            // room_state["is_face_verifying"]) before it retries anything, so
-            // this must always run, even if FaceLivenessCapture closed early
-            // (e.g. the user hit "Tutup" mid-flow).
+            // The agent learns the outcome from face_recognition/main.py's
+            // own server-side push (/face/verify-face publishes
+            // FACE_RESULT itself via utils/room_notify.py), not from us
+            // republishing it here — see sendForVerificationRef's comment
+            // above for why. This only updates our own local UI.
             setFaceVerifyOpen(false);
 
             if (outcome.decision === "VERIFIED") {
@@ -360,17 +352,6 @@ export function useLiveKit({
             } else {
                 onVerifyStatusRef.current("❌ Verifikasi wajah gagal");
             }
-
-            await roomRef.current?.localParticipant.publishData(
-                new TextEncoder().encode(
-                    JSON.stringify({
-                        decision: outcome.decision,
-                        similarity: outcome.similarity,
-                        ts: Date.now(),
-                    }),
-                ),
-                { reliable: true, topic: "FACE_RESULT" },
-            );
 
             setUiState("CHATTING");
         },

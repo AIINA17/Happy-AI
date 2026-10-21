@@ -3,6 +3,11 @@ import numpy as np
 
 from face_recognition.arcface_model import ArcFaceModel
 from face_recognition.face_service import FaceRecognitionService
+from face_recognition.liveness_challenge import (
+    CHALLENGE_TTL_SECONDS,
+    consume_challenge,
+    issue_challenge,
+)
 from voiceverification.auth.auth_utils import get_user_id_from_request
 from voiceverification.db import face_repo, face_verification_logs
 
@@ -56,12 +61,58 @@ async def enroll_face(
         raise HTTPException(status_code=500, detail=f"Terjadi kesalahan server: {str(error)}")
 
 
+@router.post("/liveness-challenge")
+async def create_liveness_challenge(user_id: str = Form(...)):
+    """Issues a single-use, server-picked liveness challenge for user_id.
+
+    Called by FaceLivenessCapture.tsx (the agent-triggered production
+    flow) before it starts the camera, so the challenge *type* comes from
+    the server instead of the client picking its own — and the resulting
+    token must be presented back to /verify-face below for that capture to
+    be accepted at all. The manual test flow (FaceVerification.tsx) never
+    calls this and omits liveness_token entirely, which /verify-face treats
+    as a plain recognition-only test.
+    """
+    token, challenge_type = issue_challenge(user_id)
+    return {
+        "liveness_token": token,
+        "challenge_type": challenge_type,
+        "expires_in": CHALLENGE_TTL_SECONDS,
+    }
+
+
 @router.post("/verify-face")
 async def verify_face(
     user_id: str = Form(...),
-    image: UploadFile = File(...)
+    image: UploadFile = File(...),
+    liveness_token: str | None = Form(None),
 ):
     image_filename = image.filename
+
+    # Only gated when a liveness_token is actually presented — the manual
+    # test button intentionally skips this so it stays a quick
+    # recognition-only check (see docstring on /liveness-challenge above).
+    if liveness_token is not None:
+        challenge_type = consume_challenge(liveness_token, user_id)
+        if challenge_type is None:
+            result = {
+                "verified": False,
+                "status": "LIVENESS_FAILED",
+                "user_id": user_id,
+                "message": "Sesi liveness tidak valid atau sudah kedaluwarsa. Coba lagi.",
+            }
+
+            face_verification_logs.append_verification_log({
+                "user_id": user_id,
+                "image_filename": image_filename,
+                "verified": False,
+                "status": "LIVENESS_FAILED",
+                "similarity": None,
+                "threshold": face_service.threshold,
+                "error_message": "invalid, expired, or already-used liveness_token"
+            })
+
+            return result
 
     try:
         reference_embedding = face_repo.get_embedding(user_id)

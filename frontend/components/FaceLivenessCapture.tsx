@@ -1,19 +1,25 @@
 "use client";
 
-// Shared face-verification modal: camera preview + a randomized liveness
-// challenge (blink / open mouth / turn head) via MediaPipe FaceLandmarker
-// blendshapes, auto-captures once the challenge passes, then verifies
-// against the user's enrolled face (POST /face/verify-face).
+// Shared face-verification modal: camera preview + a liveness challenge
+// (blink / open mouth / turn head, *picked by the server* via POST
+// /face/liveness-challenge) via MediaPipe FaceLandmarker blendshapes,
+// auto-captures once the challenge passes, then verifies against the
+// user's enrolled face (POST /face/verify-face with the matching
+// liveness_token).
 //
-// This is a client-side heuristic (require a low→high blendshape
-// transition, or enough head-turn movement, during the session) meant to
-// make a *printed/screen photo* meaningfully harder to pass than a live
-// face — it is not cryptographic-grade liveness detection.
+// The liveness check itself is still a client-side heuristic (require a
+// low→high blendshape transition, or enough head-turn movement, during
+// the session) meant to make a *printed/screen photo* meaningfully harder
+// to pass than a live face — it is not cryptographic-grade liveness
+// detection. What the server-issued token adds is that /verify-face can no
+// longer be called directly (skipping this UI): without a fresh,
+// single-use, server-picked token tied to this user, the backend rejects
+// the capture outright (LIVENESS_FAILED) before it even runs recognition.
 //
-// Used both by FaceVerifyTest.tsx (manual "[TEST] Verify Face" button) and
-// by useLiveKit.ts (agent-triggered fallback after 3 failed voice
-// verifications) — `open`/`onOpenChange` are controlled from outside so
-// both callers can drive the same modal.
+// Used both by useLiveKit.ts (agent-triggered fallback after 3 failed
+// voice verifications) and by FaceVerification.tsx (manual "Test Face
+// Recognition" button in the sidebar) — `open`/`onOpenChange` are
+// controlled from outside so both callers can drive the same modal.
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { ScanEye } from "lucide-react";
@@ -205,6 +211,12 @@ export default function FaceLivenessCapture({
 
     const reportedRef = useRef(false);
 
+    // Set from POST /face/liveness-challenge in startSession — must be sent
+    // back with the capture in captureAndVerify so the backend can confirm
+    // this specific attempt actually went through a fresh, server-issued
+    // challenge (see file header comment above).
+    const livenessTokenRef = useRef<string | null>(null);
+
     const clearTimers = useCallback(() => {
         if (livenessTimeoutRef.current) {
             clearTimeout(livenessTimeoutRef.current);
@@ -313,6 +325,14 @@ export default function FaceLivenessCapture({
             const form = new FormData();
             form.append("user_id", userId);
             form.append("image", blob, "face.jpg");
+            if (livenessTokenRef.current) {
+                form.append("liveness_token", livenessTokenRef.current);
+            }
+            // Single-use server-side — clear it regardless of outcome so a
+            // retry after this always goes through startSession() again
+            // (which fetches a fresh challenge) instead of resending a token
+            // the backend has already consumed.
+            livenessTokenRef.current = null;
 
             const res = await fetch(`${SERVER_URL}/verify-face`, {
                 method: "POST",
@@ -321,7 +341,23 @@ export default function FaceLivenessCapture({
 
             const result = await res.json();
 
-            if (res.ok && result.status === "VERIFIED") {
+            if (res.ok && result.status === "LIVENESS_FAILED") {
+                const text =
+                    result.message ||
+                    "Sesi liveness tidak valid atau kedaluwarsa. Coba lagi.";
+                setPhase("result");
+                setMessage(text);
+                toast.error(text);
+                closeTimeoutRef.current = setTimeout(
+                    () =>
+                        closeModal({
+                            decision: "DENIED",
+                            similarity: null,
+                            message: text,
+                        }),
+                    2000,
+                );
+            } else if (res.ok && result.status === "VERIFIED") {
                 const text = `Cocok — similarity ${result.similarity?.toFixed(3)}`;
                 setPhase("result");
                 setMessage(text);
@@ -492,7 +528,39 @@ export default function FaceLivenessCapture({
         setPhase("loading");
         setMessage("Menyiapkan kamera...");
 
+        if (!userId) {
+            closeModal({
+                decision: "ERROR",
+                similarity: null,
+                message: "User tidak teridentifikasi.",
+            });
+            return;
+        }
+
         try {
+            // Ask the server which gesture to require *before* touching the
+            // camera — the challenge type must come from the backend (not a
+            // local Math.random pick) so the resulting liveness_token is
+            // actually meaningful: /verify-face only accepts a capture that
+            // presents this exact token back.
+            const challengeRes = await fetch(
+                `${SERVER_URL}/liveness-challenge`,
+                {
+                    method: "POST",
+                    body: new URLSearchParams({ user_id: userId }),
+                },
+            );
+            if (!challengeRes.ok) {
+                throw new Error("Gagal meminta sesi liveness dari server.");
+            }
+            const challengeData: { liveness_token: string; challenge_type: ChallengeType } =
+                await challengeRes.json();
+            livenessTokenRef.current = challengeData.liveness_token;
+            const picked =
+                CHALLENGES.find(
+                    (c) => c.type === challengeData.challenge_type,
+                ) ?? CHALLENGES[0];
+
             const stream = await navigator.mediaDevices.getUserMedia({
                 video: {
                     width: { ideal: 640 },
@@ -525,8 +593,6 @@ export default function FaceLivenessCapture({
                 );
             }
 
-            const picked =
-                CHALLENGES[Math.floor(Math.random() * CHALLENGES.length)];
             livenessTrackRef.current = {
                 sawLow: false,
                 passed: false,
@@ -548,10 +614,10 @@ export default function FaceLivenessCapture({
                 });
             }, LIVENESS_TIMEOUT_MS);
         } catch (err) {
-            console.error("Face liveness camera/model error:", err);
+            console.error("Face liveness setup error:", err);
             setPhase("error");
             const text =
-                "Gagal mengakses kamera atau memuat model deteksi wajah.";
+                "Gagal menyiapkan sesi verifikasi wajah (kamera, model deteksi, atau server).";
             setMessage(text);
             closeTimeoutRef.current = setTimeout(
                 () =>

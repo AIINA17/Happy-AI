@@ -451,6 +451,22 @@ async def connect(ctx: agents.JobContext):
                 room_state["label_set"] = True
                 asyncio.create_task(label_session_from_transcript())
 
+            # ================= VOICE CHECK =================
+            # Keep retrying passively on every turn I speak, from the start
+            # of the conversation — not only once a sensitive tool gets
+            # called. start_verification() itself no-ops if a recording is
+            # already in flight or verification already succeeded, so this
+            # is just "try again" for the REPEAT/DENIED/EXPIRED case.
+            if not room_state["is_voice_verified"] and not room_state["is_face_verifying"]:
+                lockout_until = room_state["lockout_until"]
+                if lockout_until and time.time() >= lockout_until:
+                    room_state["verify_attempts"] = 0
+                    room_state["lockout_until"] = None
+                    lockout_until = None
+
+                if not lockout_until:
+                    asyncio.create_task(start_verification())
+
         # ================= ASSISTANT =================
         elif role == "assistant":
             async with conversation_lock:
@@ -645,7 +661,7 @@ async def connect(ctx: agents.JobContext):
 
     print("✅ Greeting sent")
 
-    # await start_verification()
+    await start_verification()
 
     # ✅ Tahan coroutine agar connect() tidak exit — room tetap aktif
     await disconnected_event.wait()

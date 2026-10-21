@@ -211,6 +211,17 @@ export default function FaceLivenessCapture({
 
     const reportedRef = useRef(false);
 
+    // startSession is a stable useCallback (empty deps, see below) so it
+    // must never close over `userId` directly — the prop starts out null
+    // on first mount (before the LiveKit room assigns an identity) and a
+    // closed-over `userId` would stay null forever even after the real id
+    // arrives, silently failing every future open with "User tidak
+    // teridentifikasi." Read it through this ref instead.
+    const userIdRef = useRef(userId);
+    useEffect(() => {
+        userIdRef.current = userId;
+    }, [userId]);
+
     // Set from POST /face/liveness-challenge in startSession — must be sent
     // back with the capture in captureAndVerify so the backend can confirm
     // this specific attempt actually went through a fresh, server-issued
@@ -528,6 +539,7 @@ export default function FaceLivenessCapture({
         setPhase("loading");
         setMessage("Menyiapkan kamera...");
 
+        const userId = userIdRef.current;
         if (!userId) {
             closeModal({
                 decision: "ERROR",

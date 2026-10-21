@@ -74,10 +74,10 @@ def require_voice_verification(action_name: str, params=None) -> str | None:
                 f"Coba lagi sekitar {remaining} detik lagi sebelum {action_name}."
             )
 
-    if not state.get("is_verifying") and not state.get("is_face_verifying"):
-        trigger = state.get("start_verification")
-        if trigger:
-            asyncio.create_task(trigger())
+    # Verification itself is triggered from the start of the conversation
+    # (agent.py kicks it off right after the greeting, then retries on every
+    # user turn until it succeeds) — this gate only ever reads the result
+    # that's already been tested by the time a sensitive tool gets called.
 
     if status == "EXPIRED":
         return (

@@ -1,7 +1,11 @@
 "use client";
 
+// Surfaces voice verification results as styled notifications.
+
 import { useEffect } from "react";
-import { toast } from "sonner";
+
+import { useNotification } from "@/contexts/NotificationContext";
+import { NotificationVariant } from "@/components/NotificationCard";
 
 type VerificationStatus = "VERIFIED" | "REPEAT" | "DENIED" | null;
 
@@ -11,16 +15,28 @@ interface VerificationResult {
     reason: string | null;
 }
 
-const DEFAULT_REASONS: Record<Exclude<VerificationStatus, null>, string> = {
-    VERIFIED: "Suara berhasil diverifikasi",
-    REPEAT: "Suara kurang jelas, silakan ulangi",
-    DENIED: "Suara tidak dikenali",
-};
+interface Config {
+    variant: NotificationVariant;
+    title: string;
+    defaultDescription: string;
+}
 
-const TITLES: Record<Exclude<VerificationStatus, null>, string> = {
-    VERIFIED: "Voice Verified",
-    REPEAT: "Coba Lagi",
-    DENIED: "Verifikasi Gagal",
+const CONFIG: Record<Exclude<VerificationStatus, null>, Config> = {
+    VERIFIED: {
+        variant: "success",
+        title: "Voice Verified",
+        defaultDescription: "Welcome back",
+    },
+    REPEAT: {
+        variant: "warning",
+        title: "Try Again",
+        defaultDescription: "Voice unclear, please repeat",
+    },
+    DENIED: {
+        variant: "error",
+        title: "Verification Failed",
+        defaultDescription: "Voice not recognized",
+    },
 };
 
 /** Surfaces voice verification results as toasts, then clears the result. */
@@ -28,28 +44,24 @@ export function useVerificationToast(
     result: VerificationResult,
     onShown: () => void,
 ) {
+    const { notify } = useNotification();
+
     useEffect(() => {
         if (!result.status) return;
 
-        const scoreText =
+        const cfg = CONFIG[result.status];
+        const scorePercent =
             result.score !== null && result.score !== undefined
-                ? `Similarity: ${(result.score * 100).toFixed(1)}%`
-                : undefined;
-        const description = [
-            result.reason || DEFAULT_REASONS[result.status],
-            scoreText,
-        ]
-            .filter(Boolean)
-            .join(" — ");
+                ? Math.max(0, Math.min(100, result.score * 100))
+                : null;
 
-        const toastFn =
-            result.status === "VERIFIED"
-                ? toast.success
-                : result.status === "REPEAT"
-                  ? toast.warning
-                  : toast.error;
-
-        toastFn(TITLES[result.status], { description });
+        notify({
+            variant: cfg.variant,
+            title: cfg.title,
+            description: result.reason || cfg.defaultDescription,
+            scorePercent,
+            duration: 4000,
+        });
         onShown();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [result.status]);

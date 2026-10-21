@@ -9,6 +9,7 @@ import {
     DialogContent,
     DialogHeader,
     DialogTitle,
+    DialogDescription,
 } from "@/components/ui/dialog";
 import {
     DropdownMenu,
@@ -19,6 +20,7 @@ import {
 import { Input } from "@/components/ui/input";
 import SoundWave from "./SoundWave";
 import ConfirmDialog from "./ConfirmDialog";
+import { useNotification } from "@/contexts/NotificationContext";
 
 const ENROLLMENT_TEXTS = [
   "Kami putra dan putri Indonesia, mengaku bertumpah darah yang satu, tanah air Indonesia.",
@@ -49,8 +51,8 @@ export default function VoiceEnrollment({
 }: Props) {
   const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL;
   const MAX_ENROLLMENTS = 3;
+  const { notify } = useNotification();
 
-  const [label, setLabel] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [enrolledVoices, setEnrolledVoices] = useState<VoiceProfile[]>([]);
   const [countdown, setCountdown] = useState(RECORDING_DURATION);
@@ -64,10 +66,16 @@ export default function VoiceEnrollment({
   }>({ isOpen: false, voiceId: null, voiceLabel: "" });
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // NEW: Name dialog state (shown AFTER recording completes)
+  const [pendingBlob, setPendingBlob] = useState<Blob | null>(null);
+  const [nameInput, setNameInput] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+
   const recorderRef = useRef<MediaRecorder | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const editInputRef = useRef<HTMLInputElement | null>(null);
+  const nameInputRef = useRef<HTMLInputElement | null>(null);
 
   /* =========================
         FETCH ENROLLMENTS
@@ -117,6 +125,14 @@ export default function VoiceEnrollment({
     };
   }, [token, SERVER_URL]);
 
+  // Auto-focus name input when dialog opens
+  useEffect(() => {
+    if (pendingBlob && nameInputRef.current) {
+      // Small delay to let dialog mount
+      setTimeout(() => nameInputRef.current?.focus(), 50);
+    }
+  }, [pendingBlob]);
+
   /* =========================
         RECORDING
     ========================== */
@@ -129,10 +145,22 @@ export default function VoiceEnrollment({
   };
 
   const startEnroll = async () => {
-    if (!token) return alert("Login dulu sebelum enroll");
-    if (!label.trim()) return alert("Masukkan nama terlebih dahulu");
-    if (enrolledVoices.length >= MAX_ENROLLMENTS)
-      return alert("Maksimal 3 enrollment");
+    if (!token) {
+      notify({
+        variant: "error",
+        title: "Not Logged In",
+        description: "Please login first before enrolling.",
+      });
+      return;
+    }
+    if (enrolledVoices.length >= MAX_ENROLLMENTS) {
+      notify({
+        variant: "warning",
+        title: "Enrollment Limit Reached",
+        description: `Maximum ${MAX_ENROLLMENTS} voice profiles. Delete one to add new.`,
+      });
+      return;
+    }
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -161,7 +189,9 @@ export default function VoiceEnrollment({
           type: "audio/webm;codecs=opus",
         });
 
-        await uploadEnrollment(blob);
+        // NEW: Instead of auto-upload, store blob & open name dialog
+        setPendingBlob(blob);
+        setNameInput("");
       };
 
       recorder.start();
@@ -179,22 +209,40 @@ export default function VoiceEnrollment({
       }, 1000);
     } catch (err) {
       console.error(err);
-      alert("Mic access failed");
+      notify({
+        variant: "error",
+        title: "Microphone Access Failed",
+        description: "Please allow microphone permission and try again.",
+      });
     }
   };
 
   /* =========================
-        UPLOAD
+        UPLOAD (triggered from name dialog)
     ========================== */
 
-  const uploadEnrollment = async (blob: Blob) => {
-    if (!token) return;
+  const handleSaveEnrollment = async () => {
+    const trimmedName = nameInput.trim();
 
+    if (!trimmedName) {
+      notify({
+        variant: "warning",
+        title: "Name Required",
+        description: "Please enter a name for your voice profile.",
+      });
+      // Re-focus input
+      nameInputRef.current?.focus();
+      return;
+    }
+
+    if (!token || !pendingBlob) return;
+
+    setIsSaving(true);
     setVerifyStatus("Uploading enrollment...");
 
     const form = new FormData();
-    form.append("label", label);
-    form.append("audio", blob, "enroll.webm");
+    form.append("label", trimmedName);
+    form.append("audio", pendingBlob, "enroll.webm");
 
     try {
       const res = await fetch(`${SERVER_URL}/enroll-voice`, {
@@ -206,17 +254,39 @@ export default function VoiceEnrollment({
       const result = await res.json();
 
       if (result.status === "OK") {
+        notify({
+          variant: "success",
+          title: "Voice Profile Saved",
+          description: `"${trimmedName}" is ready to use.`,
+        });
         setVerifyStatus("Enrollment successful!");
-        setLabel("");
+        setPendingBlob(null);
+        setNameInput("");
         setCurrentTextIndex((prev) => (prev + 1) % ENROLLMENT_TEXTS.length);
         setShowEnrollmentList(true);
         await fetchEnrolledVoices();
       } else {
-        alert(result.detail || "Enrollment gagal");
+        notify({
+          variant: "error",
+          title: "Enrollment Failed",
+          description: result.detail || "Please try again.",
+        });
       }
     } catch (err) {
       console.error("Upload error:", err);
+      notify({
+        variant: "error",
+        title: "Upload Error",
+        description: "Could not reach the server.",
+      });
+    } finally {
+      setIsSaving(false);
     }
+  };
+
+  const handleCancelNameDialog = () => {
+    setPendingBlob(null);
+    setNameInput("");
   };
 
   /* =========================
@@ -243,12 +313,26 @@ export default function VoiceEnrollment({
       const result = await res.json();
 
       if (result.status === "OK") {
+        notify({
+          variant: "success",
+          title: "Voice Profile Deleted",
+          description: `"${deleteDialog.voiceLabel}" removed.`,
+        });
         await fetchEnrolledVoices();
       } else {
-        alert(result.detail || "Delete failed");
+        notify({
+          variant: "error",
+          title: "Delete Failed",
+          description: result.detail || "Please try again.",
+        });
       }
     } catch (err) {
       console.error("Delete error:", err);
+      notify({
+        variant: "error",
+        title: "Delete Error",
+        description: "Could not reach the server.",
+      });
     } finally {
       setIsDeleting(false);
       setDeleteDialog({ isOpen: false, voiceId: null, voiceLabel: "" });
@@ -275,10 +359,19 @@ export default function VoiceEnrollment({
       const result = await res.json();
 
       if (result.status === "OK") {
+        notify({
+          variant: "success",
+          title: "Renamed",
+          description: `Updated to "${newLabel.trim()}".`,
+        });
         await fetchEnrolledVoices();
         setEditingId(null);
       } else {
-        alert(result.detail || "Rename failed");
+        notify({
+          variant: "error",
+          title: "Rename Failed",
+          description: result.detail || "Please try again.",
+        });
       }
     } catch (err) {
       console.error("Rename error:", err);
@@ -339,16 +432,58 @@ export default function VoiceEnrollment({
         </DialogContent>
       </Dialog>
 
-      {/* Main Sidebar Content */}
-      <div className="space-y-3">
-        <Input
-          value={label}
-          onChange={(e) => setLabel(e.target.value)}
-          placeholder="Label / Nama Speaker"
-          disabled={isRecording}
-          className="h-11 rounded-lg"
-        />
+      {/* NEW: Name Dialog (after recording) */}
+      <Dialog
+        open={pendingBlob !== null}
+        onOpenChange={(open) => {
+          if (!open && !isSaving) handleCancelNameDialog();
+        }}>
+        <DialogContent
+          showCloseButton={false}
+          className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold tracking-tight">
+              Save Your Voice Profile
+            </DialogTitle>
+            <DialogDescription>
+              Give this voice recording a name so you can recognize it later.
+            </DialogDescription>
+          </DialogHeader>
 
+          <div className="py-2">
+            <Input
+              ref={nameInputRef}
+              value={nameInput}
+              onChange={(e) => setNameInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleSaveEnrollment();
+                if (e.key === "Escape" && !isSaving) handleCancelNameDialog();
+              }}
+              placeholder="e.g. My Voice, Office, Home..."
+              disabled={isSaving}
+              className="h-11 rounded-lg"
+              maxLength={50}
+            />
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="ghost"
+              onClick={handleCancelNameDialog}
+              disabled={isSaving}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveEnrollment}
+              disabled={isSaving}>
+              {isSaving ? "Saving..." : "Save"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Main Sidebar Content — Label input removed, name is asked AFTER recording */}
+      <div className="space-y-3">
         <Button
           onClick={startEnroll}
           disabled={enrolledVoices.length >= MAX_ENROLLMENTS || isRecording}

@@ -74,21 +74,34 @@ def require_voice_verification(action_name: str, params=None) -> str | None:
                 f"Coba lagi sekitar {remaining} detik lagi sebelum {action_name}."
             )
 
+    just_triggered = False
     if not state.get("is_verifying") and not state.get("is_face_verifying"):
         trigger = state.get("start_verification")
         if trigger:
             asyncio.create_task(trigger())
+            just_triggered = True
+
+    # Recording is already running (either just started above, or was
+    # started by a previous call and is still in flight) — tell the user
+    # to speak now, don't defer them to some vague later chit-chat.
+    if just_triggered or state.get("is_verifying"):
+        return (
+            f"Oke, gue lagi verifikasi suara kamu sekarang sebelum {action_name} — "
+            f"coba ngomong satu kalimat penuh ya."
+        )
 
     if status == "EXPIRED":
         return (
             f"Sesi verifikasi suara kamu sudah habis. "
-            f"Coba ngobrol sebentar ya biar gue bisa verifikasi ulang sebelum {action_name}."
+            f"Gue lagi dengerin ulang sekarang, coba ngomong satu kalimat penuh "
+            f"sebelum gue {action_name}."
         )
 
     if status == "REPEAT":
         return (
             f"Sebentar ya, suara kamu belum cukup jelas. "
-            f"Kita lanjut ngobrol dulu bentar sebelum gue {action_name}."
+            f"Gue lagi dengerin lagi sekarang, coba ngomong satu kalimat penuh "
+            f"sebelum gue {action_name}."
         )
 
     if status == "DENIED":
@@ -100,7 +113,7 @@ def require_voice_verification(action_name: str, params=None) -> str | None:
 
     return (
         f"Sebelum gue {action_name}, gue perlu memastikan suara kamu dulu. "
-        f"Coba ngobrol sebentar ya."
+        f"Coba ngomong satu kalimat penuh ya, biar langsung keproses."
     )
 
 
@@ -358,30 +371,39 @@ async def search_product(
         ]
 
     # ── Sorting ──
+    # Sort within each store's own bucket first, then interleave round-robin
+    # across stores — never sort the merged list flat. Stores in this dummy
+    # data can have systematically different rating/price distributions for
+    # the same kind of product (e.g. one store's laptops all rate below 4.0
+    # while another's all rate above 4.5), so a flat sort/truncate to top-8
+    # can silently wipe one store out of the display entirely, defeating the
+    # point of searching multiple stores for comparison.
+    sort_key = None
+    sort_reverse = False
     if sort_by == "price_asc":
-        products.sort(key=lambda p: p.get("price") or 0)
+        sort_key = lambda p: p.get("price") or 0
     elif sort_by == "price_desc":
-        products.sort(key=lambda p: p.get("price") or 0, reverse=True)
+        sort_key = lambda p: p.get("price") or 0
+        sort_reverse = True
     elif sort_by == "rating_desc":
-        products.sort(key=lambda p: p.get("rating") or 0, reverse=True)
+        sort_key = lambda p: p.get("rating") or 0
+        sort_reverse = True
     elif sort_by == "newest":
-        products.sort(key=lambda p: p.get("created_at") or "", reverse=True)
-    else:
-        # No explicit sort requested — products are still grouped store by
-        # store at this point (every oren result, then every hijau result,
-        # ...), so interleave them round-robin. Otherwise a store with many
-        # matches fills up the whole top-8 display before a store with
-        # fewer matches ever gets a turn, defeating the point of searching
-        # multiple stores for comparison.
-        buckets = {source: [] for source in ADAPTERS}
-        for p in products:
-            buckets.setdefault(p.get("source"), []).append(p)
-        interleaved = []
-        while any(buckets.values()):
-            for source in buckets:
-                if buckets[source]:
-                    interleaved.append(buckets[source].pop(0))
-        products = interleaved
+        sort_key = lambda p: p.get("created_at") or ""
+        sort_reverse = True
+
+    buckets = {source: [] for source in ADAPTERS}
+    for p in products:
+        buckets.setdefault(p.get("source"), []).append(p)
+    if sort_key:
+        for source in buckets:
+            buckets[source].sort(key=sort_key, reverse=sort_reverse)
+    interleaved = []
+    while any(buckets.values()):
+        for source in buckets:
+            if buckets[source]:
+                interleaved.append(buckets[source].pop(0))
+    products = interleaved
 
     if not products:
         search_term = query if query else "filter yang diberikan"

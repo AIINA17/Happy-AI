@@ -589,11 +589,27 @@ async def get_weather(city: str) -> str:
         return f"Weather service error for {city}."
 
 
+WEB_SEARCH_TIMEOUT_SEC = 15.0
+
+
 @function_tool
 async def web_search(query: str) -> str:
     """Search the internet for information."""
     try:
-        return await asyncio.to_thread(DuckDuckGoSearchRun().run, query)
+        # Every other outbound call in this file (adapters/base.py, wttr.in)
+        # sets requests' own timeout=10 — this one didn't, and
+        # DuckDuckGoSearchRun is a known offender for hanging or getting
+        # rate-limited for a long time with no error, which silently
+        # blocked the whole turn (and the realtime model's "thinking"
+        # state) for minutes. asyncio.wait_for can't kill the underlying
+        # thread, but it unblocks the conversation instead of waiting on it.
+        return await asyncio.wait_for(
+            asyncio.to_thread(DuckDuckGoSearchRun().run, query),
+            timeout=WEB_SEARCH_TIMEOUT_SEC,
+        )
+    except asyncio.TimeoutError:
+        logging.error(f"web_search timed out after {WEB_SEARCH_TIMEOUT_SEC}s: {query!r}")
+        return "Pencarian web-nya kelamaan, coba lagi ya atau tanya hal lain dulu."
     except Exception as e:
         logging.error(e)
         return "Search error."

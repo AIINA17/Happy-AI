@@ -93,6 +93,16 @@ VERIFY_TIMEOUT_SEC = 30
 FACE_VERIFY_TIMEOUT_SEC = 35
 LOCKOUT_COOLDOWN_SEC = 60
 
+# The Google realtime plugin keeps its own internal chat-history record that
+# never shrinks, and replays it *in full* into a fresh session on every
+# reconnect — including the automatic one triggered by Gemini's "GoAway"
+# (context window nearly full) warning. On a long call that history can get
+# big enough that replaying it takes minutes, during which the agent looks
+# completely unresponsive. Capped generously here (a normal shopping session
+# won't come close) so only marathon calls ever lose anything, and only the
+# oldest turns.
+MAX_CHAT_CTX_ITEMS = 120
+
 # Text model used only to title a finished session from its transcript —
 # unrelated to the realtime voice model above.
 LABEL_MODEL = "gemini-3.5-flash-lite"
@@ -183,6 +193,65 @@ def install_turn_latency_logging(session) -> UserSpeechTracker:
             print(f"⏱ Gemini ttft={m.ttft:.2f}s total={m.duration:.2f}s")
 
     return tracker
+
+
+# How long the agent can sit in "thinking" (tool calls, waiting on a slow
+# Gemini response) before the frontend shows a typing indicator — without
+# this, a slow turn (logs have shown these reaching 1-2 minutes) looks like
+# dead air instead of "still working on it".
+THINKING_INDICATOR_DELAY_SEC = 5.0
+
+
+def install_thinking_indicator(session, room) -> None:
+    """Tell the frontend to show/hide a typing indicator around long turns.
+
+    Reuses the same `agent_state_changed` event install_turn_latency_logging
+    listens to, as its own independent handler — every state change bumps a
+    generation counter, so a delayed "show indicator" task only fires if
+    nothing else happened (i.e. the agent is *still* thinking) by the time
+    its delay elapses; any other transition (reply started, new turn, etc.)
+    invalidates it and clears the indicator.
+    """
+    state = {"generation": 0}
+
+    async def _send(active: bool) -> None:
+        try:
+            await room.local_participant.publish_data(
+                json.dumps({"type": "AGENT_THINKING", "active": active}).encode("utf-8"),
+                reliable=True,
+                topic="chat",
+            )
+        except Exception as e:
+            print(f"❌ Failed to send AGENT_THINKING: {e}")
+
+    async def _watch(generation: int) -> None:
+        await asyncio.sleep(THINKING_INDICATOR_DELAY_SEC)
+        if state["generation"] == generation:
+            await _send(True)
+
+    @session.on("agent_state_changed")
+    def on_agent_state_changed(ev):
+        state["generation"] += 1
+        if ev.new_state == "thinking":
+            asyncio.create_task(_watch(state["generation"]))
+        else:
+            asyncio.create_task(_send(False))
+
+
+async def trim_chat_ctx_if_needed(agent: Agent) -> None:
+    """Cap how much history the realtime plugin has to replay on reconnect.
+
+    See MAX_CHAT_CTX_ITEMS — safe to call after every assistant turn, it's a
+    no-op unless the conversation has actually grown past the cap.
+    """
+    ctx = agent.chat_ctx
+    if len(ctx.items) <= MAX_CHAT_CTX_ITEMS:
+        return
+
+    before = len(ctx.items)
+    trimmed = ctx.copy().truncate(max_items=MAX_CHAT_CTX_ITEMS)
+    await agent.update_chat_ctx(trimmed)
+    print(f"✂️ Trimmed chat context: {before} -> {len(trimmed.items)} items")
 
 
 def tap_user_audio(room, tracker: UserSpeechTracker):
@@ -506,7 +575,10 @@ async def connect(ctx: agents.JobContext):
                     topic="chat"
                 )
 
+            asyncio.create_task(trim_chat_ctx_if_needed(shopping_agent))
+
     turn_tracker = install_turn_latency_logging(session)
+    install_thinking_indicator(session, room)
     scan_user_audio = tap_user_audio(room, turn_tracker)
 
     # ================= VERIFICATION =================
@@ -668,9 +740,10 @@ async def connect(ctx: agents.JobContext):
         print("🏷️ Session label updated:", label)
 
     # ================= START SESSION =================
+    shopping_agent = ShoppingAgent()
     await session.start(
         room=room,
-        agent=ShoppingAgent(),
+        agent=shopping_agent,
         room_options=room_io.RoomOptions(
             audio_input=room_io.AudioInputOptions(
                 noise_cancellation=noise_cancellation.BVC()

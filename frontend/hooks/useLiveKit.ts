@@ -70,6 +70,7 @@ export function useLiveKit({
 
     const [uiState, setUiState] = useState<UiState>("IDLE");
     const [isAgentSpeaking, setIsAgentSpeaking] = useState(false);
+    const [isAgentThinking, setIsAgentThinking] = useState(false);
 
     const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL!;
     const LIVEKIT_URL = process.env.NEXT_PUBLIC_LIVEKIT_URL!;
@@ -122,6 +123,7 @@ export function useLiveKit({
                 product_name?: string;
                 text?: string;
                 role?: string;
+                active?: boolean;
             };
             try {
                 msg = JSON.parse(text);
@@ -156,7 +158,13 @@ export function useLiveKit({
             }
 
             if (msg.type === "AGENT_MESSAGE" && msg.text) {
+                setIsAgentThinking(false);
                 onMessageRef.current("assistant", msg.text);
+                return;
+            }
+
+            if (msg.type === "AGENT_THINKING") {
+                setIsAgentThinking(!!msg.active);
                 return;
             }
 
@@ -462,6 +470,7 @@ export function useLiveKit({
             room.on(RoomEvent.Disconnected, () => {
                 isJoiningRef.current = false;
                 setIsAgentSpeaking(false);
+                setIsAgentThinking(false);
                 onRoomStatusRef.current("🔌 Disconnected");
                 setUiState("IDLE");
                 roomRef.current = null;
@@ -482,6 +491,7 @@ export function useLiveKit({
                     document.body.appendChild(el);
                     el.play().catch(() => {});
                     setIsAgentSpeaking(true);
+                    setIsAgentThinking(false);
                     el.onended = () => setIsAgentSpeaking(false);
                     el.onpause = () => setIsAgentSpeaking(false);
                 }
@@ -556,6 +566,7 @@ export function useLiveKit({
         uiState,
         isConnected,
         isAgentSpeaking,
+        isAgentThinking,
         faceVerifyOpen,
         faceVerifyUserId,
         onFaceVerifyResult: handleFaceVerifyResult,

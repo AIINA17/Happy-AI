@@ -77,13 +77,31 @@ VAD_SILENCE_MS = 500
 # match; it is an estimate. Re-measure and set the env var after moving region.
 NETWORK_ESTIMATE_SEC = float(os.getenv("LATENCY_NETWORK_ESTIMATE_SEC", "0.5"))
 MAX_VERIFY_ATTEMPTS = 3
-VERIFY_TIMEOUT_SEC = 20
+# Must comfortably exceed the client's own worst case: up to MAX_RECORD_MS
+# (15s, see useLiveKit.ts's startVADRecordingRef) of recording, plus the
+# upload + /verify-voice inference round trip. Logs show real attempts
+# regularly taking 20s+ end to end — 20 was firing before the client ever
+# reported back, resetting is_verifying mid-flight (harmless since the
+# client's own recorderRef guard prevents a real double-recording, but it
+# meant every other VOICE_RESULT arrived after the backend had already
+# "given up" on it).
+VERIFY_TIMEOUT_SEC = 30
 # Longer than VERIFY_TIMEOUT_SEC: the client now runs a liveness challenge
 # (blink/mouth/turn, up to 15s — see FaceLivenessCapture.tsx's
 # LIVENESS_TIMEOUT_MS) before it even captures a photo, on top of camera +
 # ML model load time.
 FACE_VERIFY_TIMEOUT_SEC = 35
 LOCKOUT_COOLDOWN_SEC = 60
+
+# The Google realtime plugin keeps its own internal chat-history record that
+# never shrinks, and replays it *in full* into a fresh session on every
+# reconnect — including the automatic one triggered by Gemini's "GoAway"
+# (context window nearly full) warning. On a long call that history can get
+# big enough that replaying it takes minutes, during which the agent looks
+# completely unresponsive. Capped generously here (a normal shopping session
+# won't come close) so only marathon calls ever lose anything, and only the
+# oldest turns.
+MAX_CHAT_CTX_ITEMS = 120
 
 # Text model used only to title a finished session from its transcript —
 # unrelated to the realtime voice model above.
@@ -175,6 +193,65 @@ def install_turn_latency_logging(session) -> UserSpeechTracker:
             print(f"⏱ Gemini ttft={m.ttft:.2f}s total={m.duration:.2f}s")
 
     return tracker
+
+
+# How long the agent can sit in "thinking" (tool calls, waiting on a slow
+# Gemini response) before the frontend shows a typing indicator — without
+# this, a slow turn (logs have shown these reaching 1-2 minutes) looks like
+# dead air instead of "still working on it".
+THINKING_INDICATOR_DELAY_SEC = 5.0
+
+
+def install_thinking_indicator(session, room) -> None:
+    """Tell the frontend to show/hide a typing indicator around long turns.
+
+    Reuses the same `agent_state_changed` event install_turn_latency_logging
+    listens to, as its own independent handler — every state change bumps a
+    generation counter, so a delayed "show indicator" task only fires if
+    nothing else happened (i.e. the agent is *still* thinking) by the time
+    its delay elapses; any other transition (reply started, new turn, etc.)
+    invalidates it and clears the indicator.
+    """
+    state = {"generation": 0}
+
+    async def _send(active: bool) -> None:
+        try:
+            await room.local_participant.publish_data(
+                json.dumps({"type": "AGENT_THINKING", "active": active}).encode("utf-8"),
+                reliable=True,
+                topic="chat",
+            )
+        except Exception as e:
+            print(f"❌ Failed to send AGENT_THINKING: {e}")
+
+    async def _watch(generation: int) -> None:
+        await asyncio.sleep(THINKING_INDICATOR_DELAY_SEC)
+        if state["generation"] == generation:
+            await _send(True)
+
+    @session.on("agent_state_changed")
+    def on_agent_state_changed(ev):
+        state["generation"] += 1
+        if ev.new_state == "thinking":
+            asyncio.create_task(_watch(state["generation"]))
+        else:
+            asyncio.create_task(_send(False))
+
+
+async def trim_chat_ctx_if_needed(agent: Agent) -> None:
+    """Cap how much history the realtime plugin has to replay on reconnect.
+
+    See MAX_CHAT_CTX_ITEMS — safe to call after every assistant turn, it's a
+    no-op unless the conversation has actually grown past the cap.
+    """
+    ctx = agent.chat_ctx
+    if len(ctx.items) <= MAX_CHAT_CTX_ITEMS:
+        return
+
+    before = len(ctx.items)
+    trimmed = ctx.copy().truncate(max_items=MAX_CHAT_CTX_ITEMS)
+    await agent.update_chat_ctx(trimmed)
+    print(f"✂️ Trimmed chat context: {before} -> {len(trimmed.items)} items")
 
 
 def tap_user_audio(room, tracker: UserSpeechTracker):
@@ -315,6 +392,16 @@ async def connect(ctx: agents.JobContext):
                     silence_duration_ms=VAD_SILENCE_MS,
                 ),
             ),
+            # Without this, Gemini's context window fills up as the call
+            # goes on and the server sends a GoAway + forces a reconnect
+            # (visible as "Gemini server indicates disconnection soon" in
+            # logs, felt as the agent going silent for several seconds mid-
+            # call). Sliding-window compression lets Gemini drop/condense
+            # older turns instead, so sessions can run far longer before
+            # that reconnect cycle is ever needed.
+            context_window_compression=genai_types.ContextWindowCompressionConfig(
+                sliding_window=genai_types.SlidingWindow(),
+            ),
         )
     )
 
@@ -370,7 +457,7 @@ async def connect(ctx: agents.JobContext):
                 room_state["voice_status"] = "VERIFIED"
                 room_state["verify_attempts"] = 0
                 room_state["last_verified_at"] = time.time()
-                asyncio.create_task(auto_login_after_verification())
+                asyncio.create_task(_announce_verified("suara"))
 
             elif decision == "DENIED":
                 room_state["voice_status"] = "DENIED"
@@ -408,7 +495,7 @@ async def connect(ctx: agents.JobContext):
                 room_state["verify_attempts"] = 0
                 room_state["lockout_until"] = None
                 room_state["last_verified_at"] = time.time()
-                asyncio.create_task(auto_login_after_verification())
+                asyncio.create_task(_announce_verified("wajah"))
             else:
                 # Wajah juga gagal (termasuk belum enroll wajah / error kamera)
                 # — jatuh ke cooldown yang sama seperti voice lockout biasa.
@@ -471,6 +558,22 @@ async def connect(ctx: agents.JobContext):
                 room_state["label_set"] = True
                 asyncio.create_task(label_session_from_transcript())
 
+            # ================= VOICE CHECK =================
+            # Keep retrying passively on every turn I speak, from the start
+            # of the conversation — not only once a sensitive tool gets
+            # called. start_verification() itself no-ops if a recording is
+            # already in flight or verification already succeeded, so this
+            # is just "try again" for the REPEAT/DENIED/EXPIRED case.
+            if not room_state["is_voice_verified"] and not room_state["is_face_verifying"]:
+                lockout_until = room_state["lockout_until"]
+                if lockout_until and time.time() >= lockout_until:
+                    room_state["verify_attempts"] = 0
+                    room_state["lockout_until"] = None
+                    lockout_until = None
+
+                if not lockout_until:
+                    asyncio.create_task(start_verification())
+
         # ================= ASSISTANT =================
         elif role == "assistant":
             async with conversation_lock:
@@ -492,7 +595,10 @@ async def connect(ctx: agents.JobContext):
                     topic="chat"
                 )
 
+            asyncio.create_task(trim_chat_ctx_if_needed(shopping_agent))
+
     turn_tracker = install_turn_latency_logging(session)
+    install_thinking_indicator(session, room)
     scan_user_audio = tap_user_audio(room, turn_tracker)
 
     # ================= VERIFICATION =================
@@ -577,6 +683,23 @@ async def connect(ctx: agents.JobContext):
         result = await login_with_stored_credentials()
         print(f"🔐 Auto-login after verification: {result}")
 
+    # ================= ANNOUNCE VERIFIED =================
+    async def _announce_verified(method: str):
+        # Without this, successful verification (voice or face) only updates
+        # room_state silently — nothing ever prompts Gemini to say anything,
+        # so the agent just goes quiet right when the user is waiting to
+        # hear whether it worked. Wait for auto-login to finish first so the
+        # reply can also confirm the user is logged in, not just verified.
+        await auto_login_after_verification()
+        await session.generate_reply(
+            instructions=(
+                f"Verifikasi {method} kamu barusan berhasil dan kamu udah "
+                f"otomatis login ke toko yang kamu hubungin. Kasih tau "
+                f"dengan santai kalau semuanya udah beres, terus tanya lagi "
+                f"mau lanjutin yang tadi atau butuh apa."
+            )
+        )
+
     # ================= SESSION =================
     async def ensure_conversation_session():
         async with room_state["session_lock"]:
@@ -637,9 +760,10 @@ async def connect(ctx: agents.JobContext):
         print("🏷️ Session label updated:", label)
 
     # ================= START SESSION =================
+    shopping_agent = ShoppingAgent()
     await session.start(
         room=room,
-        agent=ShoppingAgent(),
+        agent=shopping_agent,
         room_options=room_io.RoomOptions(
             audio_input=room_io.AudioInputOptions(
                 noise_cancellation=noise_cancellation.BVC()
@@ -665,7 +789,7 @@ async def connect(ctx: agents.JobContext):
 
     print("✅ Greeting sent")
 
-    # await start_verification()
+    await start_verification()
 
     # ✅ Tahan coroutine agar connect() tidak exit — room tetap aktif
     await disconnected_event.wait()

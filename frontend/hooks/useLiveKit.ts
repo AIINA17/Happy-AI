@@ -3,7 +3,13 @@
 // Custom hook encapsulating LiveKit room join, audio recording, and verification.
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Room, RoomEvent, Track, createLocalAudioTrack } from "livekit-client";
+import {
+    Room,
+    RoomEvent,
+    Track,
+    createLocalAudioTrack,
+    type LocalAudioTrack,
+} from "livekit-client";
 
 import { supabase } from "@/lib/supabase";
 import { Product, Review, VerificationResult } from "@/types";
@@ -20,46 +26,51 @@ type UiState =
 type VerificationStatus = "VERIFIED" | "REPEAT" | "DENIED" | null;
 
 interface UseLiveKitProps {
-  token: string | null;
-  userCity: string | null;
-  onMessage: (
-    role: "user" | "assistant",
-    text: string,
-    extras?: {
-      reviews?: Review[];
-      reviewProductName?: string;
-    },
-  ) => void;
-  onVerifyStatus: (status: string) => void;
-  onRoomStatus: (status: string) => void;
-  onScore: (score: number | null) => void;
-  onProductCards?: (products: Product[]) => void;
-  onVerificationResult?: (
-    status: VerificationStatus,
-    score: number | null,
-    reason: string | null,
-  ) => void;
+    token: string | null;
+    userCity: string | null;
+    onMessage: (
+        role: "user" | "assistant",
+        text: string,
+        extras?: {
+            reviews?: Review[];
+            reviewProductName?: string;
+        },
+    ) => void;
+    onVerifyStatus: (status: string) => void;
+    onRoomStatus: (status: string) => void;
+    onScore: (score: number | null) => void;
+    onProductCards?: (products: Product[]) => void;
+    onVerificationResult?: (
+        status: VerificationStatus,
+        score: number | null,
+        reason: string | null,
+    ) => void;
 }
 
 export function useLiveKit({
-  token,
-  userCity,
-  onMessage,
-  onVerifyStatus,
-  onRoomStatus,
-  onScore,
-  onProductCards,
-  onVerificationResult,
+    token,
+    userCity,
+    onMessage,
+    onVerifyStatus,
+    onRoomStatus,
+    onScore,
+    onProductCards,
+    onVerificationResult,
 }: UseLiveKitProps) {
-  const roomRef = useRef<Room | null>(null);
-  const isJoiningRef = useRef(false);
+    const roomRef = useRef<Room | null>(null);
+    const isJoiningRef = useRef(false);
 
-  const recorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-  const rafRef = useRef<number | null>(null);
+    const recorderRef = useRef<MediaRecorder | null>(null);
+    const chunksRef = useRef<Blob[]>([]);
+    const rafRef = useRef<number | null>(null);
+    // The same track already published to LiveKit for the live conversation
+    // — reused for voice-verification recording so we never open a second,
+    // competing getUserMedia capture (see startVADRecordingRef).
+    const micTrackRef = useRef<LocalAudioTrack | null>(null);
 
-  const [uiState, setUiState] = useState<UiState>("IDLE");
-  const [isAgentSpeaking, setIsAgentSpeaking] = useState(false);
+    const [uiState, setUiState] = useState<UiState>("IDLE");
+    const [isAgentSpeaking, setIsAgentSpeaking] = useState(false);
+    const [isAgentThinking, setIsAgentThinking] = useState(false);
 
     const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL!;
     const LIVEKIT_URL = process.env.NEXT_PUBLIC_LIVEKIT_URL!;
@@ -73,83 +84,95 @@ export function useLiveKit({
     const tokenRef = useRef(token);
     const userCityRef = useRef(userCity);
 
-  useEffect(() => {
-    onMessageRef.current = onMessage;
-  }, [onMessage]);
-  useEffect(() => {
-    onVerifyStatusRef.current = onVerifyStatus;
-  }, [onVerifyStatus]);
-  useEffect(() => {
-    onRoomStatusRef.current = onRoomStatus;
-  }, [onRoomStatus]);
-  useEffect(() => {
-    onScoreRef.current = onScore;
-  }, [onScore]);
-  useEffect(() => {
-    onProductCardsRef.current = onProductCards;
-  }, [onProductCards]);
-  useEffect(() => {
-    onVerificationResultRef.current = onVerificationResult;
-  }, [onVerificationResult]);
-  useEffect(() => {
-    tokenRef.current = token;
-  }, [token]);
-  useEffect(() => {
-    userCityRef.current = userCity;
-  }, [userCity]);
+    useEffect(() => {
+        onMessageRef.current = onMessage;
+    }, [onMessage]);
+    useEffect(() => {
+        onVerifyStatusRef.current = onVerifyStatus;
+    }, [onVerifyStatus]);
+    useEffect(() => {
+        onRoomStatusRef.current = onRoomStatus;
+    }, [onRoomStatus]);
+    useEffect(() => {
+        onScoreRef.current = onScore;
+    }, [onScore]);
+    useEffect(() => {
+        onProductCardsRef.current = onProductCards;
+    }, [onProductCards]);
+    useEffect(() => {
+        onVerificationResultRef.current = onVerificationResult;
+    }, [onVerificationResult]);
+    useEffect(() => {
+        tokenRef.current = token;
+    }, [token]);
+    useEffect(() => {
+        userCityRef.current = userCity;
+    }, [userCity]);
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- kept to match RoomEvent.DataReceived's call signature below
-  const handleAgentDataRef = useRef((payload: Uint8Array, _topic?: string) => {
-    const text = new TextDecoder().decode(payload).trim();
-    if (!text.startsWith("{")) return;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- kept to match RoomEvent.DataReceived's call signature below
+    const handleAgentDataRef = useRef(
+        (payload: Uint8Array, _topic?: string) => {
+            const text = new TextDecoder().decode(payload).trim();
+            if (!text.startsWith("{")) return;
 
-    let msg: {
-      type?: string;
-      action?: string;
-      products?: Product[];
-      reviews?: Review[];
-      product_name?: string;
-      text?: string;
-      role?: string;
-    };
-    try {
-      msg = JSON.parse(text);
-    } catch {
-      return;
-    }
+            let msg: {
+                type?: string;
+                action?: string;
+                products?: Product[];
+                reviews?: Review[];
+                product_name?: string;
+                text?: string;
+                role?: string;
+                active?: boolean;
+            };
+            try {
+                msg = JSON.parse(text);
+            } catch {
+                return;
+            }
 
-    if (msg.type === "VOICE_CMD" && msg.action === "START_RECORD") {
-      startVADRecordingRef.current();
-      return;
-    }
+            if (msg.type === "VOICE_CMD" && msg.action === "START_RECORD") {
+                startVADRecordingRef.current();
+                return;
+            }
 
-    if (msg.type === "PRODUCT_CARDS" && msg.products) {
-      onProductCardsRef.current?.(msg.products);
-      return;
-    }
+            if (msg.type === "PRODUCT_CARDS" && msg.products) {
+                onProductCardsRef.current?.(msg.products);
+                return;
+            }
 
-    if (msg.type === "FACE_CMD" && msg.action === "START_FACE_CAPTURE") {
-      startFaceVerificationRef.current();
-      return;
-    }
+            if (
+                msg.type === "FACE_CMD" &&
+                msg.action === "START_FACE_CAPTURE"
+            ) {
+                startFaceVerificationRef.current();
+                return;
+            }
 
-    if (msg.type === "REVIEW_CARDS" && msg.reviews) {
-      onMessageRef.current("assistant", "", {
-        reviews: msg.reviews,
-        reviewProductName: msg.product_name || "produk ini",
-      });
-      return;
-    }
+            if (msg.type === "REVIEW_CARDS" && msg.reviews) {
+                onMessageRef.current("assistant", "", {
+                    reviews: msg.reviews,
+                    reviewProductName: msg.product_name || "produk ini",
+                });
+                return;
+            }
 
-    if (msg.type === "AGENT_MESSAGE" && msg.text) {
-      onMessageRef.current("assistant", msg.text);
-      return;
-    }
+            if (msg.type === "AGENT_MESSAGE" && msg.text) {
+                setIsAgentThinking(false);
+                onMessageRef.current("assistant", msg.text);
+                return;
+            }
 
-    if (msg.type === "USER_MESSAGE" && msg.text) {
-      onMessageRef.current("user", msg.text);
-    }
-  });
+            if (msg.type === "AGENT_THINKING") {
+                setIsAgentThinking(!!msg.active);
+                return;
+            }
+
+            if (msg.type === "USER_MESSAGE" && msg.text) {
+                onMessageRef.current("user", msg.text);
+            }
+        },
+    );
 
     /* ================= VOICE RECORDING ================= */
 
@@ -163,9 +186,17 @@ export function useLiveKit({
         setUiState("LISTENING");
         onVerifyStatusRef.current("🎧 Bicara satu kalimat penuh ya...");
 
-        const stream = await navigator.mediaDevices.getUserMedia({
-            audio: true,
-        });
+        // Reuse the mic track already published to LiveKit instead of
+        // calling getUserMedia again — a second concurrent capture from the
+        // same device fought the live conversation's audio pipeline for the
+        // mic/CPU, which is what was causing the agent's replies to stall
+        // for many seconds every time verification was retried mid-call.
+        const liveMicTrack = micTrackRef.current?.mediaStreamTrack;
+        if (!liveMicTrack) {
+            onVerifyStatusRef.current("❌ Mic belum siap, coba lagi");
+            return;
+        }
+        const stream = new MediaStream([liveMicTrack]);
         const audioCtx = new AudioContext();
         const source = audioCtx.createMediaStreamSource(stream);
         const analyser = audioCtx.createAnalyser();
@@ -207,7 +238,8 @@ export function useLiveKit({
             if (rafRef.current) cancelAnimationFrame(rafRef.current);
             recorderRef.current = null;
 
-            stream.getTracks().forEach((t) => t.stop());
+            // Don't stop the track — it's shared with the live LiveKit
+            // publish, only tear down our own analyser/recorder plumbing.
             audioCtx.close();
 
             if (!chunksRef.current.length) return;
@@ -332,7 +364,9 @@ export function useLiveKit({
 
     const startFaceVerificationRef = useRef(() => {
         setUiState("FACE_VERIFYING");
-        onVerifyStatusRef.current("📷 Verifikasi wajah, arahkan wajah ke kamera...");
+        onVerifyStatusRef.current(
+            "📷 Verifikasi wajah, arahkan wajah ke kamera...",
+        );
         setFaceVerifyOpen(true);
     });
 
@@ -414,6 +448,7 @@ export function useLiveKit({
             room.on(RoomEvent.Disconnected, () => {
                 isJoiningRef.current = false;
                 setIsAgentSpeaking(false);
+                setIsAgentThinking(false);
                 onRoomStatusRef.current("🔌 Disconnected");
                 setUiState("IDLE");
                 roomRef.current = null;
@@ -434,6 +469,7 @@ export function useLiveKit({
                     document.body.appendChild(el);
                     el.play().catch(() => {});
                     setIsAgentSpeaking(true);
+                    setIsAgentThinking(false);
                     el.onended = () => setIsAgentSpeaking(false);
                     el.onpause = () => setIsAgentSpeaking(false);
                 }
@@ -456,6 +492,7 @@ export function useLiveKit({
             await room.connect(LIVEKIT_URL, lkToken);
 
             const micTrack = await createLocalAudioTrack();
+            micTrackRef.current = micTrack;
             await room.localParticipant.publishTrack(micTrack);
         } catch (err) {
             console.error("Join error:", err);
@@ -472,6 +509,7 @@ export function useLiveKit({
             await roomRef.current.disconnect();
             roomRef.current = null;
         }
+        micTrackRef.current = null;
 
         if (recorderRef.current) {
             recorderRef.current.stop();
@@ -506,6 +544,7 @@ export function useLiveKit({
         uiState,
         isConnected,
         isAgentSpeaking,
+        isAgentThinking,
         faceVerifyOpen,
         faceVerifyUserId,
         onFaceVerifyResult: handleFaceVerifyResult,

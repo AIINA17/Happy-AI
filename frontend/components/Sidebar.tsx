@@ -49,6 +49,8 @@ interface SidebarProps {
   onSelectSession?: (sessionId: string) => void;
   onNewChat?: () => void;
   refreshKey?: number;
+  isMobileOpen?: boolean;
+  onCloseMobile?: () => void;
 }
 
 const COLLAPSED_WIDTH = 72;
@@ -64,6 +66,8 @@ export default function Sidebar({
   onSelectSession,
   onNewChat,
   refreshKey,
+  isMobileOpen = false,
+  onCloseMobile,
 }: SidebarProps) {
   const [showEnrollmentList, setShowEnrollmentList] = useState(false);
   const [showEcommerceAccount, setShowEcommerceAccount] = useState(false);
@@ -280,11 +284,31 @@ export default function Sidebar({
         onClose={() => setShowEcommerceAccount(false)}
       />
 
+      {/* Mobile backdrop (only visible on mobile when sidebar is open) */}
+      {isMobileOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm md:hidden
+                     animate-in fade-in duration-200"
+          onClick={onCloseMobile}
+          aria-hidden="true"
+        />
+      )}
+
       <aside
         ref={sidebarRef}
-        style={{ width: isCollapsed ? COLLAPSED_WIDTH : "360px" }}
-        className="h-screen bg-sidebar flex flex-col border-r border-sidebar-border
-                           transition-[width] duration-300 ease-in-out relative"
+        style={{
+          // Only applied on desktop (md+) via CSS cascade below.
+          // On mobile the Tailwind class `w-[min(360px,85vw)]` wins.
+          ["--sidebar-w" as string]: isCollapsed
+            ? `${COLLAPSED_WIDTH}px`
+            : "360px",
+        }}
+        className={`h-screen bg-sidebar flex flex-col border-r border-sidebar-border
+                   transition-all duration-300 ease-in-out
+                   w-[min(360px,85vw)] md:w-[var(--sidebar-w)]
+                   md:relative md:translate-x-0
+                   fixed inset-y-0 left-0 z-50
+                   ${isMobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}
       >
         {/* Collapse Button - Hanya muncul saat expanded */}
         {!isCollapsed && (

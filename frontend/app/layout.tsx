@@ -7,6 +7,7 @@ import "./globals.css";
 import { cn } from "@/lib/utils";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
+import { NotificationProvider } from "@/contexts/NotificationContext";
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
@@ -37,7 +38,9 @@ export default function RootLayout({
             lang="id"
             className={cn(outfit.variable, spaceGrotesk.variable, "font-sans", geist.variable)}>
             <body className="font-outfit">
-                <TooltipProvider>{children}</TooltipProvider>
+                <NotificationProvider>
+                    <TooltipProvider>{children}</TooltipProvider>
+                </NotificationProvider>
                 <Toaster theme="dark" />
             </body>
         </html>

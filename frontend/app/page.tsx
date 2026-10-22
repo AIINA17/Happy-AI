@@ -49,6 +49,9 @@ export default function Home() {
 
   const [sessionsRefreshKey, setSessionsRefreshKey] = useState(0);
 
+  // Mobile: controls whether the left sidebar is shown as an overlay
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
   useEffect(() => {
     const checkSession = async () => {
       const {
@@ -118,6 +121,7 @@ export default function Home() {
 
   const handleSelectSession = (sessionId: string) => {
     setCurrentSessionId(sessionId);
+    setIsMobileSidebarOpen(false); // Close mobile overlay on selection
     router.push(`/history/${sessionId}`);
   };
 
@@ -125,6 +129,7 @@ export default function Home() {
     setCurrentSessionId(null);
     setMessages([]);
     setProducts([]);
+    setIsMobileSidebarOpen(false); // Close mobile overlay
     setSessionsRefreshKey((key) => key + 1);
 
     // Ending a call triggers this immediately, but the backend only
@@ -178,6 +183,8 @@ export default function Home() {
         onSelectSession={handleSelectSession}
         onNewChat={handleNewChat}
         refreshKey={sessionsRefreshKey}
+        isMobileOpen={isMobileSidebarOpen}
+        onCloseMobile={() => setIsMobileSidebarOpen(false)}
       />
 
       <ChatArea
@@ -201,6 +208,7 @@ export default function Home() {
         setScore={setScore}
         setVerificationResult={setVerificationResult}
         onEndChat={handleNewChat}
+        onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
       />
     </main>
   );

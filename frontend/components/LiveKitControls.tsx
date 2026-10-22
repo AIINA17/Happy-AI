@@ -48,6 +48,7 @@ export default function LiveKitControls({
         uiState,
         isConnected: hookIsConnected,
         isAgentSpeaking,
+        isAgentThinking,
         faceVerifyOpen,
         faceVerifyUserId,
         onFaceVerifyResult,
@@ -71,9 +72,10 @@ export default function LiveKitControls({
         setIsTyping(
             uiState === "RECORDING" ||
                 uiState === "VERIFYING" ||
-                uiState === "FACE_VERIFYING",
+                uiState === "FACE_VERIFYING" ||
+                isAgentThinking,
         );
-    }, [uiState, setIsTyping]);
+    }, [uiState, isAgentThinking, setIsTyping]);
 
     useEffect(() => {
         setIsAgentSpeaking(isAgentSpeaking);

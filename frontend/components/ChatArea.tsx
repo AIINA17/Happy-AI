@@ -4,7 +4,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { ChevronRight, MessageCircle, Mic, ShoppingBag } from "lucide-react";
+import { ChevronRight, MessageCircle, Menu, Mic, ShoppingBag, X } from "lucide-react";
 
 import LiveKitControls from "./LiveKitControls";
 import MessageBubble from "./MessageBubble";
@@ -41,6 +41,8 @@ interface ChatAreaProps {
     }) => void;
     isViewingHistory?: boolean;
     onEndChat?: () => void;
+    // Mobile: when sidebar (left) is closed, show hamburger button that triggers this
+    onOpenMobileSidebar?: () => void;
 }
 
 export default function ChatArea({
@@ -61,10 +63,12 @@ export default function ChatArea({
     setVerificationResult,
     isViewingHistory = false,
     onEndChat,
+    onOpenMobileSidebar,
 }: ChatAreaProps) {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const [viewMode, setViewMode] = useState<ViewMode>("voice");
     const [isProductSidebarOpen, setIsProductSidebarOpen] = useState(true);
+    const [isMobileProductsOpen, setIsMobileProductsOpen] = useState(false);
 
     const isHistoryMode =
         isViewingHistory || (messages.length > 0 && !isConnected);
@@ -79,8 +83,40 @@ export default function ChatArea({
         }
     }, [messages, isTyping, viewMode, isHistoryMode]);
 
+    const hasProducts = products.length > 0;
+
     return (
-        <div className="flex-1 flex h-screen bg-background overflow-hidden">
+        <div className="flex-1 flex h-screen bg-background overflow-hidden relative">
+            {/* ====== Mobile Floating Buttons (visible only on mobile) ====== */}
+            {onOpenMobileSidebar && (
+                <button
+                    onClick={onOpenMobileSidebar}
+                    aria-label="Open sidebar"
+                    className="md:hidden fixed top-3 left-3 z-30
+                               flex items-center justify-center
+                               w-10 h-10 rounded-full
+                               bg-background/80 backdrop-blur-md
+                               border border-border/50
+                               shadow-md hover:bg-background
+                               transition-colors cursor-pointer">
+                    <Menu size={18} className="text-foreground" />
+                </button>
+            )}
+            {hasProducts && (
+                <button
+                    onClick={() => setIsMobileProductsOpen(true)}
+                    aria-label="Open products"
+                    className="md:hidden fixed top-3 right-3 z-30
+                               flex items-center justify-center gap-1.5
+                               h-10 px-3 rounded-full
+                               bg-primary/90 text-primary-foreground backdrop-blur-md
+                               shadow-md hover:bg-primary
+                               transition-colors cursor-pointer">
+                    <ShoppingBag size={16} />
+                    <span className="text-xs font-semibold">{products.length}</span>
+                </button>
+            )}
+
             {/* ====== LEFT: Main Content Area ====== */}
             <div className="flex-1 flex flex-col min-w-0">
                 {/* Scrollable content */}
@@ -129,6 +165,8 @@ export default function ChatArea({
                 products={products}
                 isOpen={isProductSidebarOpen}
                 onToggle={() => setIsProductSidebarOpen((prev) => !prev)}
+                isMobileOpen={isMobileProductsOpen}
+                onCloseMobile={() => setIsMobileProductsOpen(false)}
             />
         </div>
     );
@@ -138,30 +176,61 @@ interface ProductSidebarProps {
     products: Product[];
     isOpen: boolean;
     onToggle: () => void;
+    isMobileOpen?: boolean;
+    onCloseMobile?: () => void;
 }
 
-function ProductSidebar({ products, isOpen, onToggle }: ProductSidebarProps) {
+function ProductSidebar({
+    products,
+    isOpen,
+    onToggle,
+    isMobileOpen = false,
+    onCloseMobile,
+}: ProductSidebarProps) {
     const hasProducts = products.length > 0;
 
     if (!hasProducts) return null;
 
     return (
-        <div className="relative flex">
-            {/* Sidebar Content */}
-            <div
-                className={`
-          flex flex-col border-l border-border bg-sidebar
-          transition-all duration-300 ease-in-out
-          ${isOpen ? "w-80 opacity-100" : "w-0 opacity-0 overflow-hidden border-l-0"}
-        `}>
-                {isOpen && (
+        <>
+            {/* Mobile backdrop */}
+            {isMobileOpen && (
+                <div
+                    className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm md:hidden
+                               animate-in fade-in duration-200"
+                    onClick={onCloseMobile}
+                    aria-hidden="true"
+                />
+            )}
+
+            <div className="relative flex md:relative">
+                {/* Sidebar Content */}
+                <div
+                    className={`
+                  flex flex-col border-l border-border bg-sidebar
+                  transition-all duration-300 ease-in-out
+                  w-[min(360px,90vw)]
+                  md:w-80
+                  fixed inset-y-0 right-0 z-50
+                  md:relative md:z-auto md:inset-auto md:translate-x-0
+                  ${isMobileOpen ? "translate-x-0" : "translate-x-full md:translate-x-0"}
+                  ${isOpen ? "md:w-80 md:opacity-100" : "md:w-0 md:opacity-0 md:overflow-hidden md:border-l-0"}
+                `}>
                     <>
                         {/* Header */}
                         <button
-                            onClick={onToggle}
+                            onClick={() => {
+                                // On mobile, header click closes overlay.
+                                // On desktop, toggle collapse.
+                                if (isMobileOpen && onCloseMobile) {
+                                    onCloseMobile();
+                                } else {
+                                    onToggle();
+                                }
+                            }}
                             className="w-full p-4 border-b border-border
-                        flex items-center justify-between
-                        hover:bg-sidebar-accent transition-colors cursor-pointer">
+                            flex items-center justify-between
+                            hover:bg-sidebar-accent transition-colors cursor-pointer">
                             <div className="flex items-center gap-2 text-sm font-medium text-sidebar-foreground">
                                 <ShoppingBag
                                     size={18}
@@ -169,9 +238,14 @@ function ProductSidebar({ products, isOpen, onToggle }: ProductSidebarProps) {
                                 />
                                 <span>{products.length} Produk</span>
                             </div>
+                            {/* Chevron on desktop, X on mobile */}
                             <ChevronRight
                                 size={16}
-                                className="text-muted-foreground"
+                                className="text-muted-foreground hidden md:block"
+                            />
+                            <X
+                                size={16}
+                                className="text-muted-foreground md:hidden"
                             />
                         </button>
 
@@ -180,26 +254,26 @@ function ProductSidebar({ products, isOpen, onToggle }: ProductSidebarProps) {
                             <ProductCards products={products} />
                         </div>
                     </>
+                </div>
+
+                {/* Desktop collapsed indicator (hidden on mobile) */}
+                {!isOpen && hasProducts && (
+                    <div
+                        onClick={onToggle}
+                        className="hidden md:flex w-12 h-full flex-col items-center justify-center
+                         border-l border-border bg-sidebar
+                         cursor-pointer hover:bg-sidebar-accent transition-colors">
+                        <ShoppingBag
+                            size={20}
+                            className="text-primary"
+                        />
+                        <span className="text-xs text-muted-foreground writing-mode-vertical">
+                            {products.length}
+                        </span>
+                    </div>
                 )}
             </div>
-
-            {/* Collapsed indicator (when closed but has products) */}
-            {!isOpen && hasProducts && (
-                <div
-                    onClick={onToggle}
-                    className="w-12 h-full flex flex-col items-center justify-center
-                     border-l border-border bg-sidebar
-                     cursor-pointer hover:bg-sidebar-accent transition-colors">
-                    <ShoppingBag
-                        size={20}
-                        className="text-primary"
-                    />
-                    <span className="text-xs text-muted-foreground writing-mode-vertical">
-                        {products.length}
-                    </span>
-                </div>
-            )}
-        </div>
+        </>
     );
 }
 

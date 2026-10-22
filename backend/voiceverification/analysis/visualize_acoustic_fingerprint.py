@@ -35,7 +35,7 @@ import matplotlib.pyplot as plt
 
 from voiceverification.models.speaker_verifier import SpeakerVerifier
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "dataset")
 ENROLL_WAV = os.path.join(BASE_DIR, "enroll.wav")
 GENUINE_DIR = os.path.join(BASE_DIR, "genuine")
 IMPOSTOR_DIR = os.path.join(BASE_DIR, "impostor")

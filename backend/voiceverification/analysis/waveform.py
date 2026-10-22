@@ -10,9 +10,8 @@ import numpy as np
 # KONFIGURASI
 # ============================================================
 
-# Folder tempat file waveform.py berada
-# = voiceverification/dataset
-DATASET_DIR = Path(__file__).resolve().parent
+# = voiceverification/dataset (this script now lives in voiceverification/analysis)
+DATASET_DIR = Path(__file__).resolve().parent.parent / "dataset"
 
 CLASSES = ["genuine", "impostor", "spoof"]
 

@@ -9,7 +9,7 @@ from voiceverification.core.asvspoof import compute_score
 # KONFIGURASI
 # ==========================================================
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "dataset")
 
 GENUINE_DIR = os.path.join(BASE_DIR, "genuine")
 SPOOF_DIR = os.path.join(BASE_DIR, "spoof")

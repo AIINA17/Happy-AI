@@ -3,9 +3,12 @@
 // Controls for joining LiveKit, driving the voice button and status.
 
 import React, { useEffect } from "react";
+import Image from "next/image";
+import { Mic, MicOff, MessageCircle } from "lucide-react";
 
 import VoiceButton from "./VoiceButton";
 import FaceLivenessCapture from "./FaceLivenessCapture";
+import SoundWave from "./SoundWave";
 import { useLiveKit } from "@/hooks/useLiveKit";
 import { useUserLocation } from "@/hooks/useUserLocation";
 import { Product } from "@/types";
@@ -26,6 +29,12 @@ interface LiveKitControlsProps {
         reason: string | null;
     }) => void;
     onEndChat?: () => void;
+    // When true, renders the full set of controls (mic + mute + chat toggle)
+    // in the horizontal pill layout shown in voice/carousel mode. When false,
+    // renders the classic single-button layout used elsewhere.
+    showPillControls?: boolean;
+    onToggleChatMode?: () => void;
+    isChatMode?: boolean;
 }
 
 export default function LiveKitControls({
@@ -40,6 +49,9 @@ export default function LiveKitControls({
     setIsTyping,
     setVerificationResult,
     onEndChat,
+    showPillControls = false,
+    onToggleChatMode,
+    isChatMode = false,
 }: LiveKitControlsProps) {
     const { city: userCity } = useUserLocation();
 
@@ -49,6 +61,8 @@ export default function LiveKitControls({
         isConnected: hookIsConnected,
         isAgentSpeaking,
         isAgentThinking,
+        isMuted,
+        toggleMute,
         faceVerifyOpen,
         faceVerifyUserId,
         onFaceVerifyResult,
@@ -147,6 +161,101 @@ export default function LiveKitControls({
         }
     };
 
+    // ========== PILL CONTROLS LAYOUT (voice-first mode) ==========
+    if (showPillControls) {
+        const isActiveSession = hookIsConnected;
+        return (
+            <div className="flex flex-col items-center gap-3">
+                <FaceLivenessCapture
+                    userId={faceVerifyUserId}
+                    open={faceVerifyOpen}
+                    onOpenChange={() => {}}
+                    onResult={onFaceVerifyResult}
+                />
+
+                {/* Soundwave only while active */}
+                {isActiveSession && (
+                    <div className="h-5 flex items-center">
+                        <SoundWave />
+                    </div>
+                )}
+
+                {/* 3-button pill: [Mute] [Mic big] [Chat toggle] */}
+                <div className="flex items-center gap-3 bg-muted/60 backdrop-blur-sm
+                                rounded-full p-1.5 border border-border/40">
+                    {/* Mute toggle (only shows during active session) */}
+                    <button
+                        onClick={toggleMute}
+                        disabled={!isActiveSession}
+                        aria-label={isMuted ? "Unmute mic" : "Mute mic"}
+                        title={isMuted ? "Unmute" : "Mute"}
+                        className={`w-10 h-10 rounded-full flex items-center justify-center
+                                   transition-all cursor-pointer
+                                   disabled:opacity-30 disabled:cursor-not-allowed
+                                   ${
+                                       isMuted
+                                           ? "bg-rose-500 text-white hover:bg-rose-600"
+                                           : "bg-background text-muted-foreground hover:text-foreground hover:bg-background"
+                                   }`}>
+                        {isMuted ? <MicOff size={16} /> : <Mic size={16} />}
+                    </button>
+
+                    {/* Big main voice button — always uses the original
+                        Mic.svg icon; only the ring/color feedback changes
+                        with state. */}
+                    <button
+                        onClick={handleClick}
+                        aria-label={
+                            isActiveSession ? "End voice session" : "Start voice session"
+                        }
+                        className={`relative w-14 h-14 rounded-full flex items-center justify-center
+                                   transition-all cursor-pointer shadow-lg bg-muted
+                                   border-[3px] border-primary hover:scale-105 active:scale-95
+                                   ${
+                                       uiState === "CONNECTING"
+                                           ? "animate-pulse"
+                                           : ""
+                                   }
+                                   ${
+                                       uiState === "RECORDING" || uiState === "LISTENING"
+                                           ? "ring-4 ring-primary/30"
+                                           : ""
+                                   }`}>
+                        <Image
+                            src="/icons/Mic.svg"
+                            alt="Mic"
+                            width={20}
+                            height={20}
+                            style={{ width: "32px", height: "32px" }}
+                            className="object-contain"
+                        />
+                    </button>
+
+                    {/* Chat mode toggle */}
+                    <button
+                        onClick={onToggleChatMode}
+                        aria-label={isChatMode ? "Back to voice mode" : "Open chat"}
+                        title={isChatMode ? "Voice mode" : "Chat mode"}
+                        className={`w-10 h-10 rounded-full flex items-center justify-center
+                                   transition-all cursor-pointer
+                                   ${
+                                       isChatMode
+                                           ? "bg-primary text-primary-foreground"
+                                           : "bg-background text-muted-foreground hover:text-foreground"
+                                   }`}>
+                        <MessageCircle size={16} />
+                    </button>
+                </div>
+
+                {/* Mini status */}
+                <div className={`text-[0.7rem] ${getStatusColor()}`}>
+                    {getStatusText()}
+                </div>
+            </div>
+        );
+    }
+
+    // ========== CLASSIC LAYOUT (default) ==========
     return (
         <div className="space-y-4 justify-center items-center flex flex-col">
             {/* Agent-triggered face verification (fallback after 3x failed

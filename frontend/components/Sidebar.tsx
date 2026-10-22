@@ -12,6 +12,7 @@ import {
   Plus,
   Store,
   Trash2,
+  X,
 } from "lucide-react";
 import { PiUserSoundBold } from "react-icons/pi";
 
@@ -76,6 +77,59 @@ export default function Sidebar({
   );
   const [loading, setLoading] = useState(!cachedLoaded);
   const [isCollapsed, setIsCollapsed] = useState(false);
+
+  // Auto-expand sidebar when opened as mobile overlay — collapsed state
+  // (72px icons only) makes no sense in an overlay context.
+  useEffect(() => {
+    if (isMobileOpen && isCollapsed) {
+      setIsCollapsed(false);
+    }
+  }, [isMobileOpen, isCollapsed]);
+
+  // Swipe-to-close for mobile overlay.
+  // Tracks horizontal finger movement; drags sidebar leftward with finger,
+  // commits close if user swiped past threshold (60px), snaps back otherwise.
+  const [swipeOffset, setSwipeOffset] = useState(0);
+  const [isSwiping, setIsSwiping] = useState(false);
+  const touchStartXRef = useRef<number | null>(null);
+  const touchStartYRef = useRef<number | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (!isMobileOpen) return;
+    touchStartXRef.current = e.touches[0].clientX;
+    touchStartYRef.current = e.touches[0].clientY;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isMobileOpen || touchStartXRef.current === null) return;
+    const dx = e.touches[0].clientX - touchStartXRef.current;
+    const dy = e.touches[0].clientY - (touchStartYRef.current ?? 0);
+    // Only engage swipe-to-close if horizontal gesture dominates — otherwise
+    // let the user scroll the sidebar list vertically without accidentally
+    // closing the overlay.
+    if (Math.abs(dx) > Math.abs(dy) && dx < 0) {
+      setIsSwiping(true);
+      setSwipeOffset(dx);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (!isMobileOpen) {
+      setSwipeOffset(0);
+      setIsSwiping(false);
+      touchStartXRef.current = null;
+      touchStartYRef.current = null;
+      return;
+    }
+    // Threshold: 60px leftward swipe commits the close
+    if (swipeOffset < -60) {
+      onCloseMobile?.();
+    }
+    setSwipeOffset(0);
+    setIsSwiping(false);
+    touchStartXRef.current = null;
+    touchStartYRef.current = null;
+  };
 
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [deleteDialog, setDeleteDialog] = useState<{
@@ -296,31 +350,53 @@ export default function Sidebar({
 
       <aside
         ref={sidebarRef}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}
         style={{
-          // Only applied on desktop (md+) via CSS cascade below.
-          // On mobile the Tailwind class `w-[min(360px,85vw)]` wins.
-          ["--sidebar-w" as string]: isCollapsed
-            ? `${COLLAPSED_WIDTH}px`
-            : "360px",
+          width: `${isCollapsed ? COLLAPSED_WIDTH : 360}px`,
+          // Live swipe follow — only applied while actively swiping on mobile.
+          // Disables transitions during swipe so sidebar sticks to finger.
+          transform: isSwiping ? `translateX(${swipeOffset}px)` : undefined,
+          transition: isSwiping ? "none" : undefined,
         }}
         className={`h-screen bg-sidebar flex flex-col border-r border-sidebar-border
                    transition-all duration-300 ease-in-out
-                   w-[min(360px,85vw)] md:w-[var(--sidebar-w)]
+                   max-w-[85vw]
                    md:relative md:translate-x-0
                    fixed inset-y-0 left-0 z-50
                    ${isMobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}
       >
-        {/* Collapse Button - Hanya muncul saat expanded */}
+        {/* Desktop collapse button - only when expanded */}
         {!isCollapsed && (
           <Button
             onClick={toggleCollapse}
             variant="outline"
             size="icon"
             title="Collapse sidebar"
-            className="absolute -right-3 top-6 z-10 rounded-xl bg-sidebar"
+            className="absolute -right-3 top-6 z-10 rounded-xl bg-sidebar
+                       hidden md:flex"
           >
             <ChevronLeft size={14} />
           </Button>
+        )}
+
+        {/* Mobile close button - visible only on mobile overlay */}
+        {isMobileOpen && (
+          <button
+            onClick={onCloseMobile}
+            title="Close sidebar"
+            aria-label="Close sidebar"
+            className="md:hidden absolute top-3 right-3 z-10
+                       flex items-center justify-center
+                       w-9 h-9 rounded-full
+                       bg-sidebar-accent/70 hover:bg-sidebar-accent
+                       text-sidebar-foreground
+                       transition-colors cursor-pointer"
+          >
+            <X size={18} />
+          </button>
         )}
 
         {/* Logo Header */}

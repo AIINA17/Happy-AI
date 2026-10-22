@@ -257,11 +257,13 @@ async def get_user_city() -> str:
 async def send_product_cards(products: list) -> str:
     """
     Explicitly send product cards to the frontend display.
-    Use this when you want to (re)send specific products to the user's screen.
+    Automatically trims to a maximum of 5 products for the voice-first
+    carousel UI (showing more overwhelms the user when they're listening).
+    Pass the products you consider the best matches first.
     """
-    await _send_product_cards_internal(products[:8])
+    await _send_product_cards_internal(products[:5])
 
-    sent = products[:8]
+    sent = products[:5]
     summary = f"✅ {len(sent)} produk berhasil dikirim ke tampilan user:\n\n"
     for i, p in enumerate(sent, 1):
         summary += (
@@ -402,7 +404,7 @@ async def search_product(
     auth_state["last_search_products"] = products[:10]
 
     # ✅ Kirim ke frontend via internal function (bukan @function_tool)
-    await _send_product_cards_internal(products[:8])
+    await _send_product_cards_internal(products[:5])
 
     # ✅ Return daftar lengkap ke LLM agar agent tahu semua produk
     search_term = query if query else "semua produk"
@@ -411,7 +413,7 @@ async def search_product(
         f"{len(ADAPTERS)} toko. Gue tampilin {min(len(products), 8)} di layar.\n\n"
     )
     result += "Daftar produk yang ditampilkan (sebutin source-nya kalau mau add_to_cart/checkout):\n"
-    for i, p in enumerate(products[:8], 1):
+    for i, p in enumerate(products[:5], 1):
         store = p.get("store") or {}
         store_label = f" ({store.get('city')})" if store.get("city") else ""
         result += (

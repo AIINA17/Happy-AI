@@ -71,6 +71,10 @@ export function useLiveKit({
     const [uiState, setUiState] = useState<UiState>("IDLE");
     const [isAgentSpeaking, setIsAgentSpeaking] = useState(false);
     const [isAgentThinking, setIsAgentThinking] = useState(false);
+    // Mic mute — when true, stops streaming audio to the agent without
+    // disconnecting from the room. Lets the user pause so background noise
+    // doesn't keep triggering unintended turns.
+    const [isMuted, setIsMuted] = useState(false);
 
     const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL!;
     const LIVEKIT_URL = process.env.NEXT_PUBLIC_LIVEKIT_URL!;
@@ -504,6 +508,13 @@ export function useLiveKit({
 
     /* ================= LEAVE ROOM ================= */
 
+    // Timestamp of the most recent disconnect. Used to enforce a short
+    // cooldown before the next join, giving the backend / LiveKit server
+    // time to tear down the previous dispatch — otherwise a quick
+    // disconnect→reconnect ends up reusing a stale dispatch and no agent
+    // ever joins the new session.
+    const lastLeftAtRef = useRef<number>(0);
+
     const leaveRoom = useCallback(async () => {
         if (roomRef.current) {
             await roomRef.current.disconnect();
@@ -525,10 +536,21 @@ export function useLiveKit({
         setIsAgentSpeaking(false);
         setUiState("IDLE");
         onRoomStatusRef.current("🔌 Disconnected");
+        lastLeftAtRef.current = Date.now();
     }, []);
 
     const toggleRoom = useCallback(async () => {
         if (uiState === "IDLE") {
+            // Enforce cooldown after a recent disconnect so the backend has
+            // time to clean up the previous agent dispatch.
+            const COOLDOWN_MS = 2000;
+            const sinceLeave = Date.now() - lastLeftAtRef.current;
+            if (lastLeftAtRef.current > 0 && sinceLeave < COOLDOWN_MS) {
+                onRoomStatusRef.current("⏳ Tunggu sebentar...");
+                await new Promise((resolve) =>
+                    setTimeout(resolve, COOLDOWN_MS - sinceLeave),
+                );
+            }
             await joinRoom();
         } else {
             await leaveRoom();
@@ -536,6 +558,37 @@ export function useLiveKit({
     }, [uiState, joinRoom, leaveRoom]);
 
     const isConnected = uiState !== "IDLE" && uiState !== "CONNECTING";
+
+    // Toggle microphone mute. Operates on the already-published local audio
+    // track so the room connection stays alive; the agent just stops hearing
+    // us until unmuted.
+    const toggleMute = useCallback(async () => {
+        const track = micTrackRef.current;
+        if (!track) {
+            // No track yet (not connected) — just flip the UI flag
+            setIsMuted((prev) => !prev);
+            return;
+        }
+        try {
+            if (track.isMuted) {
+                await track.unmute();
+                setIsMuted(false);
+            } else {
+                await track.mute();
+                setIsMuted(true);
+            }
+        } catch (err) {
+            console.error("Toggle mute failed:", err);
+        }
+    }, []);
+
+    // Reset mute state whenever we leave the room so the next session starts
+    // with the mic open.
+    useEffect(() => {
+        if (uiState === "IDLE") {
+            setIsMuted(false);
+        }
+    }, [uiState]);
 
     return {
         joinRoom,
@@ -545,6 +598,8 @@ export function useLiveKit({
         isConnected,
         isAgentSpeaking,
         isAgentThinking,
+        isMuted,
+        toggleMute,
         faceVerifyOpen,
         faceVerifyUserId,
         onFaceVerifyResult: handleFaceVerifyResult,

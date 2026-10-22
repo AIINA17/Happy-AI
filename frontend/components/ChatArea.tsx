@@ -9,9 +9,10 @@ import { ChevronRight, MessageCircle, Menu, Mic, ShoppingBag, X } from "lucide-r
 import LiveKitControls from "./LiveKitControls";
 import MessageBubble from "./MessageBubble";
 import ProductCards from "./ProductCards";
+import ProductCarousel from "./ProductCarousel";
 import SoundWave from "./SoundWave";
 import TypingIndicator from "./TypingIndicator";
-import { Message, Product } from "@/types";
+import { Message, Product, Review } from "@/types";
 
 type ViewMode = "voice" | "chat";
 
@@ -43,6 +44,12 @@ interface ChatAreaProps {
     onEndChat?: () => void;
     // Mobile: when sidebar (left) is closed, show hamburger button that triggers this
     onOpenMobileSidebar?: () => void;
+    // Latest review set from the agent — surfaces in the voice-mode
+    // carousel as a slide-up panel below the active product card.
+    latestReviews?: {
+        productName: string;
+        reviews: Review[];
+    } | null;
 }
 
 export default function ChatArea({
@@ -64,6 +71,7 @@ export default function ChatArea({
     isViewingHistory = false,
     onEndChat,
     onOpenMobileSidebar,
+    latestReviews,
 }: ChatAreaProps) {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const [viewMode, setViewMode] = useState<ViewMode>("voice");
@@ -120,7 +128,7 @@ export default function ChatArea({
             {/* ====== LEFT: Main Content Area ====== */}
             <div className="flex-1 flex flex-col min-w-0">
                 {/* Scrollable content */}
-                <div className="flex-1 overflow-y-auto">
+                <div className="flex-1 overflow-hidden">
                     {isHistoryMode ? (
                         <HistoryModeView
                             messages={messages}
@@ -128,7 +136,11 @@ export default function ChatArea({
                             messagesEndRef={messagesEndRef}
                         />
                     ) : viewMode === "voice" ? (
-                        <VoiceModeView isSpeaking={isSpeaking} />
+                        <VoiceModeView
+                            isSpeaking={isSpeaking}
+                            products={products}
+                            latestReviews={latestReviews}
+                        />
                     ) : (
                         <ChatModeView
                             messages={messages}
@@ -139,11 +151,8 @@ export default function ChatArea({
                 </div>
 
                 {!isHistoryMode && (
-                    <div className="p-1 flex flex-col items-center gap-4 border-t border-border">
-                        <ModeToggle
-                            currentMode={viewMode}
-                            onModeChange={setViewMode}
-                        />
+                    <div className="px-4 py-3 flex flex-col items-center gap-2
+                                    border-t border-border/40 bg-background/60 backdrop-blur-sm">
                         <LiveKitControls
                             token={token}
                             setIsConnected={setIsConnected}
@@ -156,11 +165,19 @@ export default function ChatArea({
                             onProductCards={onProductCards}
                             setIsTyping={setIsTyping}
                             onEndChat={onEndChat}
+                            showPillControls={true}
+                            isChatMode={viewMode === "chat"}
+                            onToggleChatMode={() =>
+                                setViewMode((m) => (m === "chat" ? "voice" : "chat"))
+                            }
                         />
                     </div>
                 )}
             </div>
 
+            {/* Desktop right sidebar (unchanged for compat). On voice-first
+                mode this feels redundant to the carousel so you can collapse
+                it; still useful in chat mode and on desktop. */}
             <ProductSidebar
                 products={products}
                 isOpen={isProductSidebarOpen}
@@ -189,6 +206,47 @@ function ProductSidebar({
 }: ProductSidebarProps) {
     const hasProducts = products.length > 0;
 
+    // Swipe-to-close for mobile overlay. The products sidebar opens from the
+    // RIGHT so the "close" gesture is a RIGHTWARD swipe (positive dx).
+    const [swipeOffset, setSwipeOffset] = useState(0);
+    const [isSwiping, setIsSwiping] = useState(false);
+    const touchStartXRef = useRef<number | null>(null);
+    const touchStartYRef = useRef<number | null>(null);
+
+    const handleTouchStart = (e: React.TouchEvent) => {
+        if (!isMobileOpen) return;
+        touchStartXRef.current = e.touches[0].clientX;
+        touchStartYRef.current = e.touches[0].clientY;
+    };
+
+    const handleTouchMove = (e: React.TouchEvent) => {
+        if (!isMobileOpen || touchStartXRef.current === null) return;
+        const dx = e.touches[0].clientX - touchStartXRef.current;
+        const dy = e.touches[0].clientY - (touchStartYRef.current ?? 0);
+        // Only engage swipe if horizontal + rightward
+        if (Math.abs(dx) > Math.abs(dy) && dx > 0) {
+            setIsSwiping(true);
+            setSwipeOffset(dx);
+        }
+    };
+
+    const handleTouchEnd = () => {
+        if (!isMobileOpen) {
+            setSwipeOffset(0);
+            setIsSwiping(false);
+            touchStartXRef.current = null;
+            touchStartYRef.current = null;
+            return;
+        }
+        if (swipeOffset > 60) {
+            onCloseMobile?.();
+        }
+        setSwipeOffset(0);
+        setIsSwiping(false);
+        touchStartXRef.current = null;
+        touchStartYRef.current = null;
+    };
+
     if (!hasProducts) return null;
 
     return (
@@ -206,6 +264,16 @@ function ProductSidebar({
             <div className="relative flex md:relative">
                 {/* Sidebar Content */}
                 <div
+                    onTouchStart={handleTouchStart}
+                    onTouchMove={handleTouchMove}
+                    onTouchEnd={handleTouchEnd}
+                    onTouchCancel={handleTouchEnd}
+                    style={{
+                        transform: isSwiping
+                            ? `translateX(${swipeOffset}px)`
+                            : undefined,
+                        transition: isSwiping ? "none" : undefined,
+                    }}
                     className={`
                   flex flex-col border-l border-border bg-sidebar
                   transition-all duration-300 ease-in-out
@@ -314,9 +382,55 @@ function ModeToggle({ currentMode, onModeChange }: ModeToggleProps) {
 
 interface VoiceModeViewProps {
     isSpeaking: boolean;
+    products: Product[];
+    latestReviews?: {
+        productName: string;
+        reviews: Review[];
+    } | null;
 }
 
-function VoiceModeView({ isSpeaking }: VoiceModeViewProps) {
+function VoiceModeView({
+    isSpeaking,
+    products,
+    latestReviews,
+}: VoiceModeViewProps) {
+    const hasProducts = products && products.length > 0;
+
+    // When products are available we switch to the carousel-first layout.
+    // The idea is: voice shopping should surface products front-and-center,
+    // not hide them in a sidebar.
+    if (hasProducts) {
+        return (
+            <div className="h-full flex flex-col items-center justify-center p-4
+                            relative overflow-hidden">
+                {/* Soft background orb for depth */}
+                <div
+                    aria-hidden="true"
+                    className="absolute w-[480px] h-[480px] rounded-full
+                               bg-primary/5 blur-3xl pointer-events-none"
+                />
+
+                <ProductCarousel
+                    products={products}
+                    reviewsForProduct={latestReviews}
+                />
+
+                {isSpeaking && (
+                    <div className="absolute top-4 left-1/2 -translate-x-1/2
+                                    flex items-center gap-2
+                                    bg-background/70 backdrop-blur-sm
+                                    rounded-full px-3 py-1 border border-border/40">
+                        <SoundWave />
+                        <span className="text-xs text-muted-foreground">
+                            Happy sedang bicara…
+                        </span>
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    // No products yet → show the welcome mascot screen
     return (
         <div className="h-full flex flex-col items-center justify-center p-8">
             <h1 className="font-outfit text-5xl font-bold text-primary mb-4">

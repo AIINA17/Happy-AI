@@ -87,6 +87,16 @@ export default function Home() {
     return () => subscription.unsubscribe();
   }, [router]);
 
+  // Latest review set from the agent — surfaced in BOTH chat mode (as a
+  // message bubble) and voice mode (as a panel below the active product
+  // card in the carousel). Replaced whenever a new REVIEW_CARDS payload
+  // arrives, so it always reflects the most recent product the user asked
+  // about.
+  const [latestReviews, setLatestReviews] = useState<{
+    productName: string;
+    reviews: Review[];
+  } | null>(null);
+
   const addMessage = (
     role: "user" | "assistant",
     text: string,
@@ -107,10 +117,23 @@ export default function Home() {
     };
 
     setMessages((prev) => [...prev, newMessage]);
+
+    // Also mirror this to the voice-mode review panel so the carousel can
+    // slide up and reveal the reviews there without the user needing to
+    // switch to chat mode.
+    if (extras?.reviews && extras.reviews.length > 0) {
+      setLatestReviews({
+        productName: extras.reviewProductName || "Produk",
+        reviews: extras.reviews,
+      });
+    }
   };
 
   const handleProductCards = (newProducts: Product[]) => {
     setProducts(newProducts);
+    // When a new product list arrives, clear stale reviews — they belonged
+    // to the previous product the user asked about.
+    setLatestReviews(null);
   };
 
   const clearVerificationResult = useCallback(() => {
@@ -209,6 +232,7 @@ export default function Home() {
         setVerificationResult={setVerificationResult}
         onEndChat={handleNewChat}
         onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
+        latestReviews={latestReviews}
       />
     </main>
   );

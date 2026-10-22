@@ -21,6 +21,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from livekit.api import (
     AccessToken,
     CreateAgentDispatchRequest,
+    DeleteAgentDispatchRequest,
     LiveKitAPI,
     VideoGrants,
 )
@@ -142,22 +143,43 @@ async def join_token(request: Request):
         api_secret=LIVEKIT_API_SECRET,
     ) as lk:
 
+        # Clean up any stale dispatches for this room/agent first. Previous
+        # sessions can leave zombie dispatches on the LiveKit server even
+        # after the local agent process exits — if we skip creation because
+        # one of those exists, no actual agent ever joins the new session.
         try:
             existing = await lk.agent_dispatch.list_dispatch(room_name)
         except TwirpError as e:
             if e.code != "not_found":
                 raise
             existing = []
-        if not any(d.agent_name == AGENT_NAME for d in existing):
 
-            metadata_payload = json.dumps({"user_city": user_city})
-            await lk.agent_dispatch.create_dispatch(
-                CreateAgentDispatchRequest(
-                    room=room_name,
-                    agent_name=AGENT_NAME,
-                    metadata=metadata_payload,
+        for d in existing:
+            if d.agent_name != AGENT_NAME:
+                continue
+            try:
+                await lk.agent_dispatch.delete_dispatch(
+                    DeleteAgentDispatchRequest(
+                        dispatch_id=d.id,
+                        room=room_name,
+                    )
                 )
+            except Exception as del_err:
+                # Non-fatal — if we can't delete, the create below might fail
+                # loudly, but it's better than silently refusing to start.
+                print(f"⚠️ delete_dispatch failed (continuing): {del_err}")
+
+        # Always create a fresh dispatch. Agent-side `_active_rooms` guard
+        # (see agent.py) still protects against duplicate agents joining
+        # the same room from a true double-click.
+        metadata_payload = json.dumps({"user_city": user_city})
+        await lk.agent_dispatch.create_dispatch(
+            CreateAgentDispatchRequest(
+                room=room_name,
+                agent_name=AGENT_NAME,
+                metadata=metadata_payload,
             )
+        )
 
     return {
         "status": "OK",

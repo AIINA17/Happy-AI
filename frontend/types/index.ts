@@ -30,6 +30,10 @@ export interface Product {
     rating: number;
     category: string;
     image_url?: string;
+    // Optional image gallery. ProductCarousel uses this for the auto-rotating
+    // image slideshow. Falls back to [image_url] when the backend only sends
+    // a single thumbnail.
+    images?: string[];
     stock: number;
     // Which e-commerce store this came from (see backend/ecommerce_sources.py)
     // — search_product now queries every registered store at once, so cards

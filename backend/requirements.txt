@@ -7,8 +7,7 @@ livekit-agents==1.3.12
 livekit-plugins-google==1.3.12
 
 # LLM & tools
-mem0ai
-duckduckgo-search
+ddgs
 langchain_community==0.4.2
 Requests==2.34.2
 python-dotenv==1.2.3
@@ -18,7 +17,7 @@ pydantic==2.13.5
 fastapi==0.141.1
 uvicorn[standard]
 python-multipart
-cryptography==50.0.1
+cryptography==47.0.0
 
 # Numeric
 numpy
@@ -34,6 +33,15 @@ scikit-learn==1.3.2
 matplotlib
 insightface==1.0.1
 opencv_python==4.11.0.86
+# insightface only declares a generic "onnxruntime" dependency, so a plain
+# `pip install -r requirements.lock.txt` resolves both this and the CPU-only
+# `onnxruntime` package, and pip's own install order can land the CPU one
+# last — overwriting onnxruntime-gpu's files and silently disabling
+# CUDAExecutionProvider. Dockerfile runs a follow-up
+# `pip install --no-deps --force-reinstall onnxruntime-gpu==...` to
+# guarantee the GPU build wins; do the same after any local
+# `pip install -r requirements.lock.txt`.
+onnxruntime-gpu==1.23.2
 
 # Testing (voiceverification/tests/) — run with: pytest
 pytest==9.1.1
@@ -55,9 +63,7 @@ torchcodec
 # still loads.
 transformers==4.30.2
 
-webrtcvad==2.0.10
-
 supabase==2.31.0
 
-torch==2.1.2
-torchaudio==2.1.2
+torch==2.13.0
+torchaudio==2.11.0

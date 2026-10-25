@@ -101,6 +101,11 @@ export default function HistoryDetailPage() {
         null,
     );
 
+    // Mobile: controls whether the left sidebar is shown as an overlay. The
+    // main page.tsx has the same state — without it, viewing a saved session
+    // on mobile has no hamburger button to re-open the sidebar.
+    const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
     const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL;
     const apiBaseUrl = normalizePublicServerUrl(SERVER_URL);
 
@@ -264,6 +269,8 @@ export default function HistoryDetailPage() {
                 currentSessionId={currentSessionId || sessionId}
                 onSelectSession={handleSelectSession}
                 onNewChat={handleNewChat}
+                isMobileOpen={isMobileSidebarOpen}
+                onCloseMobile={() => setIsMobileSidebarOpen(false)}
             />
 
             <ChatArea
@@ -287,6 +294,7 @@ export default function HistoryDetailPage() {
                 setScore={setScore}
                 setVerificationResult={setVerificationResult}
                 isViewingHistory
+                onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
             />
         </main>
     );

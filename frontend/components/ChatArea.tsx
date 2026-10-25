@@ -338,7 +338,10 @@ function ProductSidebar({
       )}
 
       <div className="relative flex md:relative">
-        {/* Sidebar Content */}
+        {/* Sidebar Content — on desktop, collapsed state shrinks the sidebar
+            to a 72px icon strip (mirroring the left Sidebar's COLLAPSED_WIDTH),
+            instead of hiding it entirely. On mobile it still slides off-screen
+            as an overlay. */}
         <div
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
@@ -349,65 +352,74 @@ function ProductSidebar({
             transition: isSwiping ? "none" : undefined,
           }}
           className={`
-                  flex flex-col border-l border-border bg-sidebar
+                  flex flex-col border-l border-sidebar-border bg-sidebar
                   transition-all duration-300 ease-in-out
                   w-[min(360px,90vw)]
                   md:w-80
                   fixed inset-y-0 right-0 z-50
                   md:relative md:z-auto md:inset-auto md:translate-x-0
                   ${isMobileOpen ? "translate-x-0" : "translate-x-full md:translate-x-0"}
-                  ${isOpen ? "md:w-80 md:opacity-100" : "md:w-0 md:opacity-0 md:overflow-hidden md:border-l-0"}
+                  ${isOpen ? "md:w-80 md:opacity-100" : "md:w-[72px] md:opacity-100"}
                 `}
         >
-          <>
-            {/* Header */}
-            <button
-              onClick={() => {
-                // On mobile, header click closes overlay.
-                // On desktop, toggle collapse.
-                if (isMobileOpen && onCloseMobile) {
-                  onCloseMobile();
-                } else {
-                  onToggle();
-                }
-              }}
-              className="w-full p-4 border-b border-border
-                            flex items-center justify-between
-                            hover:bg-sidebar-accent transition-colors cursor-pointer"
-            >
-              <div className="flex items-center gap-2 text-sm font-medium text-sidebar-foreground">
-                <ShoppingBag size={18} className="text-primary" />
-                <span>{products.length} Produk</span>
+          {isOpen ? (
+            <>
+              {/* Expanded header */}
+              <button
+                onClick={() => {
+                  if (isMobileOpen && onCloseMobile) {
+                    onCloseMobile();
+                  } else {
+                    onToggle();
+                  }
+                }}
+                className="w-full p-4 border-b border-sidebar-border
+                              flex items-center justify-between
+                              hover:bg-sidebar-accent transition-colors cursor-pointer"
+              >
+                <div className="flex items-center gap-2 text-sm font-medium text-sidebar-foreground">
+                  <ShoppingBag size={18} className="text-primary" />
+                  <span>{products.length} Produk</span>
+                </div>
+                <ChevronRight
+                  size={16}
+                  className="text-muted-foreground hidden md:block"
+                />
+                <X size={16} className="text-muted-foreground md:hidden" />
+              </button>
+
+              {/* Products list */}
+              <div className="flex-1 overflow-y-auto p-3">
+                <ProductCards products={products} />
               </div>
-              {/* Chevron on desktop, X on mobile */}
-              <ChevronRight
-                size={16}
-                className="text-muted-foreground hidden md:block"
-              />
-              <X size={16} className="text-muted-foreground md:hidden" />
-            </button>
-
-            {/* Products */}
-            <div className="flex-1 overflow-y-auto p-3">
-              <ProductCards products={products} />
+            </>
+          ) : (
+            /* Desktop collapsed strip (72px). Shows a ShoppingBag icon
+               at the top with the product count as a small badge below,
+               clickable to re-expand. Visually mirrors the left Sidebar's
+               collapsed layout (icon-top, flex spacer, action at bottom). */
+            <div className="hidden md:flex flex-col items-center w-full h-full py-4">
+              <button
+                onClick={onToggle}
+                title="Expand products"
+                aria-label="Expand products"
+                className="flex flex-col items-center gap-1 cursor-pointer
+                             hover:opacity-80 transition-opacity"
+              >
+                <div
+                  className="w-10 h-10 rounded-xl bg-primary/10
+                               flex items-center justify-center"
+                >
+                  <ShoppingBag size={20} className="text-primary" />
+                </div>
+                <span className="text-xs font-semibold text-sidebar-foreground">
+                  {products.length}
+                </span>
+              </button>
+              <div className="flex-1" />
             </div>
-          </>
+          )}
         </div>
-
-        {/* Desktop collapsed indicator (hidden on mobile) */}
-        {!isOpen && hasProducts && (
-          <div
-            onClick={onToggle}
-            className="hidden md:flex w-12 h-full flex-col items-center justify-center
-                         border-l border-border bg-sidebar
-                         cursor-pointer hover:bg-sidebar-accent transition-colors"
-          >
-            <ShoppingBag size={20} className="text-primary" />
-            <span className="text-xs text-muted-foreground writing-mode-vertical">
-              {products.length}
-            </span>
-          </div>
-        )}
       </div>
     </>
   );

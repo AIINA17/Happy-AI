@@ -71,6 +71,10 @@ export function useLiveKit({
     const [uiState, setUiState] = useState<UiState>("IDLE");
     const [isAgentSpeaking, setIsAgentSpeaking] = useState(false);
     const [isAgentThinking, setIsAgentThinking] = useState(false);
+    // Flipped on when the backend watchdog says Happy has been silent in
+    // "thinking" state longer than STUCK_TIMEOUT_SEC — i.e. likely a dead
+    // Gemini socket. The UI uses this to prompt the user to retry.
+    const [isAgentStuck, setIsAgentStuck] = useState(false);
     // Mic mute — when true, stops streaming audio to the agent without
     // disconnecting from the room. Lets the user pause so background noise
     // doesn't keep triggering unintended turns.
@@ -163,12 +167,27 @@ export function useLiveKit({
 
             if (msg.type === "AGENT_MESSAGE" && msg.text) {
                 setIsAgentThinking(false);
+                // Any real reply from Happy clears the "stuck" flag — the
+                // socket is clearly alive again.
+                setIsAgentStuck(false);
                 onMessageRef.current("assistant", msg.text);
                 return;
             }
 
             if (msg.type === "AGENT_THINKING") {
                 setIsAgentThinking(!!msg.active);
+                // Fresh thinking cycle starts clean — forget the previous
+                // stuck state so the UI can show it again if the new turn
+                // also wedges.
+                if (msg.active) setIsAgentStuck(false);
+                return;
+            }
+
+            if (msg.type === "AGENT_STUCK") {
+                // Backend watchdog says Gemini socket is probably wedged.
+                // Surface it in the UI; see useLiveKit's return value.
+                setIsAgentStuck(true);
+                setIsAgentThinking(false);
                 return;
             }
 
@@ -598,6 +617,7 @@ export function useLiveKit({
         isConnected,
         isAgentSpeaking,
         isAgentThinking,
+        isAgentStuck,
         isMuted,
         toggleMute,
         faceVerifyOpen,

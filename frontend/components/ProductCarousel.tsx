@@ -5,6 +5,7 @@ import Image from "next/image";
 import {
     ChevronLeft,
     ChevronRight,
+    ExternalLink,
     MapPin,
     Package,
     Star,
@@ -164,15 +165,22 @@ export default function ProductCarousel({
                 {products.map((product, idx) => {
                     const distance = idx - activeIndex;
                     const absDist = Math.abs(distance);
-                    // Hide cards more than 2 positions away
-                    if (absDist > 2) return null;
+                    // Only render the active card plus one on each side.
+                    // Previously we drew up to 2 neighbors on each side with
+                    // opacity 0.35, which read as "ghost cards" bleeding
+                    // through the active one when the user swiped. Dropping
+                    // to +/-1 keeps the "peek" preview effect without the
+                    // readable text underneath the active card.
+                    if (absDist > 1) return null;
 
                     const isActive = distance === 0;
 
                     // Base card transform
                     let translateX = distance * 28; // percentage of card width
-                    const scale = 1 - absDist * 0.08;
-                    const opacity = isActive ? 1 : 0.35;
+                    const scale = 1 - absDist * 0.1;
+                    // Non-active cards are now much more faded so their
+                    // text/image stop bleeding through the foreground card.
+                    const opacity = isActive ? 1 : 0.18;
                     const zIndex = 20 - absDist;
 
                     // Follow drag on the active card
@@ -471,6 +479,40 @@ function ProductCard({
                         </div>
                     )}
                 </div>
+
+                {/* CTA — direct link to the external e-commerce product
+                    page. Only visible on the active (focused) card to avoid
+                    the stacked, out-of-focus cards behind it bleeding tap
+                    targets. */}
+                {isActive && (
+                    <div className="pt-2 mt-auto">
+                        {product.link ? (
+                            <a
+                                href={product.link}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="w-full inline-flex items-center justify-center
+                                           gap-2 h-10 rounded-xl
+                                           bg-primary text-primary-foreground
+                                           text-sm font-semibold
+                                           hover:bg-primary/90 active:scale-[0.98]
+                                           transition-all cursor-pointer
+                                           shadow-md">
+                                <span>Lihat di Toko</span>
+                                <ExternalLink size={14} />
+                            </a>
+                        ) : (
+                            <button
+                                disabled
+                                className="w-full inline-flex items-center justify-center
+                                           gap-2 h-10 rounded-xl
+                                           bg-muted text-muted-foreground
+                                           text-sm font-semibold cursor-not-allowed">
+                                Link tidak tersedia
+                            </button>
+                        )}
+                    </div>
+                )}
             </div>
         </div>
     );

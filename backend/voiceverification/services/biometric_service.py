@@ -7,7 +7,7 @@ from typing import List, Optional
 from voiceverification.core.behavior_profile import BehaviorProfile
 from voiceverification.models.speaker_verifier import SpeakerVerifier
 from voiceverification.core.asvspoof import compute_score, warm_up as warm_up_asvspoof
-from voiceverification.core.decision_engine import decide, Decision
+from voiceverification.core.decision_engine import decide, Decision, DecisionConfig
 from voiceverification.core.trusted_update import TrustedUpdatePolicy
 from voiceverification.core.behavior_scoring import compute_behavior_score
 
@@ -40,8 +40,10 @@ class BiometricService:
         user_id: Optional[str] = None,
         behavior_profiles: Optional[dict[str, BehaviorProfile]] = None,
         is_retry: bool = False,
+        explain: bool = False,
     ) -> dict:
         behavior_profiles = behavior_profiles or {}
+        config = DecisionConfig()
 
         # 1. Extract live embedding
         live_emb = self.speaker.extract_embedding(live_wav)
@@ -59,7 +61,7 @@ class BiometricService:
         best_label = enroll_embeddings[best_idx]["label"]
 
         # 2. Spoof Score
-        spoof_prob, _ = compute_score(live_wav)
+        spoof_prob, spoof_breakdown = compute_score(live_wav)
 
         # 3. Decision
         # Too little speech makes the embedding unreliable rather than wrong:
@@ -72,7 +74,18 @@ class BiometricService:
         pitch, rate = None, None
         z_pitch = z_rate = None
         behavior_profile = behavior_profiles.get(best_label)
+        # Captured now, before step 4 below can reassign/mutate
+        # behavior_profile — this is the n_samples decide() actually saw,
+        # not whatever the profile looks like after a post-decision update.
+        behavior_n_samples_at_decision = behavior_profile.n_samples if behavior_profile else 0
         updated_behavior_profile: BehaviorProfile | None = None
+        decision_steps: list[dict] | None = [
+            {
+                "check": "min_speech_sec",
+                "passed": speech_sec >= MIN_SPEECH_SEC,
+                "detail": f"speech_sec={speech_sec:.2f} >= min_speech_sec={MIN_SPEECH_SEC}",
+            }
+        ] if explain else None
 
         if speech_sec < MIN_SPEECH_SEC:
             decision = Decision.REPEAT
@@ -94,12 +107,19 @@ class BiometricService:
                     behavior_profile
                 )
 
-            decision, reason = decide(
+            decide_result = decide(
                 speaker_score=best_score,
                 replay_prob=spoof_prob,
                 behavior_score=behavior_score,
-                behavior_n_samples=behavior_profile.n_samples if behavior_profile else 0,
+                behavior_n_samples=behavior_n_samples_at_decision,
+                config=config,
+                trace=explain,
             )
+            if explain:
+                decision, reason, cascade_steps = decide_result
+                decision_steps.extend(cascade_steps)
+            else:
+                decision, reason = decide_result
 
         # 4. Trusted adaptive update — only for a genuinely VERIFIED result
         # (a behavior-triggered downgrade to REPEAT above means `decision`
@@ -133,21 +153,36 @@ class BiometricService:
         )
 
 
-        return {
+        result = {
             "verified": decision == Decision.VERIFIED,
             "decision": decision.value,
             "reason": reason,
 
             "score": best_score,
             "spoof_prob": spoof_prob,
-            
+
             "best_index": best_idx,
             "best_label": best_label,
             "all_scores": scores,
-            
+
             "pitch": pitch,
             "rate": rate,
             "behavior_score": behavior_score,
 
             "updated_behavior_profile": updated_behavior_profile,
-        } 
+        }
+
+        if explain:
+            result.update({
+                "live_embedding": live_emb,
+                "matched_enroll_embedding": enroll_embeddings[best_idx]["embedding"],
+                "spoof_breakdown": spoof_breakdown,
+                "speech_sec": speech_sec,
+                "z_pitch": z_pitch,
+                "z_rate": z_rate,
+                "behavior_n_samples": behavior_n_samples_at_decision,
+                "decision_config": config,
+                "decision_steps": decision_steps,
+            })
+
+        return result

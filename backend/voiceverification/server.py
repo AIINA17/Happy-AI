@@ -53,6 +53,7 @@ from voiceverification.db.voice_verification_logs import (
 from voiceverification.core.decision_engine import DecisionConfig
 from voiceverification.services.biometric_service import BiometricService
 from voiceverification.utils.audio import normalize_audio, save_audio
+from voiceverification.utils.pipeline_trace import build_trace_record, build_waveform_preview
 from voiceverification.utils.room_notify import publish_room_result
 from voiceverification.utils.spectrogram import render_spectrogram_png
 
@@ -188,17 +189,33 @@ async def join_token(request: Request):
     }
 
 
+async def _load_user_context(user_id: str) -> tuple[list[dict], dict[str, BehaviorProfile]]:
+    """Enrollment embeddings + per-label behavior profiles for a user.
+    Shared by /verify-voice and /verify-voice/explain so the two can never
+    load context differently."""
+    enroll_embeddings = await asyncio.to_thread(load_all_embeddings, user_id)
+
+    behavior_profiles: dict[str, BehaviorProfile] = {}
+    for profile_meta in enroll_embeddings:
+        lbl = profile_meta["label"]
+        bp = await asyncio.to_thread(load_behavior_profile, user_id, lbl)
+        if bp is not None:
+            behavior_profiles[lbl] = bp
+
+    return enroll_embeddings, behavior_profiles
+
+
 @app.post("/verify-voice")
 async def verify_voice(request: Request, audio: UploadFile = File(...)):
     user_id = get_user_id_from_request(request)
 
-    enroll_embeddings = await asyncio.to_thread(load_all_embeddings, user_id)
+    enroll_embeddings, behavior_profiles = await _load_user_context(user_id)
     if not enroll_embeddings:
         return {
             "status": "ERROR",
             "reason": "No enrollment profile found for user."
         }
-    
+
     try:
         wav_path = save_audio(audio)
         normalize_audio(wav_path)
@@ -207,13 +224,6 @@ async def verify_voice(request: Request, audio: UploadFile = File(...)):
 
     try:
         bio = get_biometric()
-
-        behavior_profiles: dict[str, BehaviorProfile] = {}
-        for profile_meta in enroll_embeddings:
-            lbl = profile_meta["label"]
-            bp = await asyncio.to_thread(load_behavior_profile, user_id, lbl)
-            if bp is not None:
-                behavior_profiles[lbl] = bp
 
         start = time.time()
 
@@ -284,6 +294,66 @@ async def verify_voice(request: Request, audio: UploadFile = File(...)):
         if os.path.exists(wav_path):
             os.remove(wav_path)
 
+
+# EXPLAIN-MODE VERIFICATION FOR THE /pipeline EXPLAINER PAGE'S LIVE TOGGLE
+#
+# Same pipeline as /verify-voice, but:
+#   - requests explain=True for embedding/spoof-breakdown/z-score/cascade
+#     data the normal response doesn't carry
+#   - does NOT persist anything: no behavior-profile update, no
+#     voice_verification_logs row, no LiveKit room publish — booth Q&A
+#     attempts must never pollute the presenter's real account history or
+#     fire a shopping-agent event.
+# Auth is still required: this reads the caller's real enrolled embeddings.
+@app.post("/verify-voice/explain")
+async def verify_voice_explain(request: Request, audio: UploadFile = File(...)):
+    user_id = get_user_id_from_request(request)
+
+    enroll_embeddings, behavior_profiles = await _load_user_context(user_id)
+    if not enroll_embeddings:
+        raise HTTPException(status_code=400, detail="No enrollment profile found for user.")
+
+    try:
+        wav_path = save_audio(audio)
+        normalize_audio(wav_path)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid/unsupported audio upload: {e}")
+
+    try:
+        bio = get_biometric()
+        result = await asyncio.to_thread(
+            bio.verify_against_multiple_embeddings,
+            live_wav=wav_path,
+            enroll_embeddings=enroll_embeddings,
+            user_id=user_id,
+            behavior_profiles=behavior_profiles,
+            explain=True,
+        )
+
+        preview = await asyncio.to_thread(build_waveform_preview, wav_path)
+
+        return build_trace_record(
+            scenario_id="live",
+            title="Percobaan live",
+            scenario_type="live_capture",
+            source_file=None,
+            enrolled_label=result.get("best_label"),
+            result=result,
+            preview=preview,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=500,
+            detail=f"verify-voice/explain failed: {type(e).__name__}: {e}",
+        )
+
+    finally:
+        if os.path.exists(wav_path):
+            os.remove(wav_path)
 
 
 # HEALTH CHECK

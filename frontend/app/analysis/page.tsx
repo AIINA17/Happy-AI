@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import type { Session } from "@supabase/supabase-js";
 
 import { supabase } from "@/lib/supabase";
+import { normalizePublicServerUrl } from "@/lib/utils";
 import VerificationMetrics, {
     type DecisionThresholds,
     type VerificationLogEntry,
@@ -22,24 +23,6 @@ interface SpectrogramProfile {
     label: string;
     created_at: string;
     spectrogram_url: string | null;
-}
-
-function normalizePublicServerUrl(raw: string | undefined) {
-    const trimmed = raw?.trim();
-    if (!trimmed) return null;
-
-    const normalized = trimmed.replace(/\/+$/, "");
-    if (normalized.startsWith("/")) {
-        if (typeof window === "undefined") return null;
-        return `${window.location.origin}${normalized}`;
-    }
-
-    try {
-        new URL(normalized);
-        return normalized;
-    } catch {
-        return null;
-    }
 }
 
 export default function AnalysisPage() {

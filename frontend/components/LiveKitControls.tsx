@@ -8,7 +8,6 @@ import { Mic, MicOff, MessageCircle } from "lucide-react";
 
 import VoiceButton from "./VoiceButton";
 import FaceLivenessCapture from "./FaceLivenessCapture";
-import SoundWave from "./SoundWave";
 import { useLiveKit } from "@/hooks/useLiveKit";
 import { useUserLocation } from "@/hooks/useUserLocation";
 import { useNotification } from "@/contexts/NotificationContext";
@@ -190,12 +189,10 @@ export default function LiveKitControls({
                     onResult={onFaceVerifyResult}
                 />
 
-                {/* Soundwave only while active */}
-                {isActiveSession && (
-                    <div className="h-5 flex items-center">
-                        <SoundWave />
-                    </div>
-                )}
+                {/* Soundwave previously rendered here above the pill
+                    control. Removed per user request — the main animation
+                    stays below the Happy mascot so the control area is
+                    cleaner and the user focuses on the carousel. */}
 
                 {/* 3-button pill: [Mute] [Mic big] [Chat toggle] */}
                 <div className="flex items-center gap-3 bg-muted/60 backdrop-blur-sm

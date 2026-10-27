@@ -175,12 +175,20 @@ export default function ProductCarousel({
 
                     const isActive = distance === 0;
 
-                    // Base card transform
-                    let translateX = distance * 28; // percentage of card width
+                    // Base card transform. 42% (was 28) pushes neighbors
+                    // further off-center so the active card stands alone
+                    // instead of visually overlapping with its siblings.
+                    let translateX = distance * 42; // percentage of card width
                     const scale = 1 - absDist * 0.1;
                     // Non-active cards are now much more faded so their
                     // text/image stop bleeding through the foreground card.
-                    const opacity = isActive ? 1 : 0.18;
+                    // 0.08 is low enough that peripheral card text/image
+                    // doesn't read through as "ghost cards" bleeding into
+                    // the active one (user complaint: "produk card masih
+                    // ngebekas pas digeser"). We also push them further
+                    // out (translateX multiplier below) to further reduce
+                    // perceived overlap.
+                    const opacity = isActive ? 1 : 0.08;
                     const zIndex = 20 - absDist;
 
                     // Follow drag on the active card
@@ -190,7 +198,11 @@ export default function ProductCarousel({
 
                     return (
                         <div
-                            key={product.id}
+                            // Composite key: same numeric id can appear
+                            // across stores (Toko Oren id=30 + Toko Hijau
+                            // id=30), which triggered a React "duplicate
+                            // key" warning. Scope by (source, id).
+                            key={`${product.source ?? ""}-${product.id}`}
                             className="absolute inset-0 transition-all duration-300 ease-out"
                             style={{
                                 transform: `translateX(${translateX}${isActive && isDragging ? "px" : "%"}) scale(${scale})`,
@@ -274,6 +286,15 @@ function ProductCard({
 
     const [currentImage, setCurrentImage] = useState(0);
     const [isHovering, setIsHovering] = useState(false);
+    // Track which product this component is currently showing so we can
+    // reset currentImage back to 0 during RENDER (not inside an effect)
+    // when the product swaps. Doing the reset inside useEffect causes
+    // "setState in effect" lint error and triggers a cascading render.
+    const prevProductIdRef = useRef(product.id);
+    if (prevProductIdRef.current !== product.id) {
+        prevProductIdRef.current = product.id;
+        setCurrentImage(0);
+    }
 
     // Auto-rotate images every 1 second (only when active & more than one image)
     useEffect(() => {
@@ -285,11 +306,6 @@ function ProductCard({
         }, 1000);
         return () => clearInterval(id);
     }, [isActive, images.length, isHovering]);
-
-    // Reset image index when product changes
-    useEffect(() => {
-        setCurrentImage(0);
-    }, [product.id]);
 
     const nextImage = () =>
         setCurrentImage((prev) => (prev + 1) % Math.max(1, images.length));
@@ -517,3 +533,5 @@ function ProductCard({
         </div>
     );
 }
+
+               

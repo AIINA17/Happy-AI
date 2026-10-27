@@ -8,7 +8,6 @@ import {
   ChevronRight,
   MessageCircle,
   Menu,
-  Mic,
   ShoppingBag,
   X,
 } from "lucide-react";
@@ -422,43 +421,6 @@ function ProductSidebar({
         </div>
       </div>
     </>
-  );
-}
-
-interface ModeToggleProps {
-  currentMode: ViewMode;
-  onModeChange: (mode: ViewMode) => void;
-}
-
-function ModeToggle({ currentMode, onModeChange }: ModeToggleProps) {
-  return (
-    <div className="flex items-center gap-2 p-1 mt-3 rounded-full bg-muted">
-      <button
-        onClick={() => onModeChange("voice")}
-        className={`p-2.5 rounded-full transition-all duration-200
-                    ${
-                      currentMode === "voice"
-                        ? "bg-primary text-primary-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground cursor-pointer"
-                    }`}
-        title="Voice Mode"
-      >
-        <Mic size={16} />
-      </button>
-
-      <button
-        onClick={() => onModeChange("chat")}
-        className={`p-2.5 rounded-full transition-all duration-200
-                    ${
-                      currentMode === "chat"
-                        ? "bg-primary text-primary-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground cursor-pointer"
-                    }`}
-        title="Chat Mode"
-      >
-        <MessageCircle size={20} />
-      </button>
-    </div>
   );
 }
 

@@ -149,33 +149,133 @@ When user asks to search products, LISTEN CAREFULLY and use appropriate filters:
 4. RATING: "rating 4 ke atas" → min_rating=4.0
 5. SORT: "termurah" → sort="price_asc"
 
-=== SEMANTIC QUERY TRANSLATION (VERY IMPORTANT) ===
+=== SEMANTIC QUERY TRANSLATION (VERY STRICT) ===
 
-Translate HANYA kata yang gak bakal match literal ke nama/deskripsi produk
-(ecosystem/brand umbrella names kayak "Android", "Apple" — gak ada produk
-yang namanya literal "Android"). Kalo kata yang user ucapin SUDAH match
-langsung ke nama/deskripsi produk (misal "laptop", "kamera", "drone",
-nama brand), JANGAN di-translate atau dibroaden ke category — pakai
-literal apa adanya sebagai query. Query literal "laptop" misalnya sudah
-nemu semua laptop lintas brand di kedua toko — jangan diganti jadi
-category="Gadget & Tech" (itu malah bawa drone/charger/webcam ikut
-campur) kecuali user emang nyebut sesuatu yang gak ada match literalnya.
+ATURAN DASAR:
+1. Kalo kata user udah bisa match literal ke nama produk (kayak "laptop",
+   "kamera", "drone", "monitor"), PAKAI LITERAL — jangan broaden ke category.
+2. Kalo kata user adalah umbrella/ekosistem (kayak "Android", "Apple",
+   "handphone"), WAJIB translate ke brand/model specific.
+3. JANGAN pernah pake category="Gadget & Tech" sebagai broad filter — isinya
+   campur (handphone, laptop, tablet, aksesoris) → selalu bawa produk salah.
+4. Kalo lu panggil search multiple brand, GABUNGIN hasilnya, pilih max 5
+   yang paling match sama intent user.
 
-Contoh translasi yang WAJIB dilakukan:
-- "laptop" (polos, tanpa kualifier) → query="laptop" (literal, JANGAN broaden ke category)
-- "Android" → "Samsung" / "Xiaomi" / "Oppo" / "Vivo" / "Realme" / "Poco"
-- "Apple" / "iOS" → "iPhone" / "iPad" / "MacBook" / "AirPods"
-- "handphone" / "hp" / "smartphone" → category="Gadget & Tech"
-- "laptop Windows" / "laptop biasa" / "notebook" → "ASUS" / "Lenovo" / "HP" / "Dell" / "Acer" / "MSI"
-- "laptop Mac" / "laptop Apple" / "MacBook" → "MacBook"
-- "laptop gaming" → "ROG" / "Legion" / "TUF" / "Predator" / "Nitro"
-- "ultrabook" / "laptop tipis" → "ZenBook" / "ThinkPad" / "XPS" / "MacBook Air"
-- "Chromebook" → "Chromebook"
-- "earphone" / "headphone" / "earbuds" / "TWS" → "AirPods" / "earbuds" / "headphone"
-- "jam tangan pintar" / "smartwatch" → "watch" / "Apple Watch" / "Galaxy Watch" / "Mi Band"
-- "tablet" → "iPad" / "Galaxy Tab" / "Xiaomi Pad"
-- "console" / "game console" → "PS5" / "Xbox" / "Nintendo Switch"
-- "kamera" → "DSLR" / "mirrorless" / "GoPro" / "Canon" / "Sony"
+=== TRANSLATION TABLE ===
+
+[HANDPHONE / SMARTPHONE]
+Trigger: "handphone", "hp", "smartphone", "ponsel"
+SALAH: search_product(category="Gadget & Tech")
+       → bakal include laptop + aksesoris
+BENER: search_product(query="Samsung")
+       Kalo < 3 hasil: search_product(query="iPhone")
+       Kalo masih kurang: "Xiaomi", "Oppo", "Vivo", "Realme", "Poco"
+Filter output: buang yg name-nya ada "laptop", "earbuds", "charger",
+               "case", "cable", "monitor", "tablet", "watch"
+
+[ANDROID]
+Trigger: "android", "yang android"
+BENER: search_product(query="Samsung")
+       lalu "Xiaomi", "Oppo", "Vivo", "Realme", "Poco" kalo perlu
+Filter: sama kayak HANDPHONE
+
+[APPLE / iOS]
+Trigger: "apple", "ios", "produk apple"
+BENER: User maksudnya biasanya iPhone, tapi klarifikasi dulu.
+       Default: search_product(query="iPhone")
+       Kalo user minta tablet apple: "iPad"
+       Kalo user minta laptop apple: "MacBook"
+       Kalo user minta jam apple: "Apple Watch"
+
+[LAPTOP (polos)]
+Trigger: "laptop", "notebook"
+BENER: search_product(query="laptop")   ← LITERAL, pasti match
+       Query "laptop" dah nangkep semua merek karena nama produk
+       biasanya "ASUS Laptop...", "Lenovo Laptop...", dll.
+Filter output: buang yg name-nya ada "handphone", "smartphone",
+               "earbuds", "tablet", "case laptop" (aksesoris)
+
+[LAPTOP WINDOWS / BIASA]
+Trigger: "laptop windows", "laptop biasa", "laptop kerja"
+BENER: search_product(query="ASUS")
+       lalu "Lenovo", "HP", "Dell", "Acer", "MSI"
+Filter: buang "MacBook" (karena bukan Windows)
+
+[LAPTOP MAC / APPLE]
+Trigger: "laptop apple", "laptop mac", "macbook"
+BENER: search_product(query="MacBook")
+
+[LAPTOP GAMING]
+Trigger: "laptop gaming", "laptop game", "laptop buat gaming"
+BENER: search_product(query="ROG")
+       lalu "Legion", "TUF", "Predator", "Nitro"
+
+[ULTRABOOK / LAPTOP TIPIS]
+Trigger: "ultrabook", "laptop tipis", "laptop ringan"
+BENER: search_product(query="ZenBook")
+       lalu "ThinkPad X1", "XPS", "MacBook Air"
+
+[CHROMEBOOK]
+Trigger: "chromebook", "laptop chrome"
+BENER: search_product(query="Chromebook")
+
+[EARPHONE / HEADPHONE / EARBUDS]
+Trigger: "earphone", "headphone", "earbuds", "TWS", "headset"
+SALAH: search_product(query="audio") → terlalu broad
+BENER: search_product(query="earbuds")
+       lalu "headphone", "AirPods"
+Filter output: buang yg name-nya ada "mic", "speaker", "soundbar"
+
+[SMARTWATCH / JAM PINTAR]
+Trigger: "smartwatch", "jam tangan pintar", "jam pintar", "smart watch"
+BENER: search_product(query="Apple Watch")
+       lalu "Galaxy Watch", "Mi Band", "Garmin"
+Filter output: buang yg name-nya cuma "watch" doang tanpa smart
+               (bisa jadi jam analog)
+
+[TABLET]
+Trigger: "tablet", "tab"
+BENER: search_product(query="iPad")
+       lalu "Galaxy Tab", "Xiaomi Pad", "Lenovo Tab"
+Filter output: buang yg name-nya "laptop", "phone", "earbuds"
+
+[GAME CONSOLE]
+Trigger: "console", "game console", "konsol game", "mesin game"
+BENER: search_product(query="PlayStation")
+       lalu "Xbox", "Nintendo Switch", "Steam Deck"
+
+[KAMERA]
+Trigger: "kamera", "camera" (tanpa kualifier lain)
+BENER: search_product(query="DSLR")
+       lalu "mirrorless", "Canon", "Sony Alpha", "Nikon"
+Filter output: buang "GoPro" kalo user gak sebut action cam
+
+[ACTION CAM]
+Trigger: "action cam", "action camera", "gopro"
+BENER: search_product(query="GoPro")
+       lalu "Insta360", "DJI Action"
+
+[DRONE]
+Trigger: "drone", "drone kamera"
+BENER: search_product(query="DJI")
+       lalu "Autel", "drone"
+
+[MONITOR]
+Trigger: "monitor", "layar komputer"
+BENER: search_product(query="monitor")   ← literal
+Filter output: buang yg name-nya "TV", "smart TV"
+
+[TV / TELEVISI]
+Trigger: "tv", "televisi", "smart tv"
+BENER: search_product(query="Smart TV")
+       lalu "TV LED", "Android TV"
+
+PRINSIP UMUM FILTER OUTPUT:
+Setelah dapet hasil search, SELALU scan nama produknya. Kalo ada yg jelas
+BUKAN kategori yg user minta, SKIP dari carousel. Contoh:
+- User minta handphone, hasil ada "Samsung Galaxy Tab" → tablet, skip
+- User minta earphone, hasil ada "JBL Speaker" → speaker, skip
+- User minta kamera, hasil ada "Canon Printer" → printer, skip
 
 === FALLBACK SEARCH BEHAVIOR ===
 

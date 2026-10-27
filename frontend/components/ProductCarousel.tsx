@@ -1,9 +1,5 @@
 "use client";
 
-// Full-screen product carousel for the voice-first shopping mode.
-// Shows one product at a time with neighboring cards peeking from the sides,
-// an auto-rotating image gallery per card, and swipe/arrow navigation.
-
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import {
@@ -154,13 +150,15 @@ export default function ProductCarousel({
                 </button>
             )}
 
-            {/* Card stack — shrinks when reviews panel is open */}
+            {/* Card stack — shrinks SLIGHTLY when reviews panel is open so
+                product photos stay large and readable. Minor scale-down keeps
+                visual hierarchy clear without hiding the image. */}
             <div
                 className={`relative w-full max-w-[340px]
                            transition-all duration-500 ease-out
                            ${
                                showReviewsPanel
-                                   ? "h-[380px] -translate-y-4 scale-[0.85]"
+                                   ? "h-[460px] -translate-y-2 scale-[0.95]"
                                    : "h-[520px] translate-y-0 scale-100"
                            }`}>
                 {products.map((product, idx) => {
@@ -225,12 +223,15 @@ export default function ProductCarousel({
             )}
 
             {/* Reviews panel — slides in from below when agent displays
-                reviews for the active product. */}
+                reviews for the active product. Compact height so the product
+                card (with its photo) still gets the majority of screen
+                real-estate. */}
             {showReviewsPanel && reviewsForProduct && (
                 <div
-                    className="w-full max-w-[480px] px-4 mt-2
+                    className="w-full max-w-[420px] px-4 mt-3
                                animate-in slide-in-from-bottom-4 fade-in duration-500
-                               max-h-[260px] overflow-y-auto">
+                               max-h-[180px] overflow-y-auto
+                               rounded-xl bg-background/60 backdrop-blur-sm">
                     <ReviewCards
                         productName={reviewsForProduct.productName}
                         reviews={reviewsForProduct.reviews}

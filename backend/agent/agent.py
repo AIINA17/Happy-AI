@@ -776,9 +776,12 @@ async def connect(ctx: agents.JobContext):
 
     scan_user_audio()
 
-    participants = list(room.remote_participants.values())
-    if participants:
-        room_state["user_id"] = room_name.replace("user-", "")
+    # Derive user_id directly from room_name (format: "user-{uuid}") instead
+    # of checking remote_participants — the user might not have finished
+    # joining the room by the time we run this, which previously set user_id
+    # to None and crashed Supabase inserts with a NOT NULL violation.
+    if room_name.startswith("user-"):
+        room_state["user_id"] = room_name.replace("user-", "", 1)
     else:
         room_state["user_id"] = None
 

@@ -324,20 +324,33 @@ async def search_product(
             return f"Gagal mengakses toko: {', '.join(failed_sources)}."
         return "Tidak ada produk di toko manapun saat ini."
 
-    # ── Client-side filtering (across the merged list) ──
     if query:
         q_lower = query.lower()
         products = [
             p for p in products
             if q_lower in (p.get("name") or "").lower()
             or q_lower in (p.get("description") or "").lower()
-            # Some stores (e.g. Toko Hijau) put searchable terms like
-            # "laptop"/"notebook" in a separate keywords field instead of
-            # the name/description — without this, their matching products
-            # silently never show up in results.
             or q_lower in (p.get("keywords") or "").lower()
         ]
-
+        phone_queries = {
+        "handphone", "hp", "smartphone", "ponsel",
+        "samsung", "iphone", "xiaomi", "oppo", "vivo", "realme", "poco",
+    }
+    if query and any(pq in query.lower() for pq in phone_queries):
+        laptop_keywords = {
+            "laptop", "notebook", "macbook", "chromebook",
+            "ultrabook", "gaming pc", "pc desktop", "monitor",
+            "keyboard", "mouse", "charger", "cable", "case",
+            "earphone", "earbuds", "headphone", "speaker",
+            "smartwatch", "watch", "tablet", "ipad",
+        }
+        products = [
+            p for p in products
+            if not any(
+                lk in (p.get("name") or "").lower()
+                for lk in laptop_keywords
+            )
+        ]
     if category:
         cat_lower = category.lower()
         products = [
@@ -491,14 +504,7 @@ async def send_review_cards(product_id: int, source: str) -> str:
 
 @function_tool
 async def get_product_detail(product_id: int, source: str) -> str:
-    """
-    Get detailed information about a specific product from a specific store.
-    Returns: name, price, category, rating, stock, description, image URL, and product link.
 
-    Args:
-        product_id: the product's ID
-        source: store code the product belongs to (from search_product results), e.g. "oren" or "hijau"
-    """
     adapter, _, error = _resolve_account(source)
     if error:
         return error

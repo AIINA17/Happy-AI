@@ -1,13 +1,14 @@
 "use client";
 
 import { FormulaToggle } from "./FormulaToggle";
-import type { EcapaWorkedStep } from "./types";
+import type { LayerWorkedStep } from "./types";
 
-// Step-by-step worked example of what ECAPA-TDNN actually *does* at each
+// Step-by-step worked example of what a model actually *does* at each
 // stage — real short audio slice in, small fixed illustrative weights (not
-// the trained model's), real arithmetic out. Complements the "Nilai asli"
-// tab (the real model's real activations, but only as summary statistics)
-// with something a non-ML judge can follow number-by-number.
+// the trained model's), real arithmetic out. Shared by the ECAPA-TDNN and
+// anti-spoof sections. Complements the "Nilai asli" tab (the real model's
+// real activations, but only as summary statistics) with something a
+// non-ML judge can follow number-by-number.
 function MiniMatrix({ values }: { values: number[][] }) {
   return (
     <div className="overflow-x-auto">
@@ -31,7 +32,7 @@ function MiniMatrix({ values }: { values: number[][] }) {
   );
 }
 
-function StepCard({ step, index }: { step: EcapaWorkedStep; index: number }) {
+function StepCard({ step, index }: { step: LayerWorkedStep; index: number }) {
   return (
     <div className="p-3.5 rounded-lg bg-(--bg-secondary) border border-(--border-color)/20">
       <p className="text-xs font-medium text-(--text-primary) leading-snug">
@@ -82,7 +83,13 @@ function StepCard({ step, index }: { step: EcapaWorkedStep; index: number }) {
   );
 }
 
-export function EcapaWorkedExample({ steps }: { steps: EcapaWorkedStep[] }) {
+export function LayerWorkedExample({
+  steps,
+  intro,
+}: {
+  steps: LayerWorkedStep[];
+  intro: string;
+}) {
   if (steps.length === 0) {
     return (
       <p className="text-xs text-(--text-muted)">
@@ -94,10 +101,7 @@ export function EcapaWorkedExample({ steps }: { steps: EcapaWorkedStep[] }) {
   return (
     <div>
       <p className="text-[11px] text-(--text-muted) leading-relaxed mb-3">
-        Dihitung dari potongan audio yang sama, tapi pakai bobot ilustratif
-        tetap — bukan bobot hasil training model asli. Dimensinya sengaja
-        dikecilkan (4 frame, 4 kanal) supaya tiap langkah bisa diikuti; model
-        asli memakai 80+ kanal dan lebih banyak frame.
+        {intro}
       </p>
       <div className="space-y-2.5">
         {steps.map((s, i) => (

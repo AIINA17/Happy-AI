@@ -2,13 +2,19 @@
 
 import { useState } from "react";
 
-import { blockFormula } from "./ecapaBlockFormula";
-import { blockLabel } from "./ecapaBlockLabel";
-import { EcapaMagnitudeChart } from "./EcapaMagnitudeChart";
-import { EcapaWorkedExample } from "./EcapaWorkedExample";
 import { FormulaToggle } from "./FormulaToggle";
-import type { EcapaBlockOutput, EcapaWorkedStep } from "./types";
+import { LayerMagnitudeChart } from "./LayerMagnitudeChart";
+import { LayerWorkedExample } from "./LayerWorkedExample";
+import type { LayerBlockOutput, LayerWorkedStep } from "./types";
 
+// Real per-block activations captured via PyTorch forward hooks on the
+// actual model's forward pass — not an illustration. Shared by the
+// ECAPA-TDNN (speaker verification) and wav2vec2 (anti-spoof) sections.
+// Primary view is LayerMagnitudeChart (mean/std/min/max across layers —
+// summary stats computed over the FULL tensor, genuinely representative).
+// The raw-value grid is an optional, honestly-labeled detail: it's the
+// first 64 values of a flattened tensor that can have >1,000,000 elements,
+// so it's an arbitrary corner, not a feature map.
 function FeatureStrip({ preview }: { preview: number[] }) {
   const values = preview.slice(0, 64);
   if (values.length === 0) return null;
@@ -36,15 +42,25 @@ function FeatureStrip({ preview }: { preview: number[] }) {
   );
 }
 
-function RealBlockCard({ block, index }: { block: EcapaBlockOutput; index: number }) {
+function RealBlockCard({
+  block,
+  index,
+  labelFn,
+  formulaFn,
+}: {
+  block: LayerBlockOutput;
+  index: number;
+  labelFn: (name: string) => string;
+  formulaFn: (name: string) => string | null;
+}) {
   const [showGrid, setShowGrid] = useState(false);
-  const formula = blockFormula(block.name);
+  const formula = formulaFn(block.name);
 
   return (
     <div className="p-3 rounded-lg bg-(--bg-secondary) border border-(--border-color)/20">
       <div className="flex items-start justify-between gap-2">
         <p className="text-xs font-medium text-(--text-primary) leading-snug">
-          {index + 1}. {blockLabel(block.name)}
+          {index + 1}. {labelFn(block.name)}
         </p>
         <code className="text-[10px] text-(--text-muted) shrink-0">
           [{block.shape.join("×")}]
@@ -79,12 +95,20 @@ const TABS = [
 ] as const;
 type TabId = (typeof TABS)[number]["id"];
 
-export function EcapaBlockTrace({
+export function ModelBlockTrace({
   blocks,
   workedExample,
+  workedExampleIntro,
+  labelFn,
+  formulaFn,
+  color = "#2a78d6",
 }: {
-  blocks: EcapaBlockOutput[];
-  workedExample: EcapaWorkedStep[];
+  blocks: LayerBlockOutput[];
+  workedExample: LayerWorkedStep[];
+  workedExampleIntro: string;
+  labelFn: (name: string) => string;
+  formulaFn: (name: string) => string | null;
+  color?: string;
 }) {
   const [tab, setTab] = useState<TabId>("real");
 
@@ -97,11 +121,11 @@ export function EcapaBlockTrace({
   }
 
   return (
-    <div className="mt-4">
+    <div>
       <p className="text-sm font-medium text-(--text-primary) mb-2">
-        Perkembangan aktivasi melalui {blocks.length} layer ECAPA-TDNN
+        Perkembangan aktivasi melalui {blocks.length} layer
       </p>
-      <EcapaMagnitudeChart blocks={blocks} />
+      <LayerMagnitudeChart blocks={blocks} labelFn={labelFn} color={color} />
 
       <div className="flex gap-1 mt-4 border-b border-(--border-color)/20">
         {TABS.map((t) => (
@@ -128,14 +152,20 @@ export function EcapaBlockTrace({
             arsitektur ini, bukan hasil fit ke bobot spesifik model.
           </p>
           {blocks.map((b, i) => (
-            <RealBlockCard key={`${b.name}-${i}`} block={b} index={i} />
+            <RealBlockCard
+              key={`${b.name}-${i}`}
+              block={b}
+              index={i}
+              labelFn={labelFn}
+              formulaFn={formulaFn}
+            />
           ))}
         </div>
       )}
 
       {tab === "worked" && (
         <div className="mt-3">
-          <EcapaWorkedExample steps={workedExample} />
+          <LayerWorkedExample steps={workedExample} intro={workedExampleIntro} />
         </div>
       )}
     </div>

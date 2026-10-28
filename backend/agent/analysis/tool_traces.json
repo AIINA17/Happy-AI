@@ -1,0 +1,192 @@
+{
+  "note": "Login butuh kredensial akun e-commerce milik user sendiri yang tersimpan terenkripsi di Supabase — tidak ada akun demo universal, jadi skenario ini tidak bisa menunjukkan checkout yang benar-benar sukses. Yang ditunjukkan: gerbang verifikasi suara (lolos/ditolak) dan pengecekan login — keduanya jalur kode asli, bukan disimulasikan.",
+  "steps": [
+    {
+      "step": "get_user_city",
+      "title": "Cek lokasi user",
+      "user_utterance": "Eh gue lagi di mana ya menurut lo?",
+      "policy_note": "Agent pakai lokasi GPS user untuk filter toko terdekat saat search (lihat 'GPS-based city-awareness' di prompts.py).",
+      "tool": {
+        "name": "get_user_city",
+        "signature": "get_user_city() -> str",
+        "gated": false
+      },
+      "arguments": {},
+      "voice_gate": null,
+      "http_calls": [],
+      "frontend_event": null,
+      "result": {
+        "output": "User's detected city: Yogyakarta",
+        "duration_ms": 0.0
+      }
+    },
+    {
+      "step": "search_product",
+      "title": "Cari produk",
+      "user_utterance": "Carikan sepatu dong, yang murah aja",
+      "policy_note": "'Always use tools when real-time data is required... never guess prices, stock, or search results' (TOOL USAGE RULES, prompts.py).",
+      "tool": {
+        "name": "search_product",
+        "signature": "search_product(query: str = '', category: str = '', city: str = '', min_price: int = 0, max_price: int = 0, min_rating: float = 0.0, sort_by: str = '') -> str",
+        "gated": false
+      },
+      "arguments": {
+        "query": "sepatu"
+      },
+      "voice_gate": null,
+      "http_calls": [
+        {
+          "method": "GET",
+          "url": "https://dummy-ecommerce-tau.vercel.app/api/products",
+          "status_code": 200,
+          "duration_ms": 2511.4,
+          "response_preview": "{...2 field: success, data}"
+        },
+        {
+          "method": "GET",
+          "url": "https://ecommerce-hijau.vercel.app/api/products",
+          "status_code": 200,
+          "duration_ms": 3083.3,
+          "response_preview": "{...2 field: success, data}"
+        }
+      ],
+      "frontend_event": {
+        "type": "PRODUCT_CARDS",
+        "topic": "PRODUCT_DATA",
+        "note": "Side-effect lewat _send_product_cards_internal (tools.py) — mengirim hingga 5 kartu produk ke frontend, plus simpan ke tabel product_cards."
+      },
+      "result": {
+        "output": "Ketemu 10 produk untuk 'sepatu' dari 2 toko. Gue tampilin 8 di layar.\n\nDaftar produk yang ditampilkan (sebutin source-nya kalau mau add_to_cart/checkout):\n1. Nike Air Jordan 1 Low Retro — toko: Toko Oren (Denpasar) (source=\"oren\")\n   ID: 23 | Harga: Rp 2,499,000 | Rating: 3.6⭐ | Stok: 40 | Kategori: Lifestyle\n2. Converse Chuck Taylor 70s Hi — toko: Toko Hijau (Tangerang) (source=\"hijau\")\n   ID: 42 | Harga: Rp 999,000 | Rating: 4.8⭐ | Stok: 76 | Kategori: Lifestyle\n3. Adidas Ultraboost Light — toko: Toko Oren (Malang) (source=\"oren\")\n   ID: 24 | Harga: Rp 3,300,000 | Rating: 3.0⭐ | Stok: 35 | Kategori: Lifestyle\n4. Adidas Ultraboost Light — toko: Toko Hijau (Jakarta Selatan) (source=\"hijau\")\n   ID: 24 | Harga: Rp 3,300,000 | Rating: 4.8⭐ | Stok: 79 | Kategori: Lifestyle\n5. Converse Chuck Taylor 70s Hi — toko: Toko Oren (Denpasar) (source=\"oren\")\n   ID: 42 | Harga: Rp 999,000 | Rating: 2.8⭐ | Stok: 60 | Kategori: Lifestyle\n\n(Ada 2 produk lagi yang gak ditampilin.)\n\nUser bisa minta detail atau tambahin ke keranjang dengan sebut nama/nomor produk.",
+        "duration_ms": 3279.0
+      }
+    },
+    {
+      "step": "get_product_detail",
+      "title": "Lihat detail produk",
+      "user_utterance": "Yang nomor satu itu detailnya gimana?",
+      "policy_note": "Shopping flow step 2: 'Briefly explain the results... clearly mention price and important details' (prompts.py).",
+      "tool": {
+        "name": "get_product_detail",
+        "signature": "get_product_detail(product_id: int, source: str) -> str",
+        "gated": false
+      },
+      "arguments": {
+        "product_id": 23,
+        "source": "oren"
+      },
+      "voice_gate": null,
+      "http_calls": [
+        {
+          "method": "GET",
+          "url": "https://dummy-ecommerce-tau.vercel.app/api/products/23",
+          "status_code": 200,
+          "duration_ms": 420.4,
+          "response_preview": "{...2 field: success, data}"
+        }
+      ],
+      "frontend_event": null,
+      "result": {
+        "output": "📦 Detail Produk (Toko Oren):\n• Nama: Nike Air Jordan 1 Low Retro\n• Harga: Rp 2,499,000\n• Kategori: Lifestyle\n• Rating: 3.6⭐\n• Stok: ✅ Tersedia (40 unit)\n\n📝 Deskripsi:\nNike Air Jordan 1 Low Retro adalah sepatu sneakers lifestyle dengan desain ikonik Air Jordan. Produk alas kaki ini cocok untuk penggunaan harian, streetwear, maupun koleksi sneaker.\r\n\r\nKeunggulan:\r\n\r\n- Desain klasik & ikonik\r\n- Nyaman dipakai sehari-hari\r\n- Cocok untuk sneakerhead\n\n🏪 Toko:\n• Nama: Urban Lifestyle Market\n• Kota: Denpasar\n• Alamat: None\n\n💬 Review Pembeli (5 total):\n• Dian (5⭐): Puas banget, kualitas bagus.\n• Lestari (4⭐): Bagus, cuma pengiriman agak lama.\n• Budi (2⭐): Agak kecewa sama kualitasnya.\n• Dian (4⭐): Bagus, cuma pengiriman agak lama.\n• Fajar (3⭐): Standar aja, gak istimewa.\n\n🖼️ Foto Produk: https://encrypted-tbn2.gstatic.com/shopping?q=tbn:ANd9GcRKDeJhutuYseXhyEvqLo7PwY1O8Y0GMQkug3k0KucJL8c4BWjTNYDggfBnonAN0egJtSsE_UD8fEN3vnTUdfdPCGFX3l_HAaGkl5ABolpBEGHpgrSJltqEIQ\n🔗 Link Produk: https://dummy-ecommerce-tau.vercel.app/product/23",
+        "duration_ms": 421.2
+      }
+    },
+    {
+      "step": "add_to_cart",
+      "title": "Coba tambah ke keranjang (belum terverifikasi)",
+      "user_utterance": "Oke gas, masukin keranjang ya",
+      "policy_note": "'You MUST NOT call any ...cart, or payment tools unless voice verification has been explicitly confirmed' (VOICE VERIFICATION RULE, prompts.py).",
+      "tool": {
+        "name": "add_to_cart",
+        "signature": "add_to_cart(product_id: int, source: str, quantity: int = 1) -> str",
+        "gated": true
+      },
+      "arguments": {
+        "product_id": 23,
+        "source": "oren",
+        "quantity": 1
+      },
+      "voice_gate": {
+        "status_before": "UNKNOWN",
+        "passed": false
+      },
+      "http_calls": [],
+      "frontend_event": null,
+      "result": {
+        "output": "Sebelum gue nambahin ke keranjang, gue perlu memastikan suara kamu dulu. Coba ngomong satu kalimat penuh ya, biar langsung keproses.",
+        "duration_ms": 0.0
+      }
+    },
+    {
+      "step": "add_to_cart",
+      "title": "Tambah ke keranjang (sudah terverifikasi)",
+      "user_utterance": "Oke gas, masukin keranjang ya",
+      "policy_note": "Setelah gerbang suara lolos, add_to_cart masih mengecek status login akun toko secara terpisah — dua lapis keamanan berbeda.",
+      "tool": {
+        "name": "add_to_cart",
+        "signature": "add_to_cart(product_id: int, source: str, quantity: int = 1) -> str",
+        "gated": true
+      },
+      "arguments": {
+        "product_id": 23,
+        "source": "oren",
+        "quantity": 1
+      },
+      "voice_gate": {
+        "status_before": "VERIFIED",
+        "passed": true
+      },
+      "http_calls": [],
+      "frontend_event": null,
+      "result": {
+        "output": "Lo harus login dulu ke Toko Oren sebelum bisa nambahin ke keranjang.",
+        "duration_ms": 0.0
+      }
+    },
+    {
+      "step": "get_cart",
+      "title": "Lihat isi keranjang",
+      "user_utterance": "Keranjang gue isinya apa aja sih sekarang?",
+      "policy_note": "'Show cart and ask which items to checkout' (shopping flow, prompts.py).",
+      "tool": {
+        "name": "get_cart",
+        "signature": "get_cart(source: str) -> str",
+        "gated": false
+      },
+      "arguments": {
+        "source": "oren"
+      },
+      "voice_gate": null,
+      "http_calls": [],
+      "frontend_event": null,
+      "result": {
+        "output": "Lo harus login dulu ke Toko Oren buat liat keranjang.",
+        "duration_ms": 0.0
+      }
+    },
+    {
+      "step": "checkout",
+      "title": "Checkout",
+      "user_utterance": "Udah, checkout aja semuanya, bayar pake GoPay",
+      "policy_note": "'Never checkout without clear confirmation... always confirm payment method before checkout' (CONFIRMATION & SAFETY RULES, prompts.py).",
+      "tool": {
+        "name": "checkout",
+        "signature": "checkout(source: str, payment_method: str = 'GoPay') -> str",
+        "gated": true
+      },
+      "arguments": {
+        "source": "oren",
+        "payment_method": "GoPay"
+      },
+      "voice_gate": {
+        "status_before": "VERIFIED",
+        "passed": true
+      },
+      "http_calls": [],
+      "frontend_event": null,
+      "result": {
+        "output": "Lo harus login dulu ke Toko Oren sebelum checkout.",
+        "duration_ms": 0.0
+      }
+    }
+  ]
+}

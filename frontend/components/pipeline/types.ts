@@ -9,10 +9,12 @@ export interface DecisionStep {
   detail: string;
 }
 
-// One ECAPA-TDNN sub-module's forward-pass output, captured via a PyTorch
-// forward hook (see backend/voiceverification/models/speaker_verifier.py) —
-// real activations from this run, not illustrative.
-export interface EcapaBlockOutput {
+// One sub-module's forward-pass output, captured via a PyTorch forward hook
+// (see backend/voiceverification/models/speaker_verifier.py for ECAPA-TDNN,
+// backend/voiceverification/core/asvspoof.py for the anti-spoof wav2vec2
+// model) — real activations from this run, not illustrative. Shared shape
+// for both models.
+export interface LayerBlockOutput {
   name: string;
   shape: number[];
   mean?: number;
@@ -22,13 +24,14 @@ export interface EcapaBlockOutput {
   preview: number[];
 }
 
-// One step of the simplified, illustrative ECAPA-TDNN walkthrough (see
-// backend/voiceverification/utils/ecapa_worked_example.py) — real short
-// audio slice in, small fixed illustrative weights (not the trained
-// model's), real arithmetic out. input/output are always 2D (rows of
-// values) even for single-vector steps, so rendering never branches on
-// shape.
-export interface EcapaWorkedStep {
+// One step of a simplified, illustrative architecture walkthrough (see
+// backend/voiceverification/utils/ecapa_worked_example.py and
+// antispoof_worked_example.py) — real short audio slice in, small fixed
+// illustrative weights (not the trained model's), real arithmetic out.
+// input/output are always 2D (rows of values) even for single-vector
+// steps, so rendering never branches on shape. Shared shape for both
+// models.
+export interface LayerWorkedStep {
   step: string;
   title: string;
   formula: string | null;
@@ -36,6 +39,17 @@ export interface EcapaWorkedStep {
   output: number[][];
   note: string;
   extra: Record<string, number[]> | null;
+}
+
+// Log-mel spectrogram, downsampled on the time axis — see
+// backend/voiceverification/utils/pipeline_trace.py's
+// build_spectrogram_data(). db is [n_mels][n_frames], low→high mel bin.
+export interface SpectrogramData {
+  sample_rate: number;
+  duration_sec: number;
+  n_mels: number;
+  n_frames: number;
+  db: number[][];
 }
 
 export interface PipelineTrace {
@@ -57,6 +71,7 @@ export interface PipelineTrace {
     trim_end_sec: number;
     speech_sec: number;
     waveform_preview: number[];
+    spectrogram: SpectrogramData | null;
   };
 
   speaker_verification: {
@@ -64,8 +79,9 @@ export interface PipelineTrace {
     embedding_dim: number;
     live_embedding: number[];
     matched_enroll_embedding: number[];
-    ecapa_blocks: EcapaBlockOutput[];
-    ecapa_worked_example: EcapaWorkedStep[];
+    ecapa_blocks: LayerBlockOutput[];
+    ecapa_worked_example: LayerWorkedStep[];
+    enrolled_spectrogram: SpectrogramData | null;
     all_scores: number[];
     best_index: number;
     best_label: string;
@@ -81,6 +97,8 @@ export interface PipelineTrace {
     model: string;
     fake_prob: number;
     real_prob: number | null;
+    antispoof_blocks: LayerBlockOutput[];
+    antispoof_worked_example: LayerWorkedStep[];
     thresholds: {
       replay_warn: number;
       replay_deny: number;

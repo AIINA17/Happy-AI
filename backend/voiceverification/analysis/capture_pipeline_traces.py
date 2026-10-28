@@ -45,8 +45,12 @@ import torch  # noqa: E402
 from voiceverification.core.behavior_profile import BehaviorProfile  # noqa: E402
 from voiceverification.services.biometric_service import BiometricService  # noqa: E402
 from voiceverification.utils.audio import normalize_audio  # noqa: E402
+from voiceverification.utils.antispoof_worked_example import (  # noqa: E402
+    build_worked_example as build_antispoof_worked_example,
+)
 from voiceverification.utils.ecapa_worked_example import build_worked_example  # noqa: E402
 from voiceverification.utils.pipeline_trace import (  # noqa: E402
+    build_spectrogram_data,
     build_trace_record,
     build_waveform_preview,
 )
@@ -154,7 +158,12 @@ def _synthetic_anomalous_profile(pitch: float, rate: float) -> BehaviorProfile:
     )
 
 
-def _load_enrollment(biometric: BiometricService, tmp_dir: Path) -> list[dict]:
+def _load_enrollment(
+    biometric: BiometricService, tmp_dir: Path
+) -> tuple[list[dict], dict]:
+    """Returns (embeddings, enrolled_spectrogram). The spectrogram is of the
+    first enrollment file — same reference every scenario is compared
+    against, computed once here rather than per-scenario."""
     enroll_dir = DATASET_DIR / "enroll"
     wav_files = sorted(enroll_dir.glob("*.wav")) if enroll_dir.is_dir() else []
     if not wav_files:
@@ -168,19 +177,23 @@ def _load_enrollment(biometric: BiometricService, tmp_dir: Path) -> list[dict]:
         )
 
     embeddings = []
+    enrolled_spectrogram = None
     for wav_file in wav_files:
         norm_copy = _normalized_copy(wav_file, tmp_dir)
         embedding = biometric.speaker.extract_embedding(str(norm_copy))
         embeddings.append({"embedding": embedding, "label": wav_file.stem})
+        if enrolled_spectrogram is None:
+            enrolled_spectrogram = build_spectrogram_data(str(norm_copy))
         print(f"Enrolled '{wav_file.stem}' from {wav_file.name}")
 
-    return embeddings
+    return embeddings, enrolled_spectrogram
 
 
 def _run_scenario(
     spec: dict,
     biometric: BiometricService,
     enroll_embeddings: list[dict],
+    enrolled_spectrogram: dict,
     tmp_dir: Path,
 ) -> dict:
     wav_path: Path = spec["wav"]
@@ -219,7 +232,9 @@ def _run_scenario(
     )
 
     preview = build_waveform_preview(str(live_wav))
+    spectrogram = build_spectrogram_data(str(live_wav))
     worked_example = build_worked_example(str(live_wav))
+    antispoof_worked_example = build_antispoof_worked_example(str(live_wav))
 
     trace = build_trace_record(
         scenario_id=spec["id"],
@@ -230,7 +245,10 @@ def _run_scenario(
         result=result,
         preview=preview,
         synthetic_note=synthetic_note,
+        antispoof_worked_example=antispoof_worked_example,
         worked_example=worked_example,
+        spectrogram=spectrogram,
+        enrolled_spectrogram=enrolled_spectrogram,
     )
 
     print(
@@ -262,10 +280,14 @@ def main() -> int:
     traces = []
     with tempfile.TemporaryDirectory(prefix="pipeline_trace_capture_") as tmp_dir_str:
         tmp_dir = Path(tmp_dir_str)
-        enroll_embeddings = _load_enrollment(biometric, tmp_dir)
+        enroll_embeddings, enrolled_spectrogram = _load_enrollment(biometric, tmp_dir)
 
         for spec in SCENARIOS:
-            traces.append(_run_scenario(spec, biometric, enroll_embeddings, tmp_dir))
+            traces.append(
+                _run_scenario(
+                    spec, biometric, enroll_embeddings, enrolled_spectrogram, tmp_dir
+                )
+            )
 
     out_path = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)

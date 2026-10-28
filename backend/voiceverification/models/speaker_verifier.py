@@ -4,6 +4,8 @@ from numpy.linalg import norm
 
 from speechbrain.pretrained import SpeakerRecognition
 
+from voiceverification.utils.torch_trace import tensor_summary
+
 # Named sub-modules of speechbrain's ECAPA-TDNN worth capturing for the
 # /pipeline explainer page: the acoustic front-end, each SE-Res2Block, the
 # multi-layer feature aggregation, attentive statistics pooling (+ its
@@ -29,29 +31,6 @@ def _is_traced_block(name: str) -> bool:
     return name.startswith("mods.embedding_model.blocks.") and name.count(".") == 3
 
 
-def _tensor_summary(name: str, value: object) -> dict | None:
-    """Compact, JSON-safe summary of one block's output tensor — shape plus
-    summary stats and a short preview, never the full activation (could be
-    e.g. 1024x1001 floats)."""
-    if not isinstance(value, torch.Tensor):
-        return None
-
-    tensor = value.detach().float().cpu()
-    flat = tensor.reshape(-1)
-    if flat.numel() == 0:
-        return {"name": name, "shape": list(tensor.shape), "preview": []}
-
-    return {
-        "name": name,
-        "shape": list(tensor.shape),
-        "mean": float(tensor.mean()),
-        "std": float(tensor.std(unbiased=False)),
-        "min": float(tensor.min()),
-        "max": float(tensor.max()),
-        "preview": [float(v) for v in flat[:64].tolist()],
-    }
-
-
 class SpeakerVerifier:
     def __init__(self, device="cpu"):
         self.model = SpeakerRecognition.from_hparams(
@@ -75,7 +54,7 @@ class SpeakerVerifier:
         if capture_trace:
             def _capture(name):
                 def _hook(_module, _inputs, output):
-                    summary = _tensor_summary(name, output)
+                    summary = tensor_summary(name, output)
                     if summary is not None:
                         block_traces.append(summary)
                 return _hook

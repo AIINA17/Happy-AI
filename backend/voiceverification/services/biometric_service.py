@@ -66,8 +66,15 @@ class BiometricService:
         best_score = float(scores[best_idx])
         best_label = enroll_embeddings[best_idx]["label"]
 
-        # 2. Spoof Score
-        spoof_prob, spoof_breakdown = compute_score(live_wav)
+        # 2. Spoof Score (plus per-block wav2vec2 activation traces when
+        # explain=True, for the /pipeline explainer page)
+        if explain:
+            spoof_prob, spoof_breakdown, antispoof_blocks = compute_score(
+                live_wav, capture_trace=True
+            )
+        else:
+            spoof_prob, spoof_breakdown = compute_score(live_wav)
+            antispoof_blocks = []
 
         # 3. Decision
         # Too little speech makes the embedding unreliable rather than wrong:
@@ -184,6 +191,7 @@ class BiometricService:
                 "ecapa_blocks": ecapa_blocks,
                 "matched_enroll_embedding": enroll_embeddings[best_idx]["embedding"],
                 "spoof_breakdown": spoof_breakdown,
+                "antispoof_blocks": antispoof_blocks,
                 "speech_sec": speech_sec,
                 "z_pitch": z_pitch,
                 "z_rate": z_rate,

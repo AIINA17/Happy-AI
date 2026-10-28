@@ -53,8 +53,15 @@ from voiceverification.db.voice_verification_logs import (
 from voiceverification.core.decision_engine import DecisionConfig
 from voiceverification.services.biometric_service import BiometricService
 from voiceverification.utils.audio import normalize_audio, save_audio
+from voiceverification.utils.antispoof_worked_example import (
+    build_worked_example as build_antispoof_worked_example,
+)
 from voiceverification.utils.ecapa_worked_example import build_worked_example
-from voiceverification.utils.pipeline_trace import build_trace_record, build_waveform_preview
+from voiceverification.utils.pipeline_trace import (
+    build_spectrogram_data,
+    build_trace_record,
+    build_waveform_preview,
+)
 from voiceverification.utils.room_notify import publish_room_result
 from voiceverification.utils.spectrogram import render_spectrogram_png
 
@@ -374,7 +381,11 @@ async def verify_voice_explain(request: Request, audio: UploadFile = File(...)):
         )
 
         preview = await asyncio.to_thread(build_waveform_preview, wav_path)
+        spectrogram = await asyncio.to_thread(build_spectrogram_data, wav_path)
         worked_example = await asyncio.to_thread(build_worked_example, wav_path)
+        antispoof_worked_example = await asyncio.to_thread(
+            build_antispoof_worked_example, wav_path
+        )
 
         return build_trace_record(
             scenario_id="live",
@@ -385,6 +396,12 @@ async def verify_voice_explain(request: Request, audio: UploadFile = File(...)):
             result=result,
             preview=preview,
             worked_example=worked_example,
+            antispoof_worked_example=antispoof_worked_example,
+            spectrogram=spectrogram,
+            # No raw enrolled audio is kept after enrollment (only its
+            # embedding + a pre-rendered PNG in Supabase Storage) — honest
+            # None rather than faking a comparison spectrogram here.
+            enrolled_spectrogram=None,
         )
 
     except HTTPException:

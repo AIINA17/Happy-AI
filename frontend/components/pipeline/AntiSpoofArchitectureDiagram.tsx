@@ -2,10 +2,10 @@
 
 import { ArchFlowArrow, ArchFlowBox } from "./ArchFlowBox";
 
-// Conceptual block diagram — the real pipeline calls a HuggingFace
-// audio-classification pipeline (core/asvspoof.py) as a single black-box
-// call, not instrumented layer-by-layer. Numbers annotated here are real,
-// measured values from this run.
+// High-level overview of the wav2vec2 anti-spoof flow. The real per-layer
+// activations (captured via forward hooks on the pretrained model — see
+// core/asvspoof.py) are rendered separately by ModelBlockTrace, below.
+// Numbers annotated here are real, measured values from this run.
 export function AntiSpoofArchitectureDiagram({
   fakeProb,
   realProb,
@@ -16,19 +16,17 @@ export function AntiSpoofArchitectureDiagram({
   return (
     <div>
       <div className="flex items-center gap-2 overflow-x-auto pb-2">
-        <ArchFlowBox title="Raw audio" />
+        <ArchFlowBox title="Raw waveform" />
         <ArchFlowArrow />
-        <ArchFlowBox title="Resample" detail="ke sample rate model" />
+        <ArchFlowBox title="Conv 1D ×7" detail="fitur langsung dari sample" />
         <ArchFlowArrow />
-        <ArchFlowBox title="wav2vec2" detail="pretrained, HF pipeline" />
+        <ArchFlowBox title="Transformer ×12" detail="self-attention" />
         <ArchFlowArrow />
-        <ArchFlowBox title="fake / real prob" />
+        <ArchFlowBox title="Classifier" detail="fake / real prob" />
       </div>
       <p className="text-[11px] text-(--text-muted) mt-1">
         fake_prob = {fakeProb.toFixed(5)}
-        {realProb != null ? ` · real_prob = ${realProb.toFixed(5)}` : ""} —
-        model pretrained dipanggil sebagai satu kesatuan (black-box), bukan
-        diinstrumentasi per-layer.
+        {realProb != null ? ` · real_prob = ${realProb.toFixed(5)}` : ""}
       </p>
     </div>
   );

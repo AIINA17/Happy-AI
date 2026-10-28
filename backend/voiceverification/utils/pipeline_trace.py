@@ -56,6 +56,39 @@ def build_waveform_preview(wav_path: str, n_points: int = 200) -> dict:
     }
 
 
+def build_spectrogram_data(wav_path: str, n_mels: int = 40, max_frames: int = 80) -> dict:
+    """Log-mel spectrogram, downsampled on the time axis to ~max_frames by
+    bucket-averaging — small enough to ship as JSON (a few thousand floats)
+    while still showing the real spectral shape (pitch/formant structure)
+    that differs between speakers. Mel bins run low→high frequency.
+    """
+    y, sr = librosa.load(wav_path, sr=16000, mono=True)
+    if len(y) == 0:
+        return {
+            "sample_rate": sr,
+            "duration_sec": 0.0,
+            "n_mels": n_mels,
+            "n_frames": 0,
+            "db": [],
+        }
+
+    mel = librosa.feature.melspectrogram(y=y, sr=sr, n_mels=n_mels, n_fft=1024, hop_length=512)
+    db = librosa.power_to_db(mel, ref=np.max)
+
+    n_frames_full = db.shape[1]
+    if n_frames_full > max_frames:
+        buckets = np.array_split(np.arange(n_frames_full), max_frames)
+        db = np.stack([db[:, idx].mean(axis=1) for idx in buckets], axis=1)
+
+    return {
+        "sample_rate": sr,
+        "duration_sec": len(y) / sr,
+        "n_mels": n_mels,
+        "n_frames": int(db.shape[1]),
+        "db": [[round(float(v), 2) for v in row] for row in db],
+    }
+
+
 def _to_list(vec) -> list[float]:
     return np.asarray(vec, dtype=float).tolist()
 
@@ -71,6 +104,9 @@ def build_trace_record(
     preview: dict[str, Any],
     synthetic_note: str | None = None,
     worked_example: list[dict] | None = None,
+    antispoof_worked_example: list[dict] | None = None,
+    spectrogram: dict | None = None,
+    enrolled_spectrogram: dict | None = None,
 ) -> dict:
     """Reshape a verify_against_multiple_embeddings(explain=True) result +
     build_waveform_preview() output into the PipelineTrace JSON schema the
@@ -97,6 +133,7 @@ def build_trace_record(
             "trim_end_sec": preview["trim_end_sec"],
             "speech_sec": result["speech_sec"],
             "waveform_preview": preview["waveform_preview"],
+            "spectrogram": spectrogram,
         },
 
         "speaker_verification": {
@@ -106,6 +143,7 @@ def build_trace_record(
             "matched_enroll_embedding": _to_list(result["matched_enroll_embedding"]),
             "ecapa_blocks": result.get("ecapa_blocks") or [],
             "ecapa_worked_example": worked_example or [],
+            "enrolled_spectrogram": enrolled_spectrogram,
             "all_scores": [float(s) for s in result["all_scores"]],
             "best_index": result["best_index"],
             "best_label": result["best_label"],
@@ -121,6 +159,8 @@ def build_trace_record(
             "model": MODEL_ANTISPOOF,
             "fake_prob": spoof_breakdown.get("fake_prob", result["spoof_prob"]),
             "real_prob": spoof_breakdown.get("real_prob"),
+            "antispoof_blocks": result.get("antispoof_blocks") or [],
+            "antispoof_worked_example": antispoof_worked_example or [],
             "thresholds": {
                 "replay_warn": config.replay_warn,
                 "replay_deny": config.replay_deny,

@@ -2,8 +2,7 @@
 
 import { useId, useState } from "react";
 
-import { blockLabel } from "./ecapaBlockLabel";
-import type { EcapaBlockOutput } from "./types";
+import type { LayerBlockOutput } from "./types";
 
 const WIDTH = 760;
 const HEIGHT = 220;
@@ -12,12 +11,21 @@ const PAD_RIGHT = 16;
 const PAD_TOP = 16;
 const PAD_BOTTOM = 28;
 
-// Primary ECAPA-TDNN visualization: how activation magnitude (min/max band,
-// mean ± std band, mean line) actually evolves across the 10 hooked
-// layers, using the summary stats already captured per block — no
-// per-value "feature map" slice, which (for a flattened multi-thousand
-// element tensor) wasn't a meaningful spatial summary anyway.
-export function EcapaMagnitudeChart({ blocks }: { blocks: EcapaBlockOutput[] }) {
+// Shared across ECAPA-TDNN and the anti-spoof model: how activation
+// magnitude (min/max band, mean ± std band, mean line) actually evolves
+// across the hooked layers, using the summary stats already captured per
+// block — no per-value "feature map" slice, which (for a flattened
+// multi-thousand element tensor) wasn't a meaningful spatial summary
+// anyway.
+export function LayerMagnitudeChart({
+  blocks,
+  labelFn,
+  color = "#2a78d6",
+}: {
+  blocks: LayerBlockOutput[];
+  labelFn: (name: string) => string;
+  color?: string;
+}) {
   const gradientId = useId();
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
 
@@ -72,12 +80,12 @@ export function EcapaMagnitudeChart({ blocks }: { blocks: EcapaBlockOutput[] }) 
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
         className="w-full h-auto"
         role="img"
-        aria-label="Perkembangan magnitude aktivasi tiap layer ECAPA-TDNN"
+        aria-label="Perkembangan magnitude aktivasi tiap layer"
       >
         <defs>
           <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#2a78d6" stopOpacity={0.15} />
-            <stop offset="100%" stopColor="#2a78d6" stopOpacity={0.03} />
+            <stop offset="0%" stopColor={color} stopOpacity={0.15} />
+            <stop offset="100%" stopColor={color} stopOpacity={0.03} />
           </linearGradient>
         </defs>
 
@@ -91,12 +99,12 @@ export function EcapaMagnitudeChart({ blocks }: { blocks: EcapaBlockOutput[] }) 
           strokeDasharray="3 3"
         />
 
-        <path d={`M${minMaxTop} L${minMaxBottom} Z`} fill="#2a78d6" opacity={0.1} />
-        <path d={`M${stdTop} L${stdBottom} Z`} fill="#2a78d6" opacity={0.25} />
+        <path d={`M${minMaxTop} L${minMaxBottom} Z`} fill={color} opacity={0.1} />
+        <path d={`M${stdTop} L${stdBottom} Z`} fill={color} opacity={0.25} />
         <path
           d={meanLine}
           fill="none"
-          stroke="#2a78d6"
+          stroke={color}
           strokeWidth={2}
           strokeLinejoin="round"
           strokeLinecap="round"
@@ -108,7 +116,7 @@ export function EcapaMagnitudeChart({ blocks }: { blocks: EcapaBlockOutput[] }) 
               cx={xAt(i)}
               cy={yAt(b.mean ?? 0)}
               r={i === hoverIdx ? 5 : 3}
-              fill="#2a78d6"
+              fill={color}
               stroke="var(--bg-card)"
               strokeWidth={2}
             />
@@ -155,7 +163,7 @@ export function EcapaMagnitudeChart({ blocks }: { blocks: EcapaBlockOutput[] }) 
       {hovered && (
         <div className="absolute top-2 right-2 px-3 py-2 rounded-lg bg-(--bg-secondary) border border-(--border-color)/30 text-xs space-y-0.5 pointer-events-none">
           <div className="text-(--text-primary) font-medium">
-            {hoverIdx! + 1}. {blockLabel(hovered.name)}
+            {hoverIdx! + 1}. {labelFn(hovered.name)}
           </div>
           <div className="text-(--text-muted)">
             μ {hovered.mean?.toFixed(3)} · σ {hovered.std?.toFixed(3)}
@@ -169,7 +177,7 @@ export function EcapaMagnitudeChart({ blocks }: { blocks: EcapaBlockOutput[] }) 
       <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-[10px] text-(--text-muted)">
         {blocks.map((b, i) => (
           <span key={b.name}>
-            {i + 1}. {blockLabel(b.name)}
+            {i + 1}. {labelFn(b.name)}
           </span>
         ))}
       </div>

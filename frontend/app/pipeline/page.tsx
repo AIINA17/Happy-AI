@@ -6,26 +6,55 @@
 // dependency, so this always works regardless of booth wifi/server state.
 
 import type { Session } from "@supabase/supabase-js";
+import {
+  Activity,
+  AudioLines,
+  CheckCircle2,
+  Fingerprint,
+  GitBranch,
+  ShieldAlert,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { AntiSpoofArchitectureDiagram } from "@/components/pipeline/AntiSpoofArchitectureDiagram";
+import {
+  blockFormula as antispoofBlockFormula,
+} from "@/components/pipeline/antispoofBlockFormula";
+import { blockLabel as antispoofBlockLabel } from "@/components/pipeline/antispoofBlockLabel";
 import { BehaviorProfilePanel } from "@/components/pipeline/BehaviorProfilePanel";
 import { DecisionCascade } from "@/components/pipeline/DecisionCascade";
+import { blockFormula as ecapaBlockFormula } from "@/components/pipeline/ecapaBlockFormula";
+import { blockLabel as ecapaBlockLabel } from "@/components/pipeline/ecapaBlockLabel";
 import { EcapaArchitectureDiagram } from "@/components/pipeline/EcapaArchitectureDiagram";
-import { EcapaBlockTrace } from "@/components/pipeline/EcapaBlockTrace";
 import { EmbeddingFingerprint } from "@/components/pipeline/EmbeddingFingerprint";
 import { FinalDecisionBadge } from "@/components/pipeline/FinalDecisionBadge";
+import { HeroStat } from "@/components/pipeline/HeroStat";
 import { LiveCapturePanel } from "@/components/pipeline/LiveCapturePanel";
+import { ModelBlockTrace } from "@/components/pipeline/ModelBlockTrace";
 import { PipelineStage } from "@/components/pipeline/PipelineStage";
 import { ScenarioPicker } from "@/components/pipeline/ScenarioPicker";
+import { SpectrogramComparison } from "@/components/pipeline/SpectrogramComparison";
 import { ThresholdGauge } from "@/components/pipeline/ThresholdGauge";
 import { WaveformPreview } from "@/components/pipeline/WaveformPreview";
 import type { PipelineTrace } from "@/components/pipeline/types";
+import { statusColor } from "@/components/charts/VerificationChartKit";
 import { useSequentialReveal } from "@/hooks/useSequentialReveal";
 import { supabase } from "@/lib/supabase";
 import { normalizePublicServerUrl } from "@/lib/utils";
 
-const STAGE_COUNT = 5;
+const STAGE_COUNT = 6;
+
+const ACCENT_AUDIO = "#8a8a85";
+const ACCENT_SPEAKER = "#2a78d6";
+const ACCENT_ANTISPOOF = "#eb6834";
+const ACCENT_BEHAVIOR = "#8b5cf6";
+const ACCENT_DECISION = "#8a8a85";
+
+const ECAPA_WORKED_INTRO =
+  "Dihitung dari potongan audio yang sama, tapi pakai bobot ilustratif tetap — bukan bobot hasil training model asli. Dimensinya sengaja dikecilkan (4 frame, 4 kanal) supaya tiap langkah bisa diikuti; model asli memakai 80+ kanal mel dan lebih banyak frame.";
+
+const ANTISPOOF_WORKED_INTRO =
+  "Dihitung dari potongan audio yang sama, tapi pakai bobot ilustratif tetap — bukan bobot hasil training model asli. Dimensinya sengaja dikecilkan (17 sample mentah, beberapa kanal) supaya tiap langkah bisa diikuti; model asli memproses ribuan sample dengan 512+ kanal dan 12 layer transformer.";
 
 export default function PipelinePage() {
   const [traces, setTraces] = useState<PipelineTrace[]>([]);
@@ -75,7 +104,8 @@ export default function PipelinePage() {
     reset();
   }, [selectedId, liveTrace, reset]);
 
-  const trace = liveTrace ?? traces.find((t) => t.scenario_id === selectedId) ?? null;
+  const trace =
+    liveTrace ?? traces.find((t) => t.scenario_id === selectedId) ?? null;
 
   return (
     <main className="min-h-screen bg-(--bg-primary) overflow-y-auto">
@@ -165,7 +195,10 @@ export default function PipelinePage() {
               <PipelineStage
                 index={0}
                 activeStage={activeStage}
-                title="1. Audio Masuk"
+                stepNumber={1}
+                icon={AudioLines}
+                accent={ACCENT_AUDIO}
+                title="Audio Masuk"
                 subtitle={trace.source_file ?? undefined}
               >
                 <WaveformPreview
@@ -179,105 +212,144 @@ export default function PipelinePage() {
               <PipelineStage
                 index={1}
                 activeStage={activeStage}
-                title="2. Speaker Verification & Anti-Spoofing"
-                subtitle="Dua model independen, diproses terhadap audio yang sama"
+                stepNumber={2}
+                icon={Fingerprint}
+                accent={ACCENT_SPEAKER}
+                title="Speaker Verification — ECAPA-TDNN"
+                subtitle="Apakah suara ini cocok dengan suara yang terdaftar?"
               >
-                <div className="grid md:grid-cols-2 gap-6">
-                  <div>
-                    <p className="text-sm font-medium text-(--text-primary) mb-2">
-                      ECAPA-TDNN (speaker verification)
-                    </p>
-                    <EcapaArchitectureDiagram
-                      embeddingDim={trace.speaker_verification.embedding_dim}
-                      score={trace.speaker_verification.score}
-                      matchedLabel={trace.speaker_verification.best_label}
-                    />
-                    <div className="mt-3">
-                      <EmbeddingFingerprint
-                        values={trace.speaker_verification.live_embedding}
-                        compareValues={
-                          trace.speaker_verification.matched_enroll_embedding
-                        }
-                        label="live"
-                        compareLabel="enrolled"
-                      />
-                    </div>
-                    <EcapaBlockTrace
-                      blocks={trace.speaker_verification.ecapa_blocks}
-                      workedExample={
-                        trace.speaker_verification.ecapa_worked_example
-                      }
-                    />
-                    <div className="mt-3">
-                      <ThresholdGauge
-                        value={trace.speaker_verification.score}
-                        min={0}
-                        max={1}
-                        thresholds={[
-                          {
-                            value:
-                              trace.speaker_verification.thresholds
-                                .abs_min_speaker,
-                            label: "min",
-                            color: "#d03b3b",
-                          },
-                          {
-                            value:
-                              trace.speaker_verification.thresholds
-                                .voice_repeat,
-                            label: "repeat",
-                            color: "#fab219",
-                          },
-                          {
-                            value:
-                              trace.speaker_verification.thresholds
-                                .voice_accept,
-                            label: "accept",
-                            color: "#0ca30c",
-                          },
-                        ]}
-                        valueLabel={`score=${trace.speaker_verification.score.toFixed(3)}`}
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <p className="text-sm font-medium text-(--text-primary) mb-2">
-                      Anti-Spoofing (wav2vec2)
-                    </p>
-                    <AntiSpoofArchitectureDiagram
-                      fakeProb={trace.anti_spoof.fake_prob}
-                      realProb={trace.anti_spoof.real_prob}
-                    />
-                    <div className="mt-3">
-                      <ThresholdGauge
-                        value={trace.anti_spoof.fake_prob}
-                        min={0}
-                        max={1}
-                        scale="log"
-                        thresholds={[
-                          {
-                            value: trace.anti_spoof.thresholds.replay_warn,
-                            label: "warn",
-                            color: "#fab219",
-                          },
-                          {
-                            value: trace.anti_spoof.thresholds.replay_deny,
-                            label: "deny",
-                            color: "#d03b3b",
-                          },
-                        ]}
-                        valueLabel={`fake_prob=${trace.anti_spoof.fake_prob.toFixed(5)}`}
-                      />
-                    </div>
-                  </div>
+                <HeroStat
+                  label="Cosine similarity vs profil terdaftar"
+                  value={trace.speaker_verification.score.toFixed(3)}
+                  color={ACCENT_SPEAKER}
+                  caption={`dibandingkan dengan "${trace.speaker_verification.best_label}"`}
+                />
+                <EcapaArchitectureDiagram
+                  embeddingDim={trace.speaker_verification.embedding_dim}
+                  score={trace.speaker_verification.score}
+                  matchedLabel={trace.speaker_verification.best_label}
+                />
+                <div className="mt-4">
+                  <ThresholdGauge
+                    value={trace.speaker_verification.score}
+                    min={0}
+                    max={1}
+                    thresholds={[
+                      {
+                        value:
+                          trace.speaker_verification.thresholds.abs_min_speaker,
+                        label: "min",
+                        color: "#d03b3b",
+                      },
+                      {
+                        value: trace.speaker_verification.thresholds.voice_repeat,
+                        label: "repeat",
+                        color: "#fab219",
+                      },
+                      {
+                        value: trace.speaker_verification.thresholds.voice_accept,
+                        label: "accept",
+                        color: "#0ca30c",
+                      },
+                    ]}
+                    valueLabel={`score=${trace.speaker_verification.score.toFixed(3)}`}
+                  />
+                </div>
+                <div className="mt-4">
+                  <SpectrogramComparison
+                    live={trace.input.spectrogram}
+                    enrolled={trace.speaker_verification.enrolled_spectrogram}
+                    enrolledLabel={trace.speaker_verification.best_label}
+                  />
+                </div>
+                <div className="mt-4">
+                  <p className="text-xs font-medium text-(--text-primary) mb-2">
+                    Fingerprint embedding (live vs enrolled)
+                  </p>
+                  <EmbeddingFingerprint
+                    values={trace.speaker_verification.live_embedding}
+                    compareValues={
+                      trace.speaker_verification.matched_enroll_embedding
+                    }
+                    label="live"
+                    compareLabel="enrolled"
+                  />
+                </div>
+                <div className="mt-5 pt-4 border-t border-(--border-color)/15">
+                  <ModelBlockTrace
+                    blocks={trace.speaker_verification.ecapa_blocks}
+                    workedExample={trace.speaker_verification.ecapa_worked_example}
+                    workedExampleIntro={ECAPA_WORKED_INTRO}
+                    labelFn={ecapaBlockLabel}
+                    formulaFn={ecapaBlockFormula}
+                    color={ACCENT_SPEAKER}
+                  />
                 </div>
               </PipelineStage>
 
               <PipelineStage
                 index={2}
                 activeStage={activeStage}
-                title="3. Behavior Profiling"
+                stepNumber={3}
+                icon={ShieldAlert}
+                accent={ACCENT_ANTISPOOF}
+                title="Anti-Spoofing — wav2vec2"
+                subtitle="Apakah audio ini rekaman ulang/sintetis, bukan suara langsung?"
+              >
+                <HeroStat
+                  label="Probabilitas audio ini palsu (replay/sintetis)"
+                  value={trace.anti_spoof.fake_prob.toFixed(5)}
+                  color={ACCENT_ANTISPOOF}
+                  caption={
+                    trace.anti_spoof.real_prob != null
+                      ? `real_prob = ${trace.anti_spoof.real_prob.toFixed(5)}`
+                      : undefined
+                  }
+                />
+                <AntiSpoofArchitectureDiagram
+                  fakeProb={trace.anti_spoof.fake_prob}
+                  realProb={trace.anti_spoof.real_prob}
+                />
+                <div className="mt-4">
+                  <ThresholdGauge
+                    value={trace.anti_spoof.fake_prob}
+                    min={0}
+                    max={1}
+                    scale="log"
+                    thresholds={[
+                      {
+                        value: trace.anti_spoof.thresholds.replay_warn,
+                        label: "warn",
+                        color: "#fab219",
+                      },
+                      {
+                        value: trace.anti_spoof.thresholds.replay_deny,
+                        label: "deny",
+                        color: "#d03b3b",
+                      },
+                    ]}
+                    valueLabel={`fake_prob=${trace.anti_spoof.fake_prob.toFixed(5)}`}
+                  />
+                </div>
+                <div className="mt-5 pt-4 border-t border-(--border-color)/15">
+                  <ModelBlockTrace
+                    blocks={trace.anti_spoof.antispoof_blocks}
+                    workedExample={trace.anti_spoof.antispoof_worked_example}
+                    workedExampleIntro={ANTISPOOF_WORKED_INTRO}
+                    labelFn={antispoofBlockLabel}
+                    formulaFn={antispoofBlockFormula}
+                    color={ACCENT_ANTISPOOF}
+                  />
+                </div>
+              </PipelineStage>
+
+              <PipelineStage
+                index={3}
+                activeStage={activeStage}
+                stepNumber={4}
+                icon={Activity}
+                accent={ACCENT_BEHAVIOR}
+                title="Behavior Profiling"
                 subtitle="Hanya aktif jika histori suara user cukup — bisa men-downgrade VERIFIED jadi REPEAT, tidak pernah DENIED sendiri"
               >
                 <BehaviorProfilePanel
@@ -286,9 +358,12 @@ export default function PipelinePage() {
               </PipelineStage>
 
               <PipelineStage
-                index={3}
+                index={4}
                 activeStage={activeStage}
-                title="4. Decision Engine"
+                stepNumber={5}
+                icon={GitBranch}
+                accent={ACCENT_DECISION}
+                title="Decision Engine"
                 subtitle="Cascade threshold berurutan — gate pertama yang gagal menentukan hasil"
               >
                 <DecisionCascade steps={trace.decision.steps} />
@@ -300,9 +375,12 @@ export default function PipelinePage() {
               </PipelineStage>
 
               <PipelineStage
-                index={4}
+                index={5}
                 activeStage={activeStage}
-                title="5. Keputusan Akhir"
+                stepNumber={6}
+                icon={CheckCircle2}
+                accent={statusColor(trace.decision.final)}
+                title="Keputusan Akhir"
               >
                 <FinalDecisionBadge decision={trace.decision} />
               </PipelineStage>

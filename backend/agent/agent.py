@@ -67,7 +67,11 @@ SAMPLE_RATE = 24000
 
 # Silence Gemini waits for before it treats the user's turn as over. Shared by
 # the model config below and the turn-latency log so the two can't drift.
-VAD_SILENCE_MS = 500
+# Was 500 ms; dropped to 350 ms to make the agent feel snappier — it starts
+# formulating a reply ~150 ms sooner after the user stops talking. If this
+# ever starts cutting in while the user pauses mid-sentence (e.g. after "oke
+# gw mau... beli handphone"), raise it back toward 500 ms.
+VAD_SILENCE_MS = 350
 
 # Transport time the turn log adds on top of what the agent can observe: the
 # user's last word reaching the agent, plus the reply reaching the user.
@@ -201,6 +205,17 @@ def install_turn_latency_logging(session) -> UserSpeechTracker:
 # dead air instead of "still working on it".
 THINKING_INDICATOR_DELAY_SEC = 5.0
 
+# How long the agent can sit stuck before we assume Gemini's realtime socket
+# silently died (symptom: Happy "diem gak jawab" after user speaks). When
+# this fires we push an AGENT_STUCK notification to the frontend so the UI
+# can prompt the user to retry, and log a warning so stuck sessions are
+# visible in the dev logs instead of looking like normal silence.
+#
+# Note: the state-timeout only catches "stuck in thinking" cases. Websocket
+# errors (1007 / 1011) are caught via the `error` event handler instead —
+# that fires immediately and doesn't wait for this timeout.
+STUCK_TIMEOUT_SEC = 10.0
+
 
 def install_thinking_indicator(session, room) -> None:
     """Tell the frontend to show/hide a typing indicator around long turns.
@@ -236,6 +251,90 @@ def install_thinking_indicator(session, room) -> None:
             asyncio.create_task(_watch(state["generation"]))
         else:
             asyncio.create_task(_send(False))
+
+
+def install_stuck_watchdog(session, room) -> None:
+    """Catch "Happy diem gak jawab" and tell the frontend.
+
+    Shares the generation-counter trick with install_thinking_indicator but
+    fires at a longer timeout (STUCK_TIMEOUT_SEC). If the agent is still in
+    "thinking" state after that window, we assume Gemini's realtime socket
+    silently died (we've seen 1007 CONTENT_TYPE_AUDIO and 1011 internal
+    errors leave the session wedged) and push an AGENT_STUCK message so the
+    UI can show a "coba ulangi" prompt instead of users thinking Happy just
+    hung up. Also logs a warning so stuck sessions are visible in dev logs.
+
+    This is a *notification*, not a reconnect — the LiveKit plugin itself
+    auto-reconnects on socket close; the watchdog's job is just to make the
+    silent window visible to the user and in the logs.
+    """
+    state = {"generation": 0}
+
+    async def _notify_stuck() -> None:
+        try:
+            await room.local_participant.publish_data(
+                json.dumps({"type": "AGENT_STUCK"}).encode("utf-8"),
+                reliable=True,
+                topic="chat",
+            )
+        except Exception as e:
+            print(f"❌ Failed to send AGENT_STUCK: {e}")
+
+    async def _watch(generation: int) -> None:
+        await asyncio.sleep(STUCK_TIMEOUT_SEC)
+        if state["generation"] == generation:
+            # Still in the same thinking generation — nothing has moved the
+            # state machine forward in STUCK_TIMEOUT_SEC seconds. That is
+            # almost certainly a dead Gemini socket.
+            print(
+                f"⚠️  Agent stuck for {STUCK_TIMEOUT_SEC:.0f}s — likely a "
+                f"wedged Gemini realtime socket. Notifying frontend."
+            )
+            await _notify_stuck()
+
+    @session.on("agent_state_changed")
+    def on_agent_state_changed(ev):
+        state["generation"] += 1
+        if ev.new_state == "thinking":
+            asyncio.create_task(_watch(state["generation"]))
+        # Any transition out of "thinking" (speaking, listening, idle)
+        # bumps generation so the pending _watch task above becomes a
+        # no-op — don't need an explicit cancel.
+
+    # Hook directly into the session's `error` event so we react the moment
+    # Gemini's realtime socket errors out (1007 CONTENT_TYPE_AUDIO not
+    # supported, 1011 Internal error). Previously the only stuck-detect was
+    # the state-timeout above, but a 1007 kicks the agent OUT of "thinking"
+    # before the 15 s timer fires, so our old watchdog never ran — users
+    # just saw dead silence. Firing AGENT_STUCK immediately on error gives
+    # the frontend a chance to prompt the user to retry *right away*, and
+    # we also kick a fresh generate_reply() so the agent recovers without
+    # the user having to speak again.
+    async def _notify_and_recover() -> None:
+        await _notify_stuck()
+        # Wait briefly for the plugin's auto-reconnect to complete before
+        # kicking off a new turn — generate_reply fired too soon races
+        # with the still-closing socket. ~2 s is empirically enough for
+        # the Gemini Live websocket to come back up.
+        await asyncio.sleep(2.0)
+        try:
+            session.generate_reply(
+                instructions=(
+                    "Koneksi suara sempet putus bentar. Minta maaf sekilas "
+                    "ke user ('eh maaf tadi putus') lalu TANYAKAN LAGI "
+                    "pertanyaan terakhirnya singkat biar user gak harus "
+                    "ngulang dari awal. 1 kalimat aja."
+                )
+            )
+            print("🔁 Recovery generate_reply dispatched after error")
+        except Exception as e:
+            print(f"❌ Recovery generate_reply failed: {e}")
+
+    @session.on("error")
+    def on_session_error(ev):
+        err = getattr(ev, "error", None) or getattr(ev, "exception", ev)
+        print(f"⚠️  Realtime session error — notifying frontend: {err!r}")
+        asyncio.create_task(_notify_and_recover())
 
 
 async def trim_chat_ctx_if_needed(agent: Agent) -> None:
@@ -379,14 +478,48 @@ async def connect(ctx: agents.JobContext):
     auth_state["room_ref"] = room
 
     session = AgentSession(
+        # User complaint: "kadang dia berhenti ngomong di tengah pembicaraan
+        # tetapi text chatnya tetep lengkap". Classic false-interrupt — a
+        # cough, background TV, "mhm", or breath noise triggers the user-
+        # speaking detector, the plugin yanks Happy's audio mid-sentence,
+        # and the transcript stays whole because the text already streamed
+        # ahead of the audio.
+        #
+        # Defaults are min_interruption_duration=0.5 s, min_interruption_words=0
+        # which is way too eager. Tighten both:
+        #  - 1.2 s of continuous speech required before we consider it a
+        #    real interruption (coughs/mhm are shorter).
+        #  - at least 2 transcribed words — the plugin counts words from
+        #    the realtime STT, so if only noise comes in and no words get
+        #    recognised, Happy keeps talking.
+        min_interruption_duration=1.2,
+        min_interruption_words=2,
         llm=google.beta.realtime.RealtimeModel(
+            # Model picking is painful here — LiveKit's google-plugin pins
+            # the Live API to v1beta, so only a short list of model ids
+            # actually work with bidiGenerateContent. Tried:
+            #   * gemini-live-2.5-flash-preview  -> 1008 not found (v1alpha only)
+            #   * gemini-2.0-flash-exp           -> 1008 not found (not Live API)
+            #   * gemini-2.5-flash-native-audio-latest -> connects, but
+            #     intermittent 1007 "CONTENT_TYPE_AUDIO not supported" and
+            #     1011 "Internal error" mid-session. Still the only one
+            #     that works end-to-end right now.
+            # Keep this one until Google ships a GA Live model that the
+            # plugin's v1beta can see.
             model="models/gemini-2.5-flash-native-audio-latest",
             voice="Kore",
+            # Give Gemini's built-in STT a prior on language — without this
+            # Indonesian utterances kept getting transcribed as nearest-
+            # sounding English (user complaint: "stt yg gw omongkan tuh
+            # kadang2 juga seringkali gak sesuai"). "id-ID" is Indonesian
+            # (BCP-47). Mixed-language code-switching into English still
+            # works because the model's multilingual, this is just a hint.
+            language="id-ID",
             # Gemini decides when the user's turn ended; AgentSession's own
-            # endpointing settings are ignored for a RealtimeModel. Left
-            # unset, Gemini waits ~800 ms of silence before replying. 500 ms
-            # is the low end of Google's recommended range — raise it if the
-            # agent starts cutting in while the user pauses mid-sentence.
+            # endpointing settings are ignored for a RealtimeModel. Dropped
+            # from 500 ms to the VAD_SILENCE_MS constant (currently 350 ms)
+            # so the agent starts replying ~150 ms sooner after the user
+            # stops talking.
             realtime_input_config=genai_types.RealtimeInputConfig(
                 automatic_activity_detection=genai_types.AutomaticActivityDetection(
                     silence_duration_ms=VAD_SILENCE_MS,
@@ -599,6 +732,7 @@ async def connect(ctx: agents.JobContext):
 
     turn_tracker = install_turn_latency_logging(session)
     install_thinking_indicator(session, room)
+    install_stuck_watchdog(session, room)
     scan_user_audio = tap_user_audio(room, turn_tracker)
 
     # ================= VERIFICATION =================

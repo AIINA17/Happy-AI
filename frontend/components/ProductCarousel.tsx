@@ -5,6 +5,7 @@ import Image from "next/image";
 import {
     ChevronLeft,
     ChevronRight,
+    ExternalLink,
     MapPin,
     Package,
     Star,
@@ -164,15 +165,30 @@ export default function ProductCarousel({
                 {products.map((product, idx) => {
                     const distance = idx - activeIndex;
                     const absDist = Math.abs(distance);
-                    // Hide cards more than 2 positions away
-                    if (absDist > 2) return null;
+                    // Only render the active card plus one on each side.
+                    // Previously we drew up to 2 neighbors on each side with
+                    // opacity 0.35, which read as "ghost cards" bleeding
+                    // through the active one when the user swiped. Dropping
+                    // to +/-1 keeps the "peek" preview effect without the
+                    // readable text underneath the active card.
+                    if (absDist > 1) return null;
 
                     const isActive = distance === 0;
 
-                    // Base card transform
-                    let translateX = distance * 28; // percentage of card width
-                    const scale = 1 - absDist * 0.08;
-                    const opacity = isActive ? 1 : 0.35;
+                    // Base card transform. 42% (was 28) pushes neighbors
+                    // further off-center so the active card stands alone
+                    // instead of visually overlapping with its siblings.
+                    let translateX = distance * 42; // percentage of card width
+                    const scale = 1 - absDist * 0.1;
+                    // Non-active cards are now much more faded so their
+                    // text/image stop bleeding through the foreground card.
+                    // 0.08 is low enough that peripheral card text/image
+                    // doesn't read through as "ghost cards" bleeding into
+                    // the active one (user complaint: "produk card masih
+                    // ngebekas pas digeser"). We also push them further
+                    // out (translateX multiplier below) to further reduce
+                    // perceived overlap.
+                    const opacity = isActive ? 1 : 0.08;
                     const zIndex = 20 - absDist;
 
                     // Follow drag on the active card
@@ -182,7 +198,11 @@ export default function ProductCarousel({
 
                     return (
                         <div
-                            key={product.id}
+                            // Composite key: same numeric id can appear
+                            // across stores (Toko Oren id=30 + Toko Hijau
+                            // id=30), which triggered a React "duplicate
+                            // key" warning. Scope by (source, id).
+                            key={`${product.source ?? ""}-${product.id}`}
                             className="absolute inset-0 transition-all duration-300 ease-out"
                             style={{
                                 transform: `translateX(${translateX}${isActive && isDragging ? "px" : "%"}) scale(${scale})`,
@@ -266,6 +286,19 @@ function ProductCard({
 
     const [currentImage, setCurrentImage] = useState(0);
     const [isHovering, setIsHovering] = useState(false);
+    // Track which product this (animation-stable, non-remounting) slot is
+    // currently showing so we can reset currentImage back to 0 during
+    // RENDER when the product swaps. useState instead of a ref — react-hooks/refs
+    // disallows mutating a ref during render, but React explicitly
+    // sanctions calling a state setter during render for this exact
+    // "adjust state when a prop changes" case (applies immediately,
+    // no extra visible render — see react.dev's "Adjusting some state
+    // when a prop changes").
+    const [prevProductId, setPrevProductId] = useState(product.id);
+    if (prevProductId !== product.id) {
+        setPrevProductId(product.id);
+        setCurrentImage(0);
+    }
 
     // Auto-rotate images every 1 second (only when active & more than one image)
     useEffect(() => {
@@ -277,11 +310,6 @@ function ProductCard({
         }, 1000);
         return () => clearInterval(id);
     }, [isActive, images.length, isHovering]);
-
-    // Reset image index when product changes
-    useEffect(() => {
-        setCurrentImage(0);
-    }, [product.id]);
 
     const nextImage = () =>
         setCurrentImage((prev) => (prev + 1) % Math.max(1, images.length));
@@ -471,7 +499,43 @@ function ProductCard({
                         </div>
                     )}
                 </div>
+
+                {/* CTA — direct link to the external e-commerce product
+                    page. Only visible on the active (focused) card to avoid
+                    the stacked, out-of-focus cards behind it bleeding tap
+                    targets. */}
+                {isActive && (
+                    <div className="pt-2 mt-auto">
+                        {product.link ? (
+                            <a
+                                href={product.link}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="w-full inline-flex items-center justify-center
+                                           gap-2 h-10 rounded-xl
+                                           bg-primary text-primary-foreground
+                                           text-sm font-semibold
+                                           hover:bg-primary/90 active:scale-[0.98]
+                                           transition-all cursor-pointer
+                                           shadow-md">
+                                <span>Lihat di Toko</span>
+                                <ExternalLink size={14} />
+                            </a>
+                        ) : (
+                            <button
+                                disabled
+                                className="w-full inline-flex items-center justify-center
+                                           gap-2 h-10 rounded-xl
+                                           bg-muted text-muted-foreground
+                                           text-sm font-semibold cursor-not-allowed">
+                                Link tidak tersedia
+                            </button>
+                        )}
+                    </div>
+                )}
             </div>
         </div>
     );
 }
+
+               

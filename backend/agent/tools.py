@@ -253,6 +253,32 @@ async def get_user_city() -> str:
 
 # ==================== PRODUCT TOOLS ====================
 
+def _coerce_product(p):
+    """Normalize a product item into a dict.
+
+    Gemini (currently) sometimes passes products as JSON-string elements
+    instead of dicts (see production log: 'arguments' showed
+    `["\"{\\\"id\\\":13,...}\"",...]`). When that happens the raw code
+    does p.get('name') and crashes with AttributeError: 'str' object has
+    no attribute 'get', which (a) empties the card payload on the
+    frontend ("Rp 0", no name) and (b) makes Happy stall out because the
+    tool errored. This coercion makes send_product_cards tolerant of
+    either shape.
+    """
+    if isinstance(p, dict):
+        return p
+    if isinstance(p, str):
+        try:
+            parsed = json.loads(p)
+            if isinstance(parsed, dict):
+                return parsed
+        except (ValueError, TypeError):
+            pass
+    # Unknown shape — return a stub so downstream code sees empty dict
+    # instead of blowing up. Caller will treat as "unknown product".
+    return {}
+
+
 @function_tool
 async def send_product_cards(products: list) -> str:
     """
@@ -261,9 +287,16 @@ async def send_product_cards(products: list) -> str:
     carousel UI (showing more overwhelms the user when they're listening).
     Pass the products you consider the best matches first.
     """
-    await _send_product_cards_internal(products[:5])
+    # Normalize every item to a dict regardless of whether Gemini sent dict
+    # or JSON-string. See _coerce_product's docstring for why this matters.
+    normalized = [_coerce_product(p) for p in products]
+    # Drop any that failed to coerce (empty dict) so we don't send junk
+    # cards to the carousel.
+    normalized = [p for p in normalized if p]
 
-    sent = products[:5]
+    await _send_product_cards_internal(normalized[:5])
+
+    sent = normalized[:5]
     summary = f"✅ {len(sent)} produk berhasil dikirim ke tampilan user:\n\n"
     for i, p in enumerate(sent, 1):
         summary += (

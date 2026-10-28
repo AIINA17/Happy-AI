@@ -2,27 +2,25 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-const CACHE_KEY = "user_city";
-const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 jam
+// Legacy localStorage key — older builds persisted the city across days.
+// We now resolve fresh on every mount, but we still clean up this key on
+// first use so stale values from previous installs don't sit in the user's
+// browser forever.
+const LEGACY_CACHE_KEY = "user_city";
 
 type Status = "idle" | "loading" | "granted" | "denied" | "error";
 
-interface CachedLocation {
-  city: string;
-  savedAt: number;
-}
-
 function getInitialState(): { city: string | null; status: Status } {
-  try {
-    const raw = localStorage.getItem(CACHE_KEY);
-    if (raw) {
-      const cached: CachedLocation = JSON.parse(raw);
-      const age = Date.now() - cached.savedAt;
-      if (age < CACHE_TTL_MS && cached.city) {
-        return { city: cached.city, status: "granted" };
-      }
-    }
-  } catch {}
+  // Always start fresh — do NOT read the city from localStorage. Previously
+  // we cached for 24h, so a user who moved cities mid-day (e.g. Jogja ->
+  // Jakarta) would still see Jogja-based recommendations for up to a day.
+  // Now every mount (new page load / new session start) re-fetches
+  // geolocation so the agent always has an accurate "where am I".
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.removeItem(LEGACY_CACHE_KEY);
+    } catch {}
+  }
 
   if (typeof navigator === "undefined" || !navigator.geolocation) {
     return { city: null, status: "error" };
@@ -76,12 +74,8 @@ function fetchAndStoreLocation(
           return;
         }
 
-        const toCache: CachedLocation = {
-          city: detectedCity,
-          savedAt: Date.now(),
-        };
-        localStorage.setItem(CACHE_KEY, JSON.stringify(toCache));
-
+        // No longer persisted to localStorage — the city lives in React
+        // state only, and resets on the next page load / session start.
         setCity(detectedCity);
         setStatus("granted");
       } catch (err) {
@@ -116,9 +110,9 @@ export function useUserLocation() {
   }, [status]);
 
   const refresh = useCallback(() => {
-    try {
-      localStorage.removeItem(CACHE_KEY);
-    } catch {}
+    // Nothing cached to clear anymore — just re-run the geolocation flow.
+    // Kept exported so callers can force a re-detect mid-session (e.g. if
+    // the user wants to update their city without reloading the page).
     fetchAndStoreLocation(setCity, setStatus);
   }, []);
 

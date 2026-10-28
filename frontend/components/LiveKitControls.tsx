@@ -8,9 +8,9 @@ import { Mic, MicOff, MessageCircle } from "lucide-react";
 
 import VoiceButton from "./VoiceButton";
 import FaceLivenessCapture from "./FaceLivenessCapture";
-import SoundWave from "./SoundWave";
 import { useLiveKit } from "@/hooks/useLiveKit";
 import { useUserLocation } from "@/hooks/useUserLocation";
+import { useNotification } from "@/contexts/NotificationContext";
 import { Product } from "@/types";
 
 interface LiveKitControlsProps {
@@ -55,12 +55,15 @@ export default function LiveKitControls({
 }: LiveKitControlsProps) {
     const { city: userCity } = useUserLocation();
 
+    const { notify } = useNotification();
+
     const {
         toggleRoom,
         uiState,
         isConnected: hookIsConnected,
         isAgentSpeaking,
         isAgentThinking,
+        isAgentStuck,
         isMuted,
         toggleMute,
         faceVerifyOpen,
@@ -94,6 +97,19 @@ export default function LiveKitControls({
     useEffect(() => {
         setIsAgentSpeaking(isAgentSpeaking);
     }, [isAgentSpeaking, setIsAgentSpeaking]);
+
+    // Backend watchdog says Happy has been silent too long after the user
+    // spoke — surface it so users don't just stare at a dead-looking UI.
+    useEffect(() => {
+        if (!isAgentStuck) return;
+        notify({
+            variant: "warning",
+            title: "Happy belum nyambung nih",
+            description:
+                "Koneksi suara agak tersendat. Coba ngomong lagi, atau tap tombol mic buat reset ya.",
+            duration: 5000,
+        });
+    }, [isAgentStuck, notify]);
 
     const getButtonState = ():
         | "idle"
@@ -173,12 +189,10 @@ export default function LiveKitControls({
                     onResult={onFaceVerifyResult}
                 />
 
-                {/* Soundwave only while active */}
-                {isActiveSession && (
-                    <div className="h-5 flex items-center">
-                        <SoundWave />
-                    </div>
-                )}
+                {/* Soundwave previously rendered here above the pill
+                    control. Removed per user request — the main animation
+                    stays below the Happy mascot so the control area is
+                    cleaner and the user focuses on the carousel. */}
 
                 {/* 3-button pill: [Mute] [Mic big] [Chat toggle] */}
                 <div className="flex items-center gap-3 bg-muted/60 backdrop-blur-sm

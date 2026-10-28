@@ -244,6 +244,45 @@ async def verify_voice(request: Request, audio: UploadFile = File(...)):
         if matched_label and updated_profile:
             await asyncio.to_thread(save_behavior_profile, user_id, matched_label, updated_profile)
 
+        # Project the live embedding to the SAME 2-D PCA space the
+        # dashboard uses, so each verification shows up as a live dot on
+        # the embedding scatter plot. Needs ≥2 enrollments to fit PCA;
+        # otherwise store None and the dashboard just skips the dot.
+        pca_x, pca_y = None, None
+        try:
+            if len(enroll_embeddings) >= 2:
+                live_emb = bio.speaker.extract_embedding(wav_path)
+                enroll_matrix = np.array(
+                    [p["embedding"] for p in enroll_embeddings]
+                )
+                from sklearn.decomposition import PCA
+                pca = PCA(n_components=2)
+                pca.fit(enroll_matrix)
+                live_2d = pca.transform(live_emb.reshape(1, -1))[0]
+                pca_x, pca_y = float(live_2d[0]), float(live_2d[1])
+        except Exception:
+            # PCA projection is a nice-to-have; verification result must
+            # not be blocked by a visualization error.
+            traceback.print_exc()
+
+        # Build per-enrollment similarity breakdown so the dashboard can
+        # show how close the live voice was to each enrolled profile —
+        # not just the best match. all_scores from the verifier is a
+        # plain list in enrollment order, so we zip it with labels.
+        all_scores_labeled = []
+        try:
+            raw_scores = result.get("all_scores") or []
+            for i, s in enumerate(raw_scores):
+                if i < len(enroll_embeddings):
+                    all_scores_labeled.append(
+                        {
+                            "label": enroll_embeddings[i]["label"],
+                            "score": float(s),
+                        }
+                    )
+        except Exception:
+            traceback.print_exc()
+
         try:
             await asyncio.to_thread(append_verification_log, {
                 "user_id": user_id,
@@ -253,6 +292,9 @@ async def verify_voice(request: Request, audio: UploadFile = File(...)):
                 "speaker_score": result["score"],
                 "spoof_prob": result["spoof_prob"],
                 "behavior_score": result.get("behavior_score"),
+                "pca_x": pca_x,
+                "pca_y": pca_y,
+                "all_scores": all_scores_labeled,
             })
         except Exception:
             # Metrics logging must never break a verification response.
@@ -632,6 +674,107 @@ async def get_enrollments(request: Request):
         "total": len(res.data or []),
         "enrollments": res.data or []
     }
+
+# EMBEDDING VISUALIZATION — reduce the 256-D speaker vectors down to 2-D
+# via PCA so the frontend can plot them on a scatter chart. The classic
+# "see your speakers cluster in embedding space" demo moment.
+@app.get("/embeddings/visualize")
+async def visualize_embeddings(request: Request):
+    user_id = get_user_id_from_request(request)
+    profiles = load_all_embeddings(user_id)
+
+    if not profiles:
+        return {"status": "OK", "points": [], "pca_components": None}
+
+    embeddings = np.array([p["embedding"] for p in profiles])
+    labels = [p["label"] for p in profiles]
+
+    # PCA to 2D. Need at least 2 samples to fit PCA. If user only has 1
+    # enrollment, fallback to projecting that single point at origin so
+    # the chart still renders.
+    if len(embeddings) < 2:
+        points = [{"x": 0.0, "y": 0.0, "label": labels[0]}]
+        return {
+            "status": "OK",
+            "points": points,
+            "pca_components": None,  # can't fit PCA with 1 sample
+            "pca_mean": embeddings[0].tolist(),
+        }
+
+    from sklearn.decomposition import PCA
+    pca = PCA(n_components=2)
+    coords = pca.fit_transform(embeddings)
+
+    points = [
+        {"x": float(coords[i][0]), "y": float(coords[i][1]), "label": labels[i]}
+        for i in range(len(labels))
+    ]
+
+    # Return PCA params so a *new* live embedding can be projected into
+    # the same 2-D space during a test — see /embeddings/project below.
+    return {
+        "status": "OK",
+        "points": points,
+        "pca_components": pca.components_.tolist(),  # shape (2, D)
+        "pca_mean": pca.mean_.tolist(),              # shape (D,)
+    }
+
+
+# Projects a fresh voice sample into the SAME PCA space the enrollments
+# were fit in. Used by the embeddings page to drop a "test voice" dot
+# onto the chart next to the enrolled cluster.
+@app.post("/embeddings/project")
+async def project_embedding(request: Request, audio: UploadFile = File(...)):
+    user_id = get_user_id_from_request(request)
+
+    # 1. Reuse the same embedding extractor the verifier uses
+    enroll_embeddings = load_all_embeddings(user_id)
+    if len(enroll_embeddings) < 2:
+        raise HTTPException(
+            status_code=400,
+            detail="Need at least 2 enrolled voices to project a test sample.",
+        )
+
+    try:
+        wav_path = save_audio(audio)
+        normalize_audio(wav_path)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid audio: {e}")
+
+    bio = get_biometric()
+    live_emb = bio.speaker.extract_embedding(wav_path)
+
+    # 2. Refit PCA on enrolled, then project the live embedding
+    enroll_matrix = np.array([p["embedding"] for p in enroll_embeddings])
+    from sklearn.decomposition import PCA
+    pca = PCA(n_components=2)
+    pca.fit(enroll_matrix)
+    live_2d = pca.transform(live_emb.reshape(1, -1))[0]
+
+    # 3. Compute cosine similarity to every enrolled embedding — used by
+    # the UI to color the test dot (max_sim > threshold = ACCEPTED).
+    def cosine(a, b):
+        a = a.flatten()
+        b = b.flatten()
+        return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b) + 1e-9))
+
+    similarities = [
+        {
+            "label": p["label"],
+            "similarity": cosine(live_emb, p["embedding"]),
+        }
+        for p in enroll_embeddings
+    ]
+    best = max(similarities, key=lambda s: s["similarity"])
+
+    return {
+        "status": "OK",
+        "live": {"x": float(live_2d[0]), "y": float(live_2d[1])},
+        "similarities": similarities,
+        "best_match": best["label"],
+        "best_score": best["similarity"],
+    }
+
 
 # SPECTROGRAMS FOR THE ANALYSIS DASHBOARD
 @app.get("/spectrograms")

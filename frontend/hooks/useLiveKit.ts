@@ -121,7 +121,8 @@ export function useLiveKit({
         // 2nd arg is RoomEvent.DataReceived's topic — we don't use it,
         // but keep the signature so the callback matches the LiveKit SDK's
         // call shape without a type cast.
-        (payload: Uint8Array) => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars -- kept to match RoomEvent.DataReceived's call signature above
+        (payload: Uint8Array, _topic?: string) => {
             const text = new TextDecoder().decode(payload).trim();
             if (!text.startsWith("{")) return;
 

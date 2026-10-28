@@ -53,6 +53,15 @@ from voiceverification.db.voice_verification_logs import (
 from voiceverification.core.decision_engine import DecisionConfig
 from voiceverification.services.biometric_service import BiometricService
 from voiceverification.utils.audio import normalize_audio, save_audio
+from voiceverification.utils.antispoof_worked_example import (
+    build_worked_example as build_antispoof_worked_example,
+)
+from voiceverification.utils.ecapa_worked_example import build_worked_example
+from voiceverification.utils.pipeline_trace import (
+    build_spectrogram_data,
+    build_trace_record,
+    build_waveform_preview,
+)
 from voiceverification.utils.room_notify import publish_room_result
 from voiceverification.utils.spectrogram import render_spectrogram_png
 
@@ -188,17 +197,33 @@ async def join_token(request: Request):
     }
 
 
+async def _load_user_context(user_id: str) -> tuple[list[dict], dict[str, BehaviorProfile]]:
+    """Enrollment embeddings + per-label behavior profiles for a user.
+    Shared by /verify-voice and /verify-voice/explain so the two can never
+    load context differently."""
+    enroll_embeddings = await asyncio.to_thread(load_all_embeddings, user_id)
+
+    behavior_profiles: dict[str, BehaviorProfile] = {}
+    for profile_meta in enroll_embeddings:
+        lbl = profile_meta["label"]
+        bp = await asyncio.to_thread(load_behavior_profile, user_id, lbl)
+        if bp is not None:
+            behavior_profiles[lbl] = bp
+
+    return enroll_embeddings, behavior_profiles
+
+
 @app.post("/verify-voice")
 async def verify_voice(request: Request, audio: UploadFile = File(...)):
     user_id = get_user_id_from_request(request)
 
-    enroll_embeddings = load_all_embeddings(user_id)
+    enroll_embeddings, behavior_profiles = await _load_user_context(user_id)
     if not enroll_embeddings:
         return {
             "status": "ERROR",
             "reason": "No enrollment profile found for user."
         }
-    
+
     try:
         wav_path = save_audio(audio)
         normalize_audio(wav_path)
@@ -207,13 +232,6 @@ async def verify_voice(request: Request, audio: UploadFile = File(...)):
 
     try:
         bio = get_biometric()
-
-        behavior_profiles: dict[str, BehaviorProfile] = {}
-        for profile_meta in enroll_embeddings:
-            lbl = profile_meta["label"]
-            bp = load_behavior_profile(user_id, lbl)
-            if bp is not None:
-                behavior_profiles[lbl] = bp
 
         start = time.time()
 
@@ -231,7 +249,7 @@ async def verify_voice(request: Request, audio: UploadFile = File(...)):
         updated_profile: BehaviorProfile | None = result.get("updated_behavior_profile")
 
         if matched_label and updated_profile:
-            save_behavior_profile(user_id, matched_label, updated_profile)
+            await asyncio.to_thread(save_behavior_profile, user_id, matched_label, updated_profile)
 
         # Project the live embedding to the SAME 2-D PCA space the
         # dashboard uses, so each verification shows up as a live dot on
@@ -278,7 +296,7 @@ async def verify_voice(request: Request, audio: UploadFile = File(...)):
             traceback.print_exc()
 
         try:
-            append_verification_log({
+            await asyncio.to_thread(append_verification_log, {
                 "user_id": user_id,
                 "label": matched_label,
                 "decision": result["decision"],
@@ -333,6 +351,78 @@ async def verify_voice(request: Request, audio: UploadFile = File(...)):
             os.remove(wav_path)
 
 
+# EXPLAIN-MODE VERIFICATION FOR THE /pipeline EXPLAINER PAGE'S LIVE TOGGLE
+#
+# Same pipeline as /verify-voice, but:
+#   - requests explain=True for embedding/spoof-breakdown/z-score/cascade
+#     data the normal response doesn't carry
+#   - does NOT persist anything: no behavior-profile update, no
+#     voice_verification_logs row, no LiveKit room publish — booth Q&A
+#     attempts must never pollute the presenter's real account history or
+#     fire a shopping-agent event.
+# Auth is still required: this reads the caller's real enrolled embeddings.
+@app.post("/verify-voice/explain")
+async def verify_voice_explain(request: Request, audio: UploadFile = File(...)):
+    user_id = get_user_id_from_request(request)
+
+    enroll_embeddings, behavior_profiles = await _load_user_context(user_id)
+    if not enroll_embeddings:
+        raise HTTPException(status_code=400, detail="No enrollment profile found for user.")
+
+    try:
+        wav_path = save_audio(audio)
+        normalize_audio(wav_path)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid/unsupported audio upload: {e}")
+
+    try:
+        bio = get_biometric()
+        result = await asyncio.to_thread(
+            bio.verify_against_multiple_embeddings,
+            live_wav=wav_path,
+            enroll_embeddings=enroll_embeddings,
+            user_id=user_id,
+            behavior_profiles=behavior_profiles,
+            explain=True,
+        )
+
+        preview = await asyncio.to_thread(build_waveform_preview, wav_path)
+        spectrogram = await asyncio.to_thread(build_spectrogram_data, wav_path)
+        worked_example = await asyncio.to_thread(build_worked_example, wav_path)
+        antispoof_worked_example = await asyncio.to_thread(
+            build_antispoof_worked_example, wav_path
+        )
+
+        return build_trace_record(
+            scenario_id="live",
+            title="Percobaan live",
+            scenario_type="live_capture",
+            source_file=None,
+            enrolled_label=result.get("best_label"),
+            result=result,
+            preview=preview,
+            worked_example=worked_example,
+            antispoof_worked_example=antispoof_worked_example,
+            spectrogram=spectrogram,
+            # No raw enrolled audio is kept after enrollment (only its
+            # embedding + a pre-rendered PNG in Supabase Storage) — honest
+            # None rather than faking a comparison spectrogram here.
+            enrolled_spectrogram=None,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=500,
+            detail=f"verify-voice/explain failed: {type(e).__name__}: {e}",
+        )
+
+    finally:
+        if os.path.exists(wav_path):
+            os.remove(wav_path)
+
 
 # HEALTH CHECK
 @app.get("/health")
@@ -352,7 +442,7 @@ async def enroll_voice(
 ):
     user_id = get_user_id_from_request(request)
 
-    if count_enrollments(user_id) >= 3:
+    if await asyncio.to_thread(count_enrollments, user_id) >= 3:
         raise HTTPException(
             status_code=400,
             detail="Maximum enrollment reached (3)."
@@ -393,45 +483,48 @@ async def enroll_voice(
         print(f"⚠️ Speech duration check failed: {e}")
 
     try:
-        embedding = get_biometric().speaker.extract_embedding(wav_path)
+        embedding = await asyncio.to_thread(
+            get_biometric().speaker.extract_embedding, wav_path
+        )
 
-        existing_label = (
+        existing_label_query = (
             get_supabase()
             .table("speaker_profiles")
             .select("label")
             .eq("user_id", user_id)
             .eq("label", label)
-            .execute()
         )
+        existing_label = await asyncio.to_thread(existing_label_query.execute)
         if existing_label.data:
             raise HTTPException(
                 status_code=400,
                 detail=f"Enrollment with label '{label}' already exists."
             )
 
-        profile_id = save_embedding(user_id, embedding, label)
+        # Wrap the DB write in asyncio.to_thread so the FastAPI event loop
+        # isn't blocked while Supabase round-trips. Credit to the pipeline
+        # branch for this fix.
+        profile_id = await asyncio.to_thread(save_embedding, user_id, embedding, label)
 
         # The WAV is deleted below, so the spectrogram has to be rendered now.
         # A storage failure must not fail an enrollment that is already saved.
         try:
-            save_spectrogram(
-                user_id,
-                profile_id,
-                render_spectrogram_png(wav_path, label),
-            )
+            png_bytes = await asyncio.to_thread(render_spectrogram_png, wav_path, label)
+            await asyncio.to_thread(save_spectrogram, user_id, profile_id, png_bytes)
         except Exception:
             print(f"WARNING: spectrogram upload failed for profile {profile_id}")
             traceback.print_exc()
 
-        behavior_profile = load_behavior_profile(user_id, label)
+        behavior_profile = await asyncio.to_thread(load_behavior_profile, user_id, label)
 
         if behavior_profile is None:
-            y, sr = librosa.load(wav_path, sr=16000)
+            def _compute_pitch_profile():
+                y, sr = librosa.load(wav_path, sr=16000)
+                pitch = float(np.nanmean(librosa.yin(y, fmin=50, fmax=300, sr=sr)))
+                rate = float(len(y) / sr)
+                return pitch, rate
 
-            pitch = float(np.nanmean(
-                librosa.yin(y, fmin=50, fmax=300, sr=sr)
-            ))
-            rate = float(len(y) / sr)
+            pitch, rate = await asyncio.to_thread(_compute_pitch_profile)
 
             behavior_profile = BehaviorProfile(
                 n_samples=1,
@@ -442,7 +535,7 @@ async def enroll_voice(
                 last_update_ts=datetime.now(timezone.utc)
             )
 
-            save_behavior_profile(user_id, label, behavior_profile)
+            await asyncio.to_thread(save_behavior_profile, user_id, label, behavior_profile)
 
         return {
             "status": "OK",
@@ -469,13 +562,13 @@ async def get_conversation_sessions(request: Request):
     user_id = get_user_id_from_request(request)
     sb = get_supabase()
 
-    res = (
+    query = (
         sb.table("conversation_sessions")
         .select("id, label, created_at")
         .eq("user_id", user_id)
         .order("created_at", desc=True)
-        .execute()
     )
+    res = await asyncio.to_thread(query.execute)
 
     return {
         "status": "OK",
@@ -491,40 +584,40 @@ async def get_conversation_logs(
     user_id = get_user_id_from_request(request)
     sb = get_supabase()
 
-    session_check = (
+    session_check_query = (
         sb.table("conversation_sessions")
         .select("id")
         .eq("id", session_id)
         .eq("user_id", user_id)
-        .execute()
     )
+    session_check = await asyncio.to_thread(session_check_query.execute)
 
     if not session_check.data:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    logs = (
+    logs_query = (
         sb.table("conversation_logs")
         .select("role, content, created_at")
         .eq("session_id", session_id)
         .order("created_at")
-        .execute()
     )
+    logs = await asyncio.to_thread(logs_query.execute)
 
-    product_cards = (
+    product_cards_query = (
         sb.table("product_cards")
         .select("id, products, created_at")
         .eq("session_id", session_id)
         .order("created_at")
-        .execute()
     )
+    product_cards = await asyncio.to_thread(product_cards_query.execute)
 
-    review_cards = (
+    review_cards_query = (
         sb.table("review_cards")
         .select("id, product_name, reviews, created_at")
         .eq("session_id", session_id)
         .order("created_at")
-        .execute()
     )
+    review_cards = await asyncio.to_thread(review_cards_query.execute)
 
     return {
         "status": "OK",
@@ -551,20 +644,21 @@ async def update_session_label(
     if not payload.label.strip():
         raise HTTPException(400, "Label cannot be empty")
 
-    session_check = (
+    session_check_query = (
         sb.table("conversation_sessions")
         .select("id")
         .eq("id", session_id)
         .eq("user_id", user_id)
-        .execute()
     )
+    session_check = await asyncio.to_thread(session_check_query.execute)
 
     if not session_check.data:
         raise HTTPException(404, "Session not found")
 
-    update_conversation_session_label(
+    await asyncio.to_thread(
+        update_conversation_session_label,
         session_id=session_id,
-        new_label=new_label
+        new_label=new_label,
     )
 
     return {
@@ -583,28 +677,32 @@ async def delete_conversation_session(
     sb = get_supabase()
 
     # (opsional) validasi ownership session di sini
-    session_check = (
+    session_check_query = (
         sb.table("conversation_sessions")
         .select("id")
         .eq("id", session_id)
         .eq("user_id", user_id)
-        .execute()
     )
+    session_check = await asyncio.to_thread(session_check_query.execute)
 
     if not session_check.data:
         raise HTTPException(status_code=404, detail="Session not found")
 
     # delete logs
-    sb.table("conversation_logs")\
-        .delete()\
-        .eq("session_id", session_id)\
-        .execute()  
-    
+    delete_logs_query = (
+        sb.table("conversation_logs")
+        .delete()
+        .eq("session_id", session_id)
+    )
+    await asyncio.to_thread(delete_logs_query.execute)
+
     # delete session row
-    sb.table("conversation_sessions")\
-        .delete()\
-        .eq("id", session_id)\
-        .execute()
+    delete_session_query = (
+        sb.table("conversation_sessions")
+        .delete()
+        .eq("id", session_id)
+    )
+    await asyncio.to_thread(delete_session_query.execute)
 
     return {
         "status": "OK",
@@ -617,13 +715,13 @@ async def get_enrollments(request: Request):
     user_id = get_user_id_from_request(request)
     sb = get_supabase()
 
-    res = (
+    query = (
         sb.table("speaker_profiles")
         .select("id, label, created_at")
         .eq("user_id", user_id)
         .order("created_at", desc=True)
-        .execute()
     )
+    res = await asyncio.to_thread(query.execute)
 
     return {
         "status": "OK",
@@ -755,18 +853,18 @@ async def get_spectrograms(request: Request):
     user_id = get_user_id_from_request(request)
     sb = get_supabase()
 
-    res = (
+    query = (
         sb.table("speaker_profiles")
         .select("id, label, created_at")
         .eq("user_id", user_id)
         .order("created_at", desc=True)
-        .execute()
     )
+    res = await asyncio.to_thread(query.execute)
 
-    profiles = [
-        {**row, "spectrogram_url": get_spectrogram_url(user_id, row["id"])}
-        for row in (res.data or [])
-    ]
+    profiles = []
+    for row in (res.data or []):
+        url = await asyncio.to_thread(get_spectrogram_url, user_id, row["id"])
+        profiles.append({**row, "spectrogram_url": url})
 
     return {
         "status": "OK",
@@ -785,7 +883,7 @@ async def get_spectrograms(request: Request):
 async def get_verification_metrics(request: Request):
     user_id = get_user_id_from_request(request)
 
-    logs = get_verification_logs(user_id)
+    logs = await asyncio.to_thread(get_verification_logs, user_id)
     config = DecisionConfig()
 
     return {
@@ -811,13 +909,13 @@ async def delete_enrollment(
     sb = get_supabase()
 
     # (opsional) validasi ownership enrollment di sini
-    enrollment_check = (
+    enrollment_check_query = (
         sb.table("speaker_profiles")
         .select("id, label")
         .eq("id", enrollment_id)
         .eq("user_id", user_id)
-        .execute()
     )
+    enrollment_check = await asyncio.to_thread(enrollment_check_query.execute)
 
     if not enrollment_check.data:
         raise HTTPException(status_code=404, detail="Enrollment not found")
@@ -825,19 +923,23 @@ async def delete_enrollment(
     label = enrollment_check.data[0]["label"]
 
     # Hapus enrollment
-    sb.table("speaker_profiles")\
-        .delete()\
-        .eq("id", enrollment_id)\
-        .execute()
-    
-    # Hapus behavior profile terkait
-    sb.table("behavior_profiles")\
-        .delete()\
-        .eq("user_id", user_id)\
-        .eq("label", label)\
-        .execute()
+    delete_speaker_query = (
+        sb.table("speaker_profiles")
+        .delete()
+        .eq("id", enrollment_id)
+    )
+    await asyncio.to_thread(delete_speaker_query.execute)
 
-    delete_spectrogram(user_id, enrollment_id)
+    # Hapus behavior profile terkait
+    delete_behavior_query = (
+        sb.table("behavior_profiles")
+        .delete()
+        .eq("user_id", user_id)
+        .eq("label", label)
+    )
+    await asyncio.to_thread(delete_behavior_query.execute)
+
+    await asyncio.to_thread(delete_spectrogram, user_id, enrollment_id)
 
     return {
         "status": "OK",
@@ -865,13 +967,13 @@ async def rename_speaker_label(
         raise HTTPException(status_code=400, detail="Label cannot be empty")
 
     # 1️⃣ Cek speaker milik user
-    speaker_check = (
+    speaker_check_query = (
         sb.table("speaker_profiles")
         .select("id, label")
         .eq("id", speaker_id)
         .eq("user_id", user_id)
-        .execute()
     )
+    speaker_check = await asyncio.to_thread(speaker_check_query.execute)
 
     if not speaker_check.data:
         raise HTTPException(status_code=404, detail="Speaker not found")
@@ -879,13 +981,13 @@ async def rename_speaker_label(
     old_label = speaker_check.data[0]["label"]
 
     # 2️⃣ Cek duplicate label
-    duplicate_check = (
+    duplicate_check_query = (
         sb.table("speaker_profiles")
         .select("id")
         .eq("user_id", user_id)
         .eq("label", new_label)
-        .execute()
     )
+    duplicate_check = await asyncio.to_thread(duplicate_check_query.execute)
 
     if duplicate_check.data:
         raise HTTPException(
@@ -894,17 +996,21 @@ async def rename_speaker_label(
         )
 
     # 3️⃣ Update speaker_profiles
-    sb.table("speaker_profiles")\
-        .update({"label": new_label})\
-        .eq("id", speaker_id)\
-        .execute()
+    update_speaker_query = (
+        sb.table("speaker_profiles")
+        .update({"label": new_label})
+        .eq("id", speaker_id)
+    )
+    await asyncio.to_thread(update_speaker_query.execute)
 
     # 4️⃣ Update behavior_profiles
-    sb.table("behavior_profiles")\
-        .update({"label": new_label})\
-        .eq("user_id", user_id)\
-        .eq("label", old_label)\
-        .execute()
+    update_behavior_query = (
+        sb.table("behavior_profiles")
+        .update({"label": new_label})
+        .eq("user_id", user_id)
+        .eq("label", old_label)
+    )
+    await asyncio.to_thread(update_behavior_query.execute)
 
     return {
         "status": "OK",
@@ -944,7 +1050,8 @@ async def link_ecommerce_account(payload: EcommerceAccountPayload, request: Requ
         raise HTTPException(status_code=400, detail="Username and password are required")
 
     try:
-        register_resp = requests.post(
+        register_resp = await asyncio.to_thread(
+            requests.post,
             f"{base_url}/api/auth/register",
             json={"username": username, "password": password},
             timeout=10,
@@ -953,7 +1060,8 @@ async def link_ecommerce_account(payload: EcommerceAccountPayload, request: Requ
         if register_resp.status_code not in (200, 201):
             # Account may already exist — validate these are real, working
             # credentials for it before we store them.
-            login_resp = requests.post(
+            login_resp = await asyncio.to_thread(
+                requests.post,
                 f"{base_url}/api/auth/token",
                 json={"username": username, "password": password},
                 timeout=10,
@@ -966,7 +1074,7 @@ async def link_ecommerce_account(payload: EcommerceAccountPayload, request: Requ
     except requests.RequestException:
         raise HTTPException(status_code=502, detail="Gagal menghubungi layanan e-commerce.")
 
-    save_ecommerce_account(user_id, username, password, source)
+    await asyncio.to_thread(save_ecommerce_account, user_id, username, password, source)
 
     return {"status": "OK", "username": username, "source": source}
 
@@ -976,7 +1084,7 @@ async def get_ecommerce_account(request: Request):
 
     accounts = {}
     for source, cfg in ECOMMERCE_SOURCES.items():
-        account = has_ecommerce_account(user_id, source)
+        account = await asyncio.to_thread(has_ecommerce_account, user_id, source)
         accounts[source] = {
             "label": cfg["label"],
             "linked": account is not None,
@@ -989,6 +1097,6 @@ async def get_ecommerce_account(request: Request):
 async def unlink_ecommerce_account(request: Request, source: str = DEFAULT_SOURCE):
     user_id = get_user_id_from_request(request)
     source = _resolve_source_or_400(source)
-    delete_ecommerce_account(user_id, source)
+    await asyncio.to_thread(delete_ecommerce_account, user_id, source)
 
     return {"status": "OK"}

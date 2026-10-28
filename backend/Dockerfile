@@ -14,6 +14,14 @@ COPY requirements.lock.txt .
 
 RUN pip install --no-cache-dir -r requirements.lock.txt
 
+# insightface only declares a generic "onnxruntime" dependency, so the bulk
+# install above can land either the CPU-only `onnxruntime` or `onnxruntime-gpu`
+# wheel last (pip's internal install order isn't controlled by file order,
+# and both wheels write to the same onnxruntime/ import path) — reinstalling
+# onnxruntime-gpu by itself here guarantees its files win, so insightface
+# actually gets CUDAExecutionProvider instead of silently falling back to CPU.
+RUN pip install --no-cache-dir --no-deps --force-reinstall onnxruntime-gpu==1.23.2
+
 COPY . .
 
 # Bake the pretrained models into the image layer instead of downloading

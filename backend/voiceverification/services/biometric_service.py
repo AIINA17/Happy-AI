@@ -7,7 +7,7 @@ from typing import List, Optional
 from voiceverification.core.behavior_profile import BehaviorProfile
 from voiceverification.models.speaker_verifier import SpeakerVerifier
 from voiceverification.core.asvspoof import compute_score, warm_up as warm_up_asvspoof
-from voiceverification.core.decision_engine import decide, Decision
+from voiceverification.core.decision_engine import decide, Decision, DecisionConfig
 from voiceverification.core.trusted_update import TrustedUpdatePolicy
 from voiceverification.core.behavior_scoring import compute_behavior_score
 
@@ -40,11 +40,19 @@ class BiometricService:
         user_id: Optional[str] = None,
         behavior_profiles: Optional[dict[str, BehaviorProfile]] = None,
         is_retry: bool = False,
+        explain: bool = False,
     ) -> dict:
         behavior_profiles = behavior_profiles or {}
+        config = DecisionConfig()
 
-        # 1. Extract live embedding
-        live_emb = self.speaker.extract_embedding(live_wav)
+        # 1. Extract live embedding (plus per-block ECAPA activation traces
+        # when explain=True, for the /pipeline explainer page)
+        embedding_result = self.speaker.extract_embedding(live_wav, capture_trace=explain)
+        if explain:
+            live_emb, ecapa_blocks = embedding_result
+        else:
+            live_emb = embedding_result
+            ecapa_blocks = []
 
         scores = []
         for prof in enroll_embeddings:
@@ -68,8 +76,15 @@ class BiometricService:
             f"all={[round(s, 3) for s in scores]}"
         )
 
-        # 2. Spoof Score
-        spoof_prob, _ = compute_score(live_wav)
+        # 2. Spoof Score (plus per-block wav2vec2 activation traces when
+        # explain=True, for the /pipeline explainer page)
+        if explain:
+            spoof_prob, spoof_breakdown, antispoof_blocks = compute_score(
+                live_wav, capture_trace=True
+            )
+        else:
+            spoof_prob, spoof_breakdown = compute_score(live_wav)
+            antispoof_blocks = []
 
         # 3. Decision
         # Too little speech makes the embedding unreliable rather than wrong:
@@ -82,7 +97,18 @@ class BiometricService:
         pitch, rate = None, None
         z_pitch = z_rate = None
         behavior_profile = behavior_profiles.get(best_label)
+        # Captured now, before step 4 below can reassign/mutate
+        # behavior_profile — this is the n_samples decide() actually saw,
+        # not whatever the profile looks like after a post-decision update.
+        behavior_n_samples_at_decision = behavior_profile.n_samples if behavior_profile else 0
         updated_behavior_profile: BehaviorProfile | None = None
+        decision_steps: list[dict] | None = [
+            {
+                "check": "min_speech_sec",
+                "passed": speech_sec >= MIN_SPEECH_SEC,
+                "detail": f"speech_sec={speech_sec:.2f} >= min_speech_sec={MIN_SPEECH_SEC}",
+            }
+        ] if explain else None
 
         if speech_sec < MIN_SPEECH_SEC:
             decision = Decision.REPEAT
@@ -104,12 +130,19 @@ class BiometricService:
                     behavior_profile
                 )
 
-            decision, reason = decide(
+            decide_result = decide(
                 speaker_score=best_score,
                 replay_prob=spoof_prob,
                 behavior_score=behavior_score,
-                behavior_n_samples=behavior_profile.n_samples if behavior_profile else 0,
+                behavior_n_samples=behavior_n_samples_at_decision,
+                config=config,
+                trace=explain,
             )
+            if explain:
+                decision, reason, cascade_steps = decide_result
+                decision_steps.extend(cascade_steps)
+            else:
+                decision, reason = decide_result
 
         # 4. Trusted adaptive update — only for a genuinely VERIFIED result
         # (a behavior-triggered downgrade to REPEAT above means `decision`
@@ -143,21 +176,38 @@ class BiometricService:
         )
 
 
-        return {
+        result = {
             "verified": decision == Decision.VERIFIED,
             "decision": decision.value,
             "reason": reason,
 
             "score": best_score,
             "spoof_prob": spoof_prob,
-            
+
             "best_index": best_idx,
             "best_label": best_label,
             "all_scores": scores,
-            
+
             "pitch": pitch,
             "rate": rate,
             "behavior_score": behavior_score,
 
             "updated_behavior_profile": updated_behavior_profile,
-        } 
+        }
+
+        if explain:
+            result.update({
+                "live_embedding": live_emb,
+                "ecapa_blocks": ecapa_blocks,
+                "matched_enroll_embedding": enroll_embeddings[best_idx]["embedding"],
+                "spoof_breakdown": spoof_breakdown,
+                "antispoof_blocks": antispoof_blocks,
+                "speech_sec": speech_sec,
+                "z_pitch": z_pitch,
+                "z_rate": z_rate,
+                "behavior_n_samples": behavior_n_samples_at_decision,
+                "decision_config": config,
+                "decision_steps": decision_steps,
+            })
+
+        return result

@@ -39,6 +39,13 @@ pretrained_models/
 
 # voice verification dataset (wav samples, embeddings cache, viz output)
 backend/voiceverification/dataset/
+backend/voiceverification/voice_verification_test_log.csv
+backend/voiceverification/test_results_plots/
+
+# face recognition test dataset (face photos) and test log
+backend/face_recognition/dataset/
+backend/face_recognition/face_verification_test_log.csv
+backend/face_recognition/test_results_plots/
 
 # internal docs, not meant to be shared via the repo
 PROJECT_SUMMARY.md

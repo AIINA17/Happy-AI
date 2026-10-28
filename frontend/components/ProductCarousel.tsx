@@ -286,13 +286,17 @@ function ProductCard({
 
     const [currentImage, setCurrentImage] = useState(0);
     const [isHovering, setIsHovering] = useState(false);
-    // Track which product this component is currently showing so we can
-    // reset currentImage back to 0 during RENDER (not inside an effect)
-    // when the product swaps. Doing the reset inside useEffect causes
-    // "setState in effect" lint error and triggers a cascading render.
-    const prevProductIdRef = useRef(product.id);
-    if (prevProductIdRef.current !== product.id) {
-        prevProductIdRef.current = product.id;
+    // Track which product this (animation-stable, non-remounting) slot is
+    // currently showing so we can reset currentImage back to 0 during
+    // RENDER when the product swaps. useState instead of a ref — react-hooks/refs
+    // disallows mutating a ref during render, but React explicitly
+    // sanctions calling a state setter during render for this exact
+    // "adjust state when a prop changes" case (applies immediately,
+    // no extra visible render — see react.dev's "Adjusting some state
+    // when a prop changes").
+    const [prevProductId, setPrevProductId] = useState(product.id);
+    if (prevProductId !== product.id) {
+        setPrevProductId(product.id);
         setCurrentImage(0);
     }
 

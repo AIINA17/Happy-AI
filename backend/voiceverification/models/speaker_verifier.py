@@ -4,6 +4,32 @@ from numpy.linalg import norm
 
 from speechbrain.pretrained import SpeakerRecognition
 
+from voiceverification.utils.torch_trace import tensor_summary
+
+# Named sub-modules of speechbrain's ECAPA-TDNN worth capturing for the
+# /pipeline explainer page: the acoustic front-end, each SE-Res2Block, the
+# multi-layer feature aggregation, attentive statistics pooling (+ its
+# batchnorm), and the final embedding projection. Hooking these forward
+# passes doesn't change the model's behavior — it only reads the tensors it
+# already produces.
+_ECAPA_TRACE_MODULES = (
+    "mods.compute_features",
+    "mods.mean_var_norm",
+    "mods.embedding_model.mfa",
+    "mods.embedding_model.asp",
+    "mods.embedding_model.asp_bn",
+    "mods.embedding_model.fc",
+    "mods.mean_var_norm_emb",
+)
+
+
+def _is_traced_block(name: str) -> bool:
+    if name in _ECAPA_TRACE_MODULES:
+        return True
+    # mods.embedding_model.blocks.<i> — the SE-Res2Blocks themselves, not
+    # their internal sub-layers (those are one dot deeper).
+    return name.startswith("mods.embedding_model.blocks.") and name.count(".") == 3
+
 
 class SpeakerVerifier:
     def __init__(self, device="cpu"):
@@ -14,18 +40,44 @@ class SpeakerVerifier:
         )
         self.device = device
 
-    def extract_embedding(self, wav_path) -> np.ndarray:
+    def extract_embedding(self, wav_path, capture_trace: bool = False):
         """
-        Extract speaker embedding from wavn
+        Extract speaker embedding from wav. With capture_trace=True, also
+        return a list of per-block tensor summaries captured via forward
+        hooks on the real ECAPA-TDNN forward pass (see _ECAPA_TRACE_MODULES)
+        — for the /pipeline explainer page, not used by the decision logic.
         """
         self.model.eval()
-        with torch.no_grad():
-            waveform = self.model.load_audio(wav_path)
-            if waveform.dim() == 1:
-                waveform = waveform.unsqueeze(0)
-            emb = self.model.encode_batch(waveform)
+        block_traces: list[dict] = []
+        hooks = []
+
+        if capture_trace:
+            def _capture(name):
+                def _hook(_module, _inputs, output):
+                    summary = tensor_summary(name, output)
+                    if summary is not None:
+                        block_traces.append(summary)
+                return _hook
+
+            for name, module in self.model.named_modules():
+                if _is_traced_block(name):
+                    hooks.append(module.register_forward_hook(_capture(name)))
+
+        try:
+            with torch.no_grad():
+                waveform = self.model.load_audio(wav_path)
+                if waveform.dim() == 1:
+                    waveform = waveform.unsqueeze(0)
+                emb = self.model.encode_batch(waveform)
+        finally:
+            for hook in hooks:
+                hook.remove()
+
         emb = emb.squeeze().cpu().numpy()
         emb = emb / np.linalg.norm(emb)
+
+        if capture_trace:
+            return emb, block_traces
         return emb
     
     def compare_embeddings(self, emb1: np.ndarray, emb2: np.ndarray) -> float:

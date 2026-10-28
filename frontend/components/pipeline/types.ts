@@ -9,6 +9,35 @@ export interface DecisionStep {
   detail: string;
 }
 
+// One ECAPA-TDNN sub-module's forward-pass output, captured via a PyTorch
+// forward hook (see backend/voiceverification/models/speaker_verifier.py) —
+// real activations from this run, not illustrative.
+export interface EcapaBlockOutput {
+  name: string;
+  shape: number[];
+  mean?: number;
+  std?: number;
+  min?: number;
+  max?: number;
+  preview: number[];
+}
+
+// One step of the simplified, illustrative ECAPA-TDNN walkthrough (see
+// backend/voiceverification/utils/ecapa_worked_example.py) — real short
+// audio slice in, small fixed illustrative weights (not the trained
+// model's), real arithmetic out. input/output are always 2D (rows of
+// values) even for single-vector steps, so rendering never branches on
+// shape.
+export interface EcapaWorkedStep {
+  step: string;
+  title: string;
+  formula: string | null;
+  input: number[][] | null;
+  output: number[][];
+  note: string;
+  extra: Record<string, number[]> | null;
+}
+
 export interface PipelineTrace {
   scenario_id: string;
   title: string;
@@ -35,6 +64,8 @@ export interface PipelineTrace {
     embedding_dim: number;
     live_embedding: number[];
     matched_enroll_embedding: number[];
+    ecapa_blocks: EcapaBlockOutput[];
+    ecapa_worked_example: EcapaWorkedStep[];
     all_scores: number[];
     best_index: number;
     best_label: string;

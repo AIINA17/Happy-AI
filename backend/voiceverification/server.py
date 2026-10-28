@@ -53,6 +53,7 @@ from voiceverification.db.voice_verification_logs import (
 from voiceverification.core.decision_engine import DecisionConfig
 from voiceverification.services.biometric_service import BiometricService
 from voiceverification.utils.audio import normalize_audio, save_audio
+from voiceverification.utils.ecapa_worked_example import build_worked_example
 from voiceverification.utils.pipeline_trace import build_trace_record, build_waveform_preview
 from voiceverification.utils.room_notify import publish_room_result
 from voiceverification.utils.spectrogram import render_spectrogram_png
@@ -331,6 +332,7 @@ async def verify_voice_explain(request: Request, audio: UploadFile = File(...)):
         )
 
         preview = await asyncio.to_thread(build_waveform_preview, wav_path)
+        worked_example = await asyncio.to_thread(build_worked_example, wav_path)
 
         return build_trace_record(
             scenario_id="live",
@@ -340,6 +342,7 @@ async def verify_voice_explain(request: Request, audio: UploadFile = File(...)):
             enrolled_label=result.get("best_label"),
             result=result,
             preview=preview,
+            worked_example=worked_example,
         )
 
     except HTTPException:

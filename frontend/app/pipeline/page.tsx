@@ -12,6 +12,7 @@ import { AntiSpoofArchitectureDiagram } from "@/components/pipeline/AntiSpoofArc
 import { BehaviorProfilePanel } from "@/components/pipeline/BehaviorProfilePanel";
 import { DecisionCascade } from "@/components/pipeline/DecisionCascade";
 import { EcapaArchitectureDiagram } from "@/components/pipeline/EcapaArchitectureDiagram";
+import { EcapaBlockTrace } from "@/components/pipeline/EcapaBlockTrace";
 import { EmbeddingFingerprint } from "@/components/pipeline/EmbeddingFingerprint";
 import { FinalDecisionBadge } from "@/components/pipeline/FinalDecisionBadge";
 import { LiveCapturePanel } from "@/components/pipeline/LiveCapturePanel";
@@ -201,6 +202,12 @@ export default function PipelinePage() {
                         compareLabel="enrolled"
                       />
                     </div>
+                    <EcapaBlockTrace
+                      blocks={trace.speaker_verification.ecapa_blocks}
+                      workedExample={
+                        trace.speaker_verification.ecapa_worked_example
+                      }
+                    />
                     <div className="mt-3">
                       <ThresholdGauge
                         value={trace.speaker_verification.score}

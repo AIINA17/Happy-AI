@@ -2,10 +2,11 @@
 
 import { ArchFlowArrow, ArchFlowBox } from "./ArchFlowBox";
 
-// Conceptual block diagram — the real pipeline calls speechbrain's
-// pretrained SpeakerRecognition.encode_batch() as a single black-box call
-// (models/speaker_verifier.py), not instrumented layer-by-layer. Numbers
-// annotated here are real, measured values from this run.
+// High-level overview of the ECAPA-TDNN flow. The real per-layer
+// activations (captured via forward hooks on speechbrain's pretrained
+// model — see models/speaker_verifier.py) are rendered separately by
+// EcapaBlockTrace, below. Numbers annotated here are real, measured values
+// from this run.
 export function EcapaArchitectureDiagram({
   embeddingDim,
   score,
@@ -29,8 +30,7 @@ export function EcapaArchitectureDiagram({
         <ArchFlowBox title="Cosine similarity" detail={`vs "${matchedLabel}"`} />
       </div>
       <p className="text-[11px] text-(--text-muted) mt-1">
-        score = {score.toFixed(3)} — model pretrained dipanggil sebagai satu
-        kesatuan (black-box), bukan diinstrumentasi per-layer.
+        score = {score.toFixed(3)}
       </p>
     </div>
   );

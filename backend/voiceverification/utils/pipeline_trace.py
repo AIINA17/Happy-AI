@@ -70,6 +70,7 @@ def build_trace_record(
     result: dict[str, Any],
     preview: dict[str, Any],
     synthetic_note: str | None = None,
+    worked_example: list[dict] | None = None,
 ) -> dict:
     """Reshape a verify_against_multiple_embeddings(explain=True) result +
     build_waveform_preview() output into the PipelineTrace JSON schema the
@@ -103,6 +104,8 @@ def build_trace_record(
             "embedding_dim": len(result["live_embedding"]),
             "live_embedding": _to_list(result["live_embedding"]),
             "matched_enroll_embedding": _to_list(result["matched_enroll_embedding"]),
+            "ecapa_blocks": result.get("ecapa_blocks") or [],
+            "ecapa_worked_example": worked_example or [],
             "all_scores": [float(s) for s in result["all_scores"]],
             "best_index": result["best_index"],
             "best_label": result["best_label"],

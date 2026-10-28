@@ -45,8 +45,14 @@ class BiometricService:
         behavior_profiles = behavior_profiles or {}
         config = DecisionConfig()
 
-        # 1. Extract live embedding
-        live_emb = self.speaker.extract_embedding(live_wav)
+        # 1. Extract live embedding (plus per-block ECAPA activation traces
+        # when explain=True, for the /pipeline explainer page)
+        embedding_result = self.speaker.extract_embedding(live_wav, capture_trace=explain)
+        if explain:
+            live_emb, ecapa_blocks = embedding_result
+        else:
+            live_emb = embedding_result
+            ecapa_blocks = []
 
         scores = []
         for prof in enroll_embeddings:
@@ -175,6 +181,7 @@ class BiometricService:
         if explain:
             result.update({
                 "live_embedding": live_emb,
+                "ecapa_blocks": ecapa_blocks,
                 "matched_enroll_embedding": enroll_embeddings[best_idx]["embedding"],
                 "spoof_breakdown": spoof_breakdown,
                 "speech_sec": speech_sec,

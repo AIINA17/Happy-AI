@@ -45,6 +45,7 @@ import torch  # noqa: E402
 from voiceverification.core.behavior_profile import BehaviorProfile  # noqa: E402
 from voiceverification.services.biometric_service import BiometricService  # noqa: E402
 from voiceverification.utils.audio import normalize_audio  # noqa: E402
+from voiceverification.utils.ecapa_worked_example import build_worked_example  # noqa: E402
 from voiceverification.utils.pipeline_trace import (  # noqa: E402
     build_trace_record,
     build_waveform_preview,
@@ -218,6 +219,7 @@ def _run_scenario(
     )
 
     preview = build_waveform_preview(str(live_wav))
+    worked_example = build_worked_example(str(live_wav))
 
     trace = build_trace_record(
         scenario_id=spec["id"],
@@ -228,6 +230,7 @@ def _run_scenario(
         result=result,
         preview=preview,
         synthetic_note=synthetic_note,
+        worked_example=worked_example,
     )
 
     print(

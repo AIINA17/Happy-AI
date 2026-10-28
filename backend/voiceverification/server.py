@@ -358,6 +358,34 @@ async def enroll_voice(
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Invalid/unsupported audio upload: {e}")
 
+    # Reject enrollments that are too short to produce a stable embedding.
+    # Below ~3 s of trimmed speech, ECAPA-TDNN embeddings are noisy enough
+    # that same-speaker scores land in the 0.3-0.5 range (impostor-ish),
+    # which is exactly the "voice gak pernah bener" symptom the user hit.
+    # Match the live-side MIN_SPEECH_SEC in biometric_service.py; raise
+    # it a bit higher for enrollment because enrollment embeddings get
+    # re-used across many verifications — more worth getting right.
+    try:
+        y_check, sr_check = librosa.load(wav_path, sr=16000, mono=True)
+        y_trim, _ = librosa.effects.trim(y_check, top_db=25)
+        speech_dur = len(y_trim) / sr_check
+        print(f"🎙 Enroll '{label}': {speech_dur:.2f}s of speech after trim")
+        if speech_dur < 3.0:
+            os.remove(wav_path)
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Audio terlalu pendek ({speech_dur:.1f}s). Minimal "
+                    f"3 detik bicara. Coba ulangi dengan kalimat lebih "
+                    f"panjang, misalnya 'Halo, nama saya [...] saya "
+                    f"sedang mendaftarkan suara'."
+                ),
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"⚠️ Speech duration check failed: {e}")
+
     try:
         embedding = get_biometric().speaker.extract_embedding(wav_path)
 
@@ -374,7 +402,7 @@ async def enroll_voice(
                 status_code=400,
                 detail=f"Enrollment with label '{label}' already exists."
             )
-        
+
         profile_id = save_embedding(user_id, embedding, label)
 
         # The WAV is deleted below, so the spectrogram has to be rendered now.

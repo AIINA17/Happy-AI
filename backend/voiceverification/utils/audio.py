@@ -36,6 +36,34 @@ def save_audio(audio: UploadFile) -> str:
 def normalize_audio(path):
     y, sr = librosa.load(path, sr=16000, mono=True)
 
+    # ---------- SILENCE TRIM ----------
+    # ECAPA-TDNN produces a utterance-level embedding by averaging frame-
+    # level outputs. Long silences at the head/tail of the clip pull that
+    # average towards "nothing", washing out the speaker's identity and
+    # making same-speaker cosine scores drift down into impostor
+    # territory (0.4-0.5 instead of 0.7-0.9). We trim here so BOTH
+    # enrollment and verification see speech-only audio before the
+    # embedding is extracted.
+    #
+    # top_db=25 is a conservative gate (anything >25 dB below the max is
+    # treated as silence). Loud enough to not clip actual speech, quiet
+    # enough to catch typical room noise. Match _speech_duration in
+    # biometric_service.py so both agree on what "speech" means.
+    if len(y) > 0:
+        try:
+            y_trim, _ = librosa.effects.trim(y, top_db=25)
+            # Only use the trimmed version if there's still real audio
+            # left (don't accidentally throw away everything on a silent
+            # file).
+            if len(y_trim) > sr * 0.3:
+                y = y_trim
+        except Exception:
+            # librosa trimming shouldn't fail, but if it does, fall back
+            # to the raw signal — a slightly worse embedding is better
+            # than a hard crash on upload.
+            pass
+
+    # ---------- RMS NORMALIZE ----------
     rms = float(np.sqrt(np.mean(y ** 2))) if len(y) else 0.0
     if rms > 1e-6:
         gain = TARGET_RMS / rms

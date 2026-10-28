@@ -8,12 +8,20 @@ class Decision(Enum):
 
 @dataclass
 class DecisionConfig:
-    # Speaker verification thresholds
-    voice_accept: float = 0.45
-    voice_repeat: float = 0.30
+    # Speaker verification thresholds.
+    # Raised from (0.45 / 0.30) to (0.70 / 0.55) to align with the stricter
+    # dashboard display threshold the user asked for. The silence-trim +
+    # enrollment-duration guard added in audio.py + server.py pushes
+    # legitimate same-speaker scores from the old 0.42-0.50 range up into
+    # 0.70-0.85, so these higher thresholds are reachable in practice while
+    # noticeably tightening the impostor gate.
+    voice_accept: float = 0.70
+    voice_repeat: float = 0.55
 
-    # Absolute minimum speaker score    
-    abs_min_speaker: float = 0.35
+    # Absolute minimum speaker score — raised with the main threshold so
+    # a weak-but-present match still gets REPEAT (ask again) rather than
+    # a hard DENIED when it's just a quiet / short clip.
+    abs_min_speaker: float = 0.50
 
 
     # Replay attack detection thresholds.

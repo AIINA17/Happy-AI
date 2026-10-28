@@ -58,6 +58,16 @@ class BiometricService:
         best_score = float(scores[best_idx])
         best_label = enroll_embeddings[best_idx]["label"]
 
+        # Diagnostic: makes it obvious in the terminal why a verification
+        # went one way or the other. Scores dropping below ~0.5 for a
+        # same-speaker setup almost always means the audio was too short,
+        # too noisy, or the enrollment itself was poor — those are the
+        # things to fix before touching thresholds.
+        print(
+            f"🔊 Verify: best={best_score:.3f} ({best_label}) | "
+            f"all={[round(s, 3) for s in scores]}"
+        )
+
         # 2. Spoof Score
         spoof_prob, _ = compute_score(live_wav)
 

@@ -131,11 +131,15 @@ export default function DashboardPage() {
     all_scores?: { label: string; score: number }[];
     label?: string | null;
     speaker_score?: number | null;
+    reason?: string | null;
   }
   const [livePoints, setLivePoints] = useState<LivePoint[]>([]);
 
   const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL;
-  const ACCEPT_THRESHOLD = 0.75;
+  // Match backend DecisionConfig.voice_accept (0.70). Both have to agree
+  // or the dashboard will show "REJECTED" for samples the engine actually
+  // VERIFIED (or vice-versa) — the user asked us to keep them in sync.
+  const ACCEPT_THRESHOLD = 0.70;
   const EMB_COLORS = [
     "#60a5fa",
     "#34d399",
@@ -482,7 +486,7 @@ export default function DashboardPage() {
       const { data } = await supabase
         .from("voice_verification_logs")
         .select(
-          "pca_x, pca_y, decision, created_at, all_scores, label, speaker_score",
+          "pca_x, pca_y, decision, created_at, all_scores, label, speaker_score, reason",
         )
         .not("pca_x", "is", null)
         .order("created_at", { ascending: false })
@@ -497,6 +501,7 @@ export default function DashboardPage() {
             all_scores: d.all_scores || [],
             label: d.label,
             speaker_score: d.speaker_score,
+            reason: d.reason,
           })),
         );
       }
@@ -522,6 +527,7 @@ export default function DashboardPage() {
             all_scores?: { label: string; score: number }[];
             label?: string | null;
             speaker_score?: number | null;
+            reason?: string | null;
           };
           if (row.pca_x == null || row.pca_y == null) return;
           setLivePoints((prev) => {
@@ -535,6 +541,7 @@ export default function DashboardPage() {
                 all_scores: row.all_scores || [],
                 label: row.label,
                 speaker_score: row.speaker_score,
+                reason: row.reason,
               },
             ];
             return next.slice(-30);
@@ -1285,6 +1292,7 @@ interface TooltipPayload {
     speaker_score?: number | null;
     all_scores?: { label: string; score: number }[];
     created_at?: string;
+    reason?: string | null;
   };
 }
 
@@ -1324,6 +1332,11 @@ function EmbeddingTooltip({
               </span>
             )}
           </div>
+          {d.reason && (
+            <div className="text-rose-300/80 italic text-[11px] mb-2">
+              {d.reason}
+            </div>
+          )}
           {d.all_scores && d.all_scores.length > 0 ? (
             <>
               <div className="text-muted-foreground mb-1 uppercase tracking-wide text-[10px]">

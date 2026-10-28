@@ -237,7 +237,11 @@ async def verify_voice(request: Request, audio: UploadFile = File(...)):
         # dashboard uses, so each verification shows up as a live dot on
         # the embedding scatter plot. Needs ≥2 enrollments to fit PCA;
         # otherwise store None and the dashboard just skips the dot.
+        # We also stash the first 8 raw dimensions of the live embedding
+        # so the transparency panel can line it up next to enrolled
+        # vectors — "here are the actual numbers for this verification".
         pca_x, pca_y = None, None
+        preview_dims = None
         try:
             if len(enroll_embeddings) >= 2:
                 live_emb = bio.speaker.extract_embedding(wav_path)
@@ -249,6 +253,7 @@ async def verify_voice(request: Request, audio: UploadFile = File(...)):
                 pca.fit(enroll_matrix)
                 live_2d = pca.transform(live_emb.reshape(1, -1))[0]
                 pca_x, pca_y = float(live_2d[0]), float(live_2d[1])
+                preview_dims = [float(v) for v in live_emb[:8]]
         except Exception:
             # PCA projection is a nice-to-have; verification result must
             # not be blocked by a visualization error.
@@ -284,6 +289,7 @@ async def verify_voice(request: Request, audio: UploadFile = File(...)):
                 "pca_x": pca_x,
                 "pca_y": pca_y,
                 "all_scores": all_scores_labeled,
+                "preview_dims": preview_dims,
             })
         except Exception:
             # Metrics logging must never break a verification response.
@@ -655,18 +661,35 @@ async def visualize_embeddings(request: Request):
     pca = PCA(n_components=2)
     coords = pca.fit_transform(embeddings)
 
+    # Also expose the first 8 raw dimensions of each embedding so the
+    # dashboard can show a transparency panel: "here are the actual
+    # numbers coming out of ECAPA-TDNN — no manipulation". 8 is enough
+    # to visually prove embeddings differ between labels without
+    # overwhelming the UI with all 256.
+    PREVIEW_DIMS = 8
     points = [
-        {"x": float(coords[i][0]), "y": float(coords[i][1]), "label": labels[i]}
+        {
+            "x": float(coords[i][0]),
+            "y": float(coords[i][1]),
+            "label": labels[i],
+            "preview_dims": [float(v) for v in embeddings[i][:PREVIEW_DIMS]],
+        }
         for i in range(len(labels))
     ]
 
-    # Return PCA params so a *new* live embedding can be projected into
-    # the same 2-D space during a test — see /embeddings/project below.
+    # explained_variance_ratio_ tells us what fraction of the original
+    # 256-D variance each principal component captures. If PC1+PC2 ≥ 60%
+    # the 2-D view is a faithful representation; below that, hint to the
+    # viewer that the real cluster separation may be sharper than what
+    # they see here. Standard PCA diagnostics every ML audience expects.
+    ev_ratio = pca.explained_variance_ratio_.tolist()
+
     return {
         "status": "OK",
         "points": points,
         "pca_components": pca.components_.tolist(),  # shape (2, D)
         "pca_mean": pca.mean_.tolist(),              # shape (D,)
+        "explained_variance_ratio": ev_ratio,        # [pc1_ratio, pc2_ratio]
     }
 
 

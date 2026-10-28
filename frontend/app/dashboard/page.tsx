@@ -103,6 +103,7 @@ export default function DashboardPage() {
     x: number;
     y: number;
     label: string;
+    preview_dims?: number[];
   }
   interface Similarity {
     label: string;
@@ -110,6 +111,10 @@ export default function DashboardPage() {
   }
 
   const [enrolledPoints, setEnrolledPoints] = useState<EmbPoint[]>([]);
+  // PC1 and PC2 variance ratios (0-1). Displayed in axis labels so the
+  // audience can judge how faithfully this 2-D projection represents
+  // the full 256-D space.
+  const [varianceRatio, setVarianceRatio] = useState<number[]>([]);
   const [testPoint, setTestPoint] = useState<EmbPoint | null>(null);
   const [similarities, setSimilarities] = useState<Similarity[]>([]);
   const [bestScore, setBestScore] = useState<number | null>(null);
@@ -132,6 +137,7 @@ export default function DashboardPage() {
     label?: string | null;
     speaker_score?: number | null;
     reason?: string | null;
+    preview_dims?: number[];
   }
   const [livePoints, setLivePoints] = useState<LivePoint[]>([]);
 
@@ -462,6 +468,7 @@ export default function DashboardPage() {
       const data = await res.json();
       if (data.status === "OK") {
         setEnrolledPoints(data.points || []);
+        setVarianceRatio(data.explained_variance_ratio || []);
       }
     } catch (err) {
       console.error("Failed to load enrolled embeddings:", err);
@@ -486,7 +493,7 @@ export default function DashboardPage() {
       const { data } = await supabase
         .from("voice_verification_logs")
         .select(
-          "pca_x, pca_y, decision, created_at, all_scores, label, speaker_score, reason",
+          "pca_x, pca_y, decision, created_at, all_scores, label, speaker_score, reason, preview_dims",
         )
         .not("pca_x", "is", null)
         .order("created_at", { ascending: false })
@@ -502,6 +509,7 @@ export default function DashboardPage() {
             label: d.label,
             speaker_score: d.speaker_score,
             reason: d.reason,
+            preview_dims: d.preview_dims || [],
           })),
         );
       }
@@ -528,6 +536,7 @@ export default function DashboardPage() {
             label?: string | null;
             speaker_score?: number | null;
             reason?: string | null;
+            preview_dims?: number[];
           };
           if (row.pca_x == null || row.pca_y == null) return;
           setLivePoints((prev) => {
@@ -542,6 +551,7 @@ export default function DashboardPage() {
                 label: row.label,
                 speaker_score: row.speaker_score,
                 reason: row.reason,
+                preview_dims: row.preview_dims || [],
               },
             ];
             return next.slice(-30);
@@ -978,8 +988,9 @@ export default function DashboardPage() {
                     Voice Embedding Space
                   </h2>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    256-D speaker vectors · PCA 2-D · live stream dari
-                    session aktif
+                    256-D speaker vectors · PCA 2-D
+                    {varianceRatio.length === 2 &&
+                      ` · ${((varianceRatio[0] + varianceRatio[1]) * 100).toFixed(1)}% total variance preserved`}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -1023,7 +1034,9 @@ export default function DashboardPage() {
                         stroke="rgba(255,255,255,0.5)"
                         fontSize={11}
                         label={{
-                          value: "Principal Component 1",
+                          value: varianceRatio[0]
+                            ? `PC1 (${(varianceRatio[0] * 100).toFixed(1)}% variance)`
+                            : "Principal Component 1",
                           position: "insideBottom",
                           offset: -8,
                           fill: "rgba(255,255,255,0.5)",
@@ -1037,7 +1050,9 @@ export default function DashboardPage() {
                         stroke="rgba(255,255,255,0.5)"
                         fontSize={11}
                         label={{
-                          value: "Principal Component 2",
+                          value: varianceRatio[1]
+                            ? `PC2 (${(varianceRatio[1] * 100).toFixed(1)}% variance)`
+                            : "Principal Component 2",
                           angle: -90,
                           position: "insideLeft",
                           fill: "rgba(255,255,255,0.5)",
@@ -1241,6 +1256,135 @@ export default function DashboardPage() {
               )}
             </div>
           </div>
+
+          {/* ========= RAW EMBEDDING TRANSPARENCY PANEL =========
+              First 8 of 256 dimensions, enrolled + latest live. Lets
+              anyone eyeball that the vectors (a) exist, (b) differ
+              between enrollments, (c) differ between enrollment and a
+              fresh live sample. Nothing hidden. */}
+          {enrolledPoints.length > 0 && (
+            <div className="mt-6 rounded-xl border border-border/60 bg-card/60 backdrop-blur-sm p-5">
+              <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                <div>
+                  <h2 className="text-lg font-semibold">
+                    Raw Embedding Preview
+                  </h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    8 dari 256 dimensi · angka asli dari output ECAPA-TDNN
+                    (tidak dimodifikasi)
+                  </p>
+                </div>
+                <span className="text-[10px] text-muted-foreground font-mono px-2 py-1 rounded bg-muted/30 border border-border/40">
+                  dim[0..7] of 256
+                </span>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="text-[10px] text-muted-foreground uppercase tracking-wide border-b border-border/60">
+                      <th className="text-left font-medium py-2 pr-4 sticky left-0 bg-card/60">
+                        Source
+                      </th>
+                      {Array.from({ length: 8 }).map((_, i) => (
+                        <th
+                          key={i}
+                          className="text-right font-medium py-2 px-2 font-mono"
+                        >
+                          dim[{i}]
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {enrolledPoints.map((p, idx) => (
+                      <tr
+                        key={`enroll-${idx}`}
+                        className="border-b border-border/30"
+                      >
+                        <td className="py-2 pr-4 sticky left-0 bg-card/60">
+                          <span
+                            className="inline-block w-2 h-2 rounded-full mr-2"
+                            style={{
+                              background:
+                                EMB_COLORS[idx % EMB_COLORS.length],
+                            }}
+                          />
+                          {p.label}
+                        </td>
+                        {(p.preview_dims ?? []).map((v, i) => (
+                          <td
+                            key={i}
+                            className="text-right py-2 px-2 font-mono tabular-nums"
+                          >
+                            {v >= 0 ? " " : ""}
+                            {v.toFixed(4)}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+
+                    {/* Latest live verification — bright highlighted row
+                        so audience can compare it directly against the
+                        enrolled rows above. */}
+                    {livePoints.length > 0 &&
+                      livePoints[livePoints.length - 1].preview_dims &&
+                      livePoints[livePoints.length - 1].preview_dims!.length >
+                        0 && (
+                        <tr className="border-t-2 border-rose-500/40 bg-rose-500/5">
+                          <td className="py-2 pr-4 sticky left-0 bg-rose-500/5">
+                            <span className="inline-block w-2 h-2 rounded-full mr-2 bg-rose-500" />
+                            <span className="font-semibold text-rose-300">
+                              live (newest)
+                            </span>
+                          </td>
+                          {livePoints[
+                            livePoints.length - 1
+                          ].preview_dims!.map((v, i) => {
+                            // Find closest enrolled value for this dim
+                            // and highlight if live is within tight range
+                            const closest = Math.min(
+                              ...enrolledPoints
+                                .filter((p) => p.preview_dims)
+                                .map((p) =>
+                                  Math.abs((p.preview_dims![i] ?? 0) - v),
+                                ),
+                            );
+                            const isClose = closest < 0.02;
+                            return (
+                              <td
+                                key={i}
+                                className={`text-right py-2 px-2 font-mono tabular-nums ${
+                                  isClose
+                                    ? "text-emerald-300 font-semibold"
+                                    : "text-rose-200"
+                                }`}
+                              >
+                                {v >= 0 ? " " : ""}
+                                {v.toFixed(4)}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      )}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="mt-3 text-[11px] text-muted-foreground leading-relaxed">
+                <span className="text-emerald-400">Hijau</span> = angka
+                live sangat dekat (&lt;0.02) dengan salah satu enrollment
+                di dimensi itu.{" "}
+                <span className="text-rose-200">Pink</span> = berbeda.
+                Transparansi 100%: angka ini adalah output langsung dari{" "}
+                <code className="text-foreground">
+                  speaker_encoder.encode_batch(wav)
+                </code>{" "}
+                tanpa modifikasi — bisa dicek langsung di terminal backend
+                dengan <code className="text-foreground">print()</code>.
+              </div>
+            </div>
+          )}
         </section>
       </div>
     </main>

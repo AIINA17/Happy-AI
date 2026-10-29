@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import {
     ChevronLeft,
@@ -32,27 +32,45 @@ export default function ProductCarousel({
     onActiveChange,
     reviewsForProduct,
 }: ProductCarouselProps) {
+    // Product IDs can overlap between stores, while duplicate records can
+    // also occur when search results are merged. Keep one card per
+    // source/product identity so the rendered list has stable unique keys.
+    const uniqueProducts = useMemo(
+        () =>
+            Array.from(
+                new Map(
+                    products.map((product) => [
+                        `${product.source ?? ""}-${product.id}`,
+                        product,
+                    ]),
+                ).values(),
+            ),
+        [products],
+    );
+
     const [internalIndex, setInternalIndex] = useState(0);
     const activeIndex = controlledIndex ?? internalIndex;
 
     // Reset to first card whenever the product list identity changes
     const prevIdsRef = useRef<string>("");
     useEffect(() => {
-        const ids = products.map((p) => p.id).join(",");
+        const ids = uniqueProducts
+            .map((product) => `${product.source ?? ""}-${product.id}`)
+            .join(",");
         if (ids !== prevIdsRef.current) {
             prevIdsRef.current = ids;
             setInternalIndex(0);
             onActiveChange?.(0);
         }
-    }, [products, onActiveChange]);
+    }, [uniqueProducts, onActiveChange]);
 
     const setActive = useCallback(
         (next: number) => {
-            const clamped = Math.max(0, Math.min(products.length - 1, next));
+            const clamped = Math.max(0, Math.min(uniqueProducts.length - 1, next));
             if (controlledIndex === undefined) setInternalIndex(clamped);
             onActiveChange?.(clamped);
         },
-        [products.length, controlledIndex, onActiveChange],
+        [uniqueProducts.length, controlledIndex, onActiveChange],
     );
 
     const goPrev = () => setActive(activeIndex - 1);
@@ -97,14 +115,14 @@ export default function ProductCarousel({
         window.addEventListener("keydown", onKey);
         return () => window.removeEventListener("keydown", onKey);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [activeIndex, products.length]);
+    }, [activeIndex, uniqueProducts.length]);
 
-    if (!products || products.length === 0) return null;
+    if (uniqueProducts.length === 0) return null;
 
     // Check whether we have fresh reviews that match the ACTIVE product's
     // name. When yes, we animate the card smaller/higher to open space for
     // the reviews panel below.
-    const activeProduct = products[activeIndex];
+    const activeProduct = uniqueProducts[activeIndex];
     const showReviewsPanel =
         !!reviewsForProduct &&
         reviewsForProduct.reviews.length > 0 &&
@@ -136,7 +154,7 @@ export default function ProductCarousel({
             )}
 
             {/* Next chevron (always visible) */}
-            {activeIndex < products.length - 1 && (
+            {activeIndex < uniqueProducts.length - 1 && (
                 <button
                     onClick={goNext}
                     aria-label="Next product"
@@ -161,7 +179,7 @@ export default function ProductCarousel({
                                    ? "h-[460px] -translate-y-2 scale-[0.95]"
                                    : "h-[520px] translate-y-0 scale-100"
                            }`}>
-                {products.map((product, idx) => {
+                {uniqueProducts.map((product, idx) => {
                     const distance = idx - activeIndex;
                     const absDist = Math.abs(distance);
                     // Hide cards more than 2 positions away
@@ -182,7 +200,7 @@ export default function ProductCarousel({
 
                     return (
                         <div
-                            key={product.id}
+                            key={`${product.source ?? ""}-${product.id}`}
                             className="absolute inset-0 transition-all duration-300 ease-out"
                             style={{
                                 transform: `translateX(${translateX}${isActive && isDragging ? "px" : "%"}) scale(${scale})`,
@@ -196,7 +214,7 @@ export default function ProductCarousel({
                                 product={product}
                                 isActive={isActive}
                                 index={idx}
-                                total={products.length}
+                                total={uniqueProducts.length}
                             />
                         </div>
                     );
@@ -204,9 +222,9 @@ export default function ProductCarousel({
             </div>
 
             {/* Dots indicator */}
-            {products.length > 1 && !showReviewsPanel && (
+            {uniqueProducts.length > 1 && !showReviewsPanel && (
                 <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5 z-30">
-                    {products.map((_, idx) => (
+                    {uniqueProducts.map((_, idx) => (
                         <button
                             key={idx}
                             onClick={() => setActive(idx)}

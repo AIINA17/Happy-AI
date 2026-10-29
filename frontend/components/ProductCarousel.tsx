@@ -365,6 +365,7 @@ function ProductCard({
                                 className={`object-cover transition-opacity duration-500
                                     ${i === currentImage ? "opacity-100" : "opacity-0"}`}
                                 sizes="(max-width: 640px) 280px, 320px"
+                                unoptimized
                                 priority={i === 0 && isActive}
                             />
                         ))}

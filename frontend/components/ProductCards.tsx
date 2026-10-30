@@ -22,6 +22,8 @@ export default function ProductCards({ products }: ProductCardsProps) {
     const uniqueProducts = Array.from(
         new Map(products.map((p) => [`${p.source ?? ""}-${p.id}`, p])).values(),
     );
+    const getProductHref = (link: Product["link"]) =>
+      typeof link === "string" && link.trim().length > 0 ? link : "#";
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("id-ID", {
@@ -46,7 +48,7 @@ export default function ProductCards({ products }: ProductCardsProps) {
                 {uniqueProducts.map((product) => (
                     <Link
                         key={`${product.source ?? ""}-${product.id}`}
-                        href={product.link ?? "#"}
+                        href={getProductHref(product.link)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="block">

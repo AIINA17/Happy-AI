@@ -55,6 +55,7 @@ export default function ProductCards({ products }: ProductCardsProps) {
                                     fill
                                     className="object-cover"
                                     sizes="(max-width: 768px) 50vw, 25vw"
+                                    unoptimized
                                 />
                             ) : (
                                 <div className="w-full h-full flex items-center justify-center text-muted-foreground">

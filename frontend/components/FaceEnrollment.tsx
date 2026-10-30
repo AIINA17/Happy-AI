@@ -12,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { MEDIAPIPE_WASM_URL } from "@/lib/mediapipe";
 
 interface Props {
   userId: string | null;
@@ -104,7 +105,7 @@ export default function FaceEnrollment({ userId, setVerifyStatus }: Props) {
   const loadFaceDetector = useCallback(async () => {
     try {
       const vision = await FilesetResolver.forVisionTasks(
-        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm",
+        MEDIAPIPE_WASM_URL,
       );
 
       const detector = await FaceDetector.createFromOptions(vision, {

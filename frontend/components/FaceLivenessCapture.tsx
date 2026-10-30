@@ -37,6 +37,7 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { MEDIAPIPE_WASM_URL } from "@/lib/mediapipe";
 
 export type FaceVerifyDecision = "VERIFIED" | "DENIED" | "ERROR";
 
@@ -242,7 +243,7 @@ export default function FaceLivenessCapture({
         if (landmarkerRef.current) return landmarkerRef.current;
         if (!landmarkerPromiseRef.current) {
             landmarkerPromiseRef.current = FilesetResolver.forVisionTasks(
-                "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm",
+                MEDIAPIPE_WASM_URL,
             ).then((vision) =>
                 FaceLandmarker.createFromOptions(vision, {
                     baseOptions: {

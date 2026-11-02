@@ -19,7 +19,7 @@ TARGET_RMS = 0.1
 UPLOAD_DIR = "tmp_audio"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-def save_audio(audio: UploadFile) -> str:
+def save_audio(audio: UploadFile, debug_capture_dir: str | None = None) -> str:
     # ⚠️ Jangan percaya filename
     raw_ext = ".webm"
     raw_path = os.path.join(UPLOAD_DIR, f"{uuid.uuid4().hex}{raw_ext}")
@@ -27,6 +27,17 @@ def save_audio(audio: UploadFile) -> str:
 
     with open(raw_path, "wb") as buffer:
         shutil.copyfileobj(audio.file, buffer)
+
+    # Diagnostic-only: preserve the exact bytes the browser uploaded (before
+    # ffmpeg ever touches them) so a false-positive "replay attack" verdict
+    # can be compared against the clean dataset/ samples offline. Caller
+    # gates this (see server.py's VOICE_DEBUG_CAPTURE_DIR) — None by default.
+    if debug_capture_dir:
+        os.makedirs(debug_capture_dir, exist_ok=True)
+        shutil.copy(
+            raw_path,
+            os.path.join(debug_capture_dir, f"{os.path.basename(raw_path).removesuffix('.webm')}_raw.webm"),
+        )
 
     webm_to_wav(raw_path, wav_path)
     os.remove(raw_path)

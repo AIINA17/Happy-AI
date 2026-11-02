@@ -5,6 +5,7 @@ import numpy as np
 
 from face_recognition.arcface_model import ArcFaceModel
 from face_recognition.face_service import FaceRecognitionService
+from face_recognition.face_trace import decode_image, extract_face_trace, json_safe
 from face_recognition.liveness_challenge import (
     CHALLENGE_TTL_SECONDS,
     consume_challenge,
@@ -209,6 +210,53 @@ async def verify_face(
 
         await notify(False)
         raise HTTPException(status_code=500, detail=f"Terjadi kesalahan server: {str(error)}")
+
+
+# EXPLAIN-MODE VERIFICATION FOR THE /pipeline EXPLAINER PAGE'S LIVE FACE
+# CAPTURE
+#
+# Same real buffalo_l pipeline as /verify-face, but returns every stage's
+# real output (bbox, keypoints, aligned crop, embedding preview) instead of
+# just the final decision, and does NOT persist anything: no
+# face_verification_logs row, no FACE_RESULT room publish — booth capture
+# attempts must never pollute the presenter's real account history or fire
+# an agent-facing event. No liveness check either (same as /verify-face's
+# no-liveness_token path) — this is a recognition-only demo capture.
+@router.post("/verify-face/explain")
+async def verify_face_explain(
+    user_id: str = Form(...),
+    image: UploadFile = File(...),
+):
+    try:
+        reference_embedding = face_repo.get_embedding(user_id)
+    except Exception as error:
+        raise HTTPException(status_code=500, detail=f"Terjadi kesalahan server: {str(error)}")
+
+    if reference_embedding is None:
+        raise HTTPException(status_code=400, detail="User belum memiliki face embedding.")
+
+    try:
+        image_bytes = await image.read()
+        img = decode_image(image_bytes)
+        trace = extract_face_trace(arcface_model, img, source_file=None)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error))
+    except Exception as error:
+        raise HTTPException(status_code=500, detail=f"Terjadi kesalahan server: {str(error)}")
+
+    result = face_service.verify(
+        test_embedding=trace["_embedding"],
+        reference_embedding=reference_embedding,
+    )
+
+    return {
+        "scenario_id": "live",
+        "title": "Percobaan live",
+        "probe": json_safe(trace),
+        "similarity": round(float(result["similarity"]), 4),
+        "threshold": result["threshold"],
+        "decision": result["status"],
+    }
 
 
 @router.get("/enroll-face/{user_id}")

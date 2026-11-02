@@ -7,6 +7,7 @@ verification services for speaker enrollment and spoof detection.
 import asyncio
 import json
 import os
+import shutil
 import time
 from datetime import datetime, timezone
 import traceback
@@ -79,6 +80,18 @@ AGENT_NAME = "happy-shopping-assistant"
 
 if not LIVEKIT_API_KEY or not LIVEKIT_API_SECRET:
     raise RuntimeError("LIVEKIT credentials not set")
+
+# Temporary diagnostic knob (2026-10-30 investigation into production
+# "Replay attack detected" false positives — voice_verification_logs shows
+# genuinely-matching speakers getting denied, see analysis in that thread).
+# When set, /verify-voice persists a capped number of raw browser uploads
+# (pre-ffmpeg webm, exactly as the browser encoded them) + the final scored
+# wav + decision metadata, so they can be compared offline against the
+# clean dataset/{genuine,spoof} samples. Off by default — unset the env var
+# to disable; the cap keeps a forgotten "on" from filling disk.
+VOICE_DEBUG_CAPTURE_DIR = os.getenv("VOICE_DEBUG_CAPTURE_DIR")
+VOICE_DEBUG_CAPTURE_LIMIT = int(os.getenv("VOICE_DEBUG_CAPTURE_LIMIT", "20"))
+_voice_debug_capture_count = 0
 
 
 app = FastAPI()
@@ -215,6 +228,7 @@ async def _load_user_context(user_id: str) -> tuple[list[dict], dict[str, Behavi
 
 @app.post("/verify-voice")
 async def verify_voice(request: Request, audio: UploadFile = File(...)):
+    global _voice_debug_capture_count
     user_id = get_user_id_from_request(request)
 
     enroll_embeddings, behavior_profiles = await _load_user_context(user_id)
@@ -224,8 +238,16 @@ async def verify_voice(request: Request, audio: UploadFile = File(...)):
             "reason": "No enrollment profile found for user."
         }
 
+    capture_debug = (
+        VOICE_DEBUG_CAPTURE_DIR is not None
+        and _voice_debug_capture_count < VOICE_DEBUG_CAPTURE_LIMIT
+    )
+
     try:
-        wav_path = save_audio(audio)
+        wav_path = save_audio(
+            audio,
+            debug_capture_dir=VOICE_DEBUG_CAPTURE_DIR if capture_debug else None,
+        )
         normalize_audio(wav_path)
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Invalid/unsupported audio upload: {e}")
@@ -247,6 +269,33 @@ async def verify_voice(request: Request, audio: UploadFile = File(...)):
 
         matched_label: str | None = result.get("best_label")
         updated_profile: BehaviorProfile | None = result.get("updated_behavior_profile")
+
+        if capture_debug:
+            _voice_debug_capture_count += 1
+            token = os.path.splitext(os.path.basename(wav_path))[0]
+            shutil.copy(
+                wav_path,
+                os.path.join(VOICE_DEBUG_CAPTURE_DIR, f"{token}_scored.wav"),
+            )
+            meta_path = os.path.join(VOICE_DEBUG_CAPTURE_DIR, f"{token}_meta.json")
+            with open(meta_path, "w") as f:
+                json.dump(
+                    {
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "user_id": user_id,
+                        "matched_label": matched_label,
+                        "decision": result["decision"],
+                        "reason": result["reason"],
+                        "speaker_score": result["score"],
+                        "spoof_prob": result["spoof_prob"],
+                    },
+                    f,
+                    indent=2,
+                )
+            print(
+                f"🐞 debug capture #{_voice_debug_capture_count}/{VOICE_DEBUG_CAPTURE_LIMIT} "
+                f"-> {token}"
+            )
 
         if matched_label and updated_profile:
             await asyncio.to_thread(save_behavior_profile, user_id, matched_label, updated_profile)

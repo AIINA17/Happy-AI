@@ -1,393 +1,556 @@
 "use client";
 
-// Pipeline explainer: walks a voice-verification attempt from raw audio to
-// the final VERIFIED/REPEAT/DENIED decision, one real stage at a time.
-// Replay mode (default) reads a static, pre-captured JSON — no backend
-// dependency, so this always works regardless of booth wifi/server state.
+// Pipeline explainer, v2: an interactive left-to-right flow diagram
+// (pan/zoom/drag canvas via @xyflow/react) instead of a stacked list of
+// cards. Top level shows the real architecture topology (audio feeds both
+// speaker-verification and anti-spoofing in parallel into one decision;
+// face recognition is a separate, independent fallback path — it is NOT
+// merged into the same decision, because it isn't in the real code
+// either). Clicking the ECAPA-TDNN, anti-spoof, or face-recognition block
+// "breaks it apart" into its own real sub-stage chain; clicking a
+// sub-stage opens a side panel with that one piece's real captured data.
+//
+// All data is the same real captured traces the previous version of this
+// page used (backend/voiceverification/analysis/capture_pipeline_traces.py
+// + the new backend/face_recognition/analysis/capture_face_traces.py) —
+// this is a new presentation layer, not new/different data.
 
-import type { Session } from "@supabase/supabase-js";
 import {
-  Activity,
+  Background,
+  type Edge,
+  MiniMap,
+  type Node,
+  type NodeMouseHandler,
+  ReactFlow,
+  ReactFlowProvider,
+  useReactFlow,
+} from "@xyflow/react";
+import "@xyflow/react/dist/style.css";
+import {
+  ArrowLeft,
   AudioLines,
+  Camera,
   CheckCircle2,
   Fingerprint,
   GitBranch,
+  MapPin,
+  ScanFace,
   ShieldAlert,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import type { Session } from "@supabase/supabase-js";
+import { useEffect, useMemo, useState } from "react";
 
-import { AntiSpoofArchitectureDiagram } from "@/components/pipeline/AntiSpoofArchitectureDiagram";
-import {
-  blockFormula as antispoofBlockFormula,
-} from "@/components/pipeline/antispoofBlockFormula";
+import { nodeTypes } from "@/components/pipeline-flow/BlockNode";
+import type { FaceScenario, FaceStageData, FaceTraceFile } from "@/components/pipeline-flow/faceTypes";
+import { LightThemeScope } from "@/components/pipeline-flow/LightThemeScope";
+import { LiveFaceCapturePanel } from "@/components/pipeline-flow/LiveFaceCapturePanel";
+import { FaceStagePanel, LayerBlockPanel } from "@/components/pipeline-flow/SidePanel";
+import { statusColor } from "@/components/charts/VerificationChartKit";
+import { blockFormula as antispoofBlockFormula } from "@/components/pipeline/antispoofBlockFormula";
 import { blockLabel as antispoofBlockLabel } from "@/components/pipeline/antispoofBlockLabel";
-import { BehaviorProfilePanel } from "@/components/pipeline/BehaviorProfilePanel";
-import { DecisionCascade } from "@/components/pipeline/DecisionCascade";
 import { blockFormula as ecapaBlockFormula } from "@/components/pipeline/ecapaBlockFormula";
 import { blockLabel as ecapaBlockLabel } from "@/components/pipeline/ecapaBlockLabel";
-import { EcapaArchitectureDiagram } from "@/components/pipeline/EcapaArchitectureDiagram";
-import { EmbeddingFingerprint } from "@/components/pipeline/EmbeddingFingerprint";
-import { FinalDecisionBadge } from "@/components/pipeline/FinalDecisionBadge";
-import { HeroStat } from "@/components/pipeline/HeroStat";
+import { LayerMagnitudeChart } from "@/components/pipeline/LayerMagnitudeChart";
 import { LiveCapturePanel } from "@/components/pipeline/LiveCapturePanel";
-import { ModelBlockTrace } from "@/components/pipeline/ModelBlockTrace";
-import { PipelineStage } from "@/components/pipeline/PipelineStage";
-import { ScenarioPicker } from "@/components/pipeline/ScenarioPicker";
-import { SpectrogramComparison } from "@/components/pipeline/SpectrogramComparison";
-import { ThresholdGauge } from "@/components/pipeline/ThresholdGauge";
-import { WaveformPreview } from "@/components/pipeline/WaveformPreview";
-import type { PipelineTrace } from "@/components/pipeline/types";
-import { statusColor } from "@/components/charts/VerificationChartKit";
-import { useSequentialReveal } from "@/hooks/useSequentialReveal";
+import type { LayerBlockOutput, PipelineTrace } from "@/components/pipeline/types";
 import { supabase } from "@/lib/supabase";
 import { normalizePublicServerUrl } from "@/lib/utils";
 
-const STAGE_COUNT = 6;
-
-const ACCENT_AUDIO = "#8a8a85";
+const ACCENT_AUDIO = "#64748b";
 const ACCENT_SPEAKER = "#2a78d6";
 const ACCENT_ANTISPOOF = "#eb6834";
-const ACCENT_BEHAVIOR = "#8b5cf6";
-const ACCENT_DECISION = "#8a8a85";
+const ACCENT_FACE = "#14b8a6";
+const ACCENT_DECISION = "#64748b";
 
-const ECAPA_WORKED_INTRO =
-  "Dihitung dari potongan audio yang sama, tapi pakai bobot ilustratif tetap — bukan bobot hasil training model asli. Dimensinya sengaja dikecilkan (4 frame, 4 kanal) supaya tiap langkah bisa diikuti; model asli memakai 80+ kanal mel dan lebih banyak frame.";
+type View = "overview" | "ecapa" | "antispoof" | "face";
 
-const ANTISPOOF_WORKED_INTRO =
-  "Dihitung dari potongan audio yang sama, tapi pakai bobot ilustratif tetap — bukan bobot hasil training model asli. Dimensinya sengaja dikecilkan (17 sample mentah, beberapa kanal) supaya tiap langkah bisa diikuti; model asli memproses ribuan sample dengan 512+ kanal dan 12 layer transformer.";
+type PanelSelection =
+  | { kind: "layer"; label: string; block: LayerBlockOutput; formula: string | null; accent: string }
+  | { kind: "face"; stage: "detection" | "landmark" | "alignment" | "recognition"; data: FaceStageData; accent: string }
+  | null;
+
+function buildOverviewGraph(
+  voiceTrace: PipelineTrace | null,
+  faceScenario: { decision: string; similarity: number } | null,
+): { nodes: Node[]; edges: Edge[] } {
+  const nodes: Node[] = [
+    {
+      id: "audio-input",
+      type: "block",
+      position: { x: 0, y: 40 },
+      data: { label: "Audio Masuk", icon: AudioLines, accent: ACCENT_AUDIO, clickable: false },
+    },
+    {
+      id: "ecapa",
+      type: "block",
+      position: { x: 280, y: -60 },
+      data: {
+        label: "Speaker Verification",
+        subtitle: "ECAPA-TDNN",
+        icon: Fingerprint,
+        accent: ACCENT_SPEAKER,
+        clickable: true,
+        stat: voiceTrace ? `score=${voiceTrace.speaker_verification.score.toFixed(3)}` : undefined,
+      },
+    },
+    {
+      id: "antispoof",
+      type: "block",
+      position: { x: 280, y: 140 },
+      data: {
+        label: "Anti-Spoofing",
+        subtitle: "wav2vec2",
+        icon: ShieldAlert,
+        accent: ACCENT_ANTISPOOF,
+        clickable: true,
+        stat: voiceTrace ? `fake_prob=${voiceTrace.anti_spoof.fake_prob.toFixed(4)}` : undefined,
+      },
+    },
+    {
+      id: "voice-decision",
+      type: "block",
+      position: { x: 600, y: 40 },
+      data: { label: "Decision Engine", icon: GitBranch, accent: ACCENT_DECISION, clickable: false },
+    },
+    {
+      id: "voice-final",
+      type: "block",
+      position: { x: 860, y: 40 },
+      data: {
+        label: voiceTrace?.decision.final ?? "—",
+        subtitle: "Keputusan suara",
+        icon: CheckCircle2,
+        accent: voiceTrace ? statusColor(voiceTrace.decision.final) : ACCENT_DECISION,
+        clickable: false,
+        highlight: true,
+      },
+    },
+    {
+      id: "face-input",
+      type: "block",
+      position: { x: 0, y: 380 },
+      data: { label: "Foto Wajah", subtitle: "jalur fallback terpisah", icon: Camera, accent: ACCENT_FACE, clickable: false },
+    },
+    {
+      id: "face-recognition",
+      type: "block",
+      position: { x: 280, y: 380 },
+      data: {
+        label: "Face Recognition",
+        subtitle: "InsightFace buffalo_l",
+        icon: ScanFace,
+        accent: ACCENT_FACE,
+        clickable: true,
+        stat: faceScenario ? `similarity=${faceScenario.similarity.toFixed(3)}` : undefined,
+      },
+    },
+    {
+      id: "face-final",
+      type: "block",
+      position: { x: 600, y: 380 },
+      data: {
+        label: faceScenario?.decision ?? "—",
+        subtitle: "Keputusan wajah",
+        icon: CheckCircle2,
+        accent: faceScenario ? statusColor(faceScenario.decision) : ACCENT_DECISION,
+        clickable: false,
+        highlight: true,
+      },
+    },
+  ];
+
+  const edges: Edge[] = [
+    { id: "e1", source: "audio-input", target: "ecapa", animated: true, style: { stroke: ACCENT_SPEAKER } },
+    { id: "e2", source: "audio-input", target: "antispoof", animated: true, style: { stroke: ACCENT_ANTISPOOF } },
+    { id: "e3", source: "ecapa", target: "voice-decision", animated: true, style: { stroke: ACCENT_SPEAKER } },
+    { id: "e4", source: "antispoof", target: "voice-decision", animated: true, style: { stroke: ACCENT_ANTISPOOF } },
+    { id: "e5", source: "voice-decision", target: "voice-final", animated: true, style: { stroke: ACCENT_DECISION } },
+    { id: "e6", source: "face-input", target: "face-recognition", animated: true, style: { stroke: ACCENT_FACE } },
+    { id: "e7", source: "face-recognition", target: "face-final", animated: true, style: { stroke: ACCENT_FACE } },
+  ];
+
+  return { nodes, edges };
+}
+
+function buildLayerDetailGraph(
+  blocks: LayerBlockOutput[],
+  labelFn: (name: string) => string,
+  accent: string,
+  finalLabel: string,
+  idPrefix: string,
+): { nodes: Node[]; edges: Edge[] } {
+  const nodes: Node[] = blocks.map((b, i) => ({
+    id: `${idPrefix}-${i}`,
+    type: "block",
+    position: { x: i * 210, y: 0 },
+    data: {
+      label: `${i + 1}. ${labelFn(b.name)}`,
+      subtitle: `[${b.shape.join("×")}]`,
+      icon: idPrefix === "ecapa" ? Fingerprint : ShieldAlert,
+      accent,
+      compact: true,
+      clickable: true,
+      stat: `μ=${b.mean?.toFixed(3)}`,
+    },
+  }));
+  nodes.push({
+    id: `${idPrefix}-final`,
+    type: "block",
+    position: { x: blocks.length * 210, y: 0 },
+    data: {
+      label: finalLabel,
+      icon: CheckCircle2,
+      accent,
+      compact: true,
+      clickable: false,
+      highlight: true,
+    },
+  });
+
+  // Sequential chain: 0 -> 1 -> 2 -> ... -> final.
+  const seqEdges: Edge[] = [];
+  for (let i = 0; i < blocks.length - 1; i++) {
+    seqEdges.push({
+      id: `${idPrefix}-seq${i}`,
+      source: `${idPrefix}-${i}`,
+      target: `${idPrefix}-${i + 1}`,
+      animated: true,
+      style: { stroke: accent },
+    });
+  }
+  seqEdges.push({
+    id: `${idPrefix}-seqfinal`,
+    source: `${idPrefix}-${blocks.length - 1}`,
+    target: `${idPrefix}-final`,
+    animated: true,
+    style: { stroke: accent },
+  });
+  return { nodes, edges: seqEdges };
+}
+
+function buildFaceDetailGraph(): { nodes: Node[]; edges: Edge[] } {
+  const stages: { id: string; label: string; subtitle: string }[] = [
+    { id: "face-detection", label: "1. Detection", subtitle: "det_10g.onnx" },
+    { id: "face-landmark", label: "2. Landmark", subtitle: "2d106det.onnx" },
+    { id: "face-alignment", label: "3. Alignment", subtitle: "norm_crop → 112×112" },
+    { id: "face-recognition-stage", label: "4. Recognition", subtitle: "w600k_r50.onnx (ArcFace)" },
+  ];
+  const nodes: Node[] = stages.map((s, i) => ({
+    id: s.id,
+    type: "block",
+    position: { x: i * 210, y: 0 },
+    data: { label: s.label, subtitle: s.subtitle, icon: ScanFace, accent: ACCENT_FACE, compact: true, clickable: true },
+  }));
+  nodes.push({
+    id: "face-embedding",
+    type: "block",
+    position: { x: stages.length * 210, y: 0 },
+    data: { label: "Embedding 512-d", icon: CheckCircle2, accent: ACCENT_FACE, compact: true, clickable: false, highlight: true },
+  });
+
+  const edges: Edge[] = [];
+  for (let i = 0; i < stages.length - 1; i++) {
+    edges.push({ id: `fe${i}`, source: stages[i].id, target: stages[i + 1].id, animated: true, style: { stroke: ACCENT_FACE } });
+  }
+  edges.push({ id: "fe-final", source: stages[stages.length - 1].id, target: "face-embedding", animated: true, style: { stroke: ACCENT_FACE } });
+
+  return { nodes, edges };
+}
+
+function FlowCanvas({
+  view,
+  voiceTrace,
+  faceScenario,
+  onNavigate,
+  onSelectLayer,
+  onSelectFace,
+}: {
+  view: View;
+  voiceTrace: PipelineTrace | null;
+  faceScenario: { decision: string; similarity: number } | null;
+  onNavigate: (v: View) => void;
+  onSelectLayer: (kind: "ecapa" | "antispoof", index: number) => void;
+  onSelectFace: (stage: "detection" | "landmark" | "alignment" | "recognition") => void;
+}) {
+  const { fitView } = useReactFlow();
+
+  const { nodes, edges } = useMemo(() => {
+    if (view === "overview") return buildOverviewGraph(voiceTrace, faceScenario);
+    if (view === "ecapa" && voiceTrace)
+      return buildLayerDetailGraph(
+        voiceTrace.speaker_verification.ecapa_blocks,
+        ecapaBlockLabel,
+        ACCENT_SPEAKER,
+        "Embedding 192-d",
+        "ecapa",
+      );
+    if (view === "antispoof" && voiceTrace)
+      return buildLayerDetailGraph(
+        voiceTrace.anti_spoof.antispoof_blocks,
+        antispoofBlockLabel,
+        ACCENT_ANTISPOOF,
+        "Fake/Real Probability",
+        "antispoof",
+      );
+    if (view === "face") return buildFaceDetailGraph();
+    return { nodes: [], edges: [] };
+  }, [view, voiceTrace, faceScenario]);
+
+  useEffect(() => {
+    const t = setTimeout(() => fitView({ duration: 500, padding: 0.25 }), 50);
+    return () => clearTimeout(t);
+  }, [view, nodes.length, fitView]);
+
+  const handleNodeClick: NodeMouseHandler = (_event, node) => {
+    if (view === "overview") {
+      if (node.id === "ecapa") onNavigate("ecapa");
+      else if (node.id === "antispoof") onNavigate("antispoof");
+      else if (node.id === "face-recognition") onNavigate("face");
+      return;
+    }
+    if (view === "ecapa" && node.id.startsWith("ecapa-") && node.id !== "ecapa-final") {
+      onSelectLayer("ecapa", Number(node.id.split("-")[1]));
+      return;
+    }
+    if (view === "antispoof" && node.id.startsWith("antispoof-") && node.id !== "antispoof-final") {
+      onSelectLayer("antispoof", Number(node.id.split("-")[1]));
+      return;
+    }
+    if (view === "face") {
+      if (node.id === "face-detection") onSelectFace("detection");
+      else if (node.id === "face-landmark") onSelectFace("landmark");
+      else if (node.id === "face-alignment") onSelectFace("alignment");
+      else if (node.id === "face-recognition-stage") onSelectFace("recognition");
+    }
+  };
+
+  return (
+    <ReactFlow
+      nodes={nodes}
+      edges={edges}
+      nodeTypes={nodeTypes}
+      onNodeClick={handleNodeClick}
+      fitView
+      minZoom={0.3}
+      maxZoom={1.5}
+      proOptions={{ hideAttribution: true }}
+    >
+      <Background color="#cbd5e1" gap={24} />
+      <MiniMap
+        pannable
+        zoomable
+        nodeColor={(n) => (n.data as { accent?: string }).accent ?? "#94a3b8"}
+        maskColor="rgba(241,245,249,0.7)"
+        className="bg-white! border! border-slate-200!"
+      />
+    </ReactFlow>
+  );
+}
 
 export default function PipelinePage() {
-  const [traces, setTraces] = useState<PipelineTrace[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [liveTrace, setLiveTrace] = useState<PipelineTrace | null>(null);
+  const [voiceTraces, setVoiceTraces] = useState<PipelineTrace[]>([]);
+  const [faceTrace, setFaceTrace] = useState<FaceTraceFile | null>(null);
+  const [voiceScenarioId, setVoiceScenarioId] = useState<string | null>(null);
+  const [faceScenarioId, setFaceScenarioId] = useState<string | null>(null);
+  const [view, setView] = useState<View>("overview");
+  const [panel, setPanel] = useState<PanelSelection>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const [voiceLive, setVoiceLive] = useState<PipelineTrace | null>(null);
+  const [faceLive, setFaceLive] = useState<FaceScenario | null>(null);
 
-  const apiBaseUrl = normalizePublicServerUrl(
-    process.env.NEXT_PUBLIC_SERVER_URL,
-  );
-
-  const { activeStage, play, showAll, reset } = useSequentialReveal(
-    STAGE_COUNT,
-    700,
-  );
+  const apiBaseUrl = normalizePublicServerUrl(process.env.NEXT_PUBLIC_SERVER_URL);
 
   useEffect(() => {
     fetch("/pipeline-demo/traces.json")
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      })
+      .then((r) => r.json())
       .then((data: PipelineTrace[]) => {
-        setTraces(data);
-        if (data.length > 0) setSelectedId(data[0].scenario_id);
-      })
-      .catch(() =>
-        setError(
-          "Gagal memuat data skenario (public/pipeline-demo/traces.json).",
-        ),
-      );
+        setVoiceTraces(data);
+        if (data.length > 0) setVoiceScenarioId(data[0].scenario_id);
+      });
+    fetch("/pipeline-demo/face-traces.json")
+      .then((r) => r.json())
+      .then((data: FaceTraceFile) => {
+        setFaceTrace(data);
+        if (data.scenarios.length > 0) setFaceScenarioId(data.scenarios[0].scenario_id);
+      });
   }, []);
 
-  // Replay mode never needs a login — only the "coba live" toggle does, and
-  // only when it's actually used. No redirect on missing session: a judge
+  // Replay mode never needs a login — only the live-capture buttons do,
+  // and only when actually used. No redirect on missing session: a judge
   // reading this page shouldn't get bounced to /login.
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) =>
-      setSession(s),
-    );
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => setSession(s));
     return () => sub.subscription.unsubscribe();
   }, []);
 
-  useEffect(() => {
-    reset();
-  }, [selectedId, liveTrace, reset]);
+  const voiceTrace = voiceLive ?? voiceTraces.find((t) => t.scenario_id === voiceScenarioId) ?? null;
+  const faceScenario = faceLive ?? faceTrace?.scenarios.find((s) => s.scenario_id === faceScenarioId) ?? null;
 
-  const trace =
-    liveTrace ?? traces.find((t) => t.scenario_id === selectedId) ?? null;
+  const handleSelectLayer = (kind: "ecapa" | "antispoof", index: number) => {
+    if (!voiceTrace) return;
+    const blocks = kind === "ecapa" ? voiceTrace.speaker_verification.ecapa_blocks : voiceTrace.anti_spoof.antispoof_blocks;
+    const labelFn = kind === "ecapa" ? ecapaBlockLabel : antispoofBlockLabel;
+    const formulaFn = kind === "ecapa" ? ecapaBlockFormula : antispoofBlockFormula;
+    const accent = kind === "ecapa" ? ACCENT_SPEAKER : ACCENT_ANTISPOOF;
+    const block = blocks[index];
+    if (!block) return;
+    setPanel({ kind: "layer", label: `${index + 1}. ${labelFn(block.name)}`, block, formula: formulaFn(block.name), accent });
+  };
+
+  const handleSelectFace = (stage: "detection" | "landmark" | "alignment" | "recognition") => {
+    const data = faceScenario?.probe ?? faceTrace?.enrolled;
+    if (!data) return;
+    setPanel({ kind: "face", stage, data, accent: ACCENT_FACE });
+  };
 
   return (
-    <main className="min-h-screen bg-(--bg-primary) overflow-y-auto">
-      <div className="max-w-5xl mx-auto px-6 py-10">
-        <header className="mb-6">
-          <h1 className="text-2xl font-semibold text-(--text-primary)">
-            Alur Verifikasi Suara
+    <LightThemeScope>
+      <main className="h-screen flex flex-col">
+        <header className="px-6 py-4 border-b border-slate-200 bg-white">
+          <h1 className="text-xl font-semibold text-slate-900">
+            Diagram Alir Verifikasi Biometrik
           </h1>
-          <p className="text-sm text-(--text-muted) mt-1">
-            Dari audio masuk sampai keputusan VERIFIED / REPEAT / DENIED —
-            data nyata dari speaker verification (ECAPA-TDNN) dan
-            anti-spoofing (wav2vec2), bukan angka ilustratif.
+          <p className="text-sm text-slate-500 mt-0.5">
+            Geser &amp; zoom diagramnya, klik blok Speaker Verification /
+            Anti-Spoofing / Face Recognition untuk pecah ke detail aslinya.
           </p>
+
+          <div className="flex flex-wrap items-center gap-3 mt-3">
+            {view !== "overview" && (
+              <button
+                onClick={() => setView("overview")}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-xs text-slate-700 hover:bg-slate-50 cursor-pointer"
+              >
+                <ArrowLeft size={14} /> Kembali ke overview
+              </button>
+            )}
+
+            {voiceTraces.length > 0 && (
+              <select
+                value={voiceLive ? "live" : (voiceScenarioId ?? "")}
+                onChange={(e) => {
+                  setVoiceLive(null);
+                  setVoiceScenarioId(e.target.value);
+                }}
+                className="text-xs border border-slate-300 rounded-lg px-2 py-1.5 bg-white text-slate-700"
+              >
+                {voiceLive && <option value="live">🔴 Hasil live barusan</option>}
+                {voiceTraces.map((t) => (
+                  <option key={t.scenario_id} value={t.scenario_id}>
+                    🎤 {t.title}
+                  </option>
+                ))}
+              </select>
+            )}
+
+            {faceTrace && faceTrace.scenarios.length > 0 && (
+              <select
+                value={faceLive ? "live" : (faceScenarioId ?? "")}
+                onChange={(e) => {
+                  setFaceLive(null);
+                  setFaceScenarioId(e.target.value);
+                }}
+                className="text-xs border border-slate-300 rounded-lg px-2 py-1.5 bg-white text-slate-700"
+              >
+                {faceLive && <option value="live">🔴 Hasil live barusan</option>}
+                {faceTrace.scenarios.map((s) => (
+                  <option key={s.scenario_id} value={s.scenario_id}>
+                    📷 {s.title}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 mt-3 pt-3 border-t border-slate-100">
+            <span className="text-xs font-medium text-slate-500">Coba Live:</span>
+            {!apiBaseUrl && (
+              <p className="text-xs text-slate-400">NEXT_PUBLIC_SERVER_URL belum dikonfigurasi.</p>
+            )}
+            {apiBaseUrl && !session && (
+              <p className="text-xs text-slate-400">Login untuk coba live (perlu baca enrollment akun kamu).</p>
+            )}
+            {apiBaseUrl && session && (
+              <>
+                <LiveCapturePanel
+                  token={session.access_token}
+                  apiBaseUrl={apiBaseUrl}
+                  onResult={(trace) => {
+                    setVoiceLive(trace);
+                    setView("overview");
+                  }}
+                />
+                <LiveFaceCapturePanel
+                  userId={session.user.id}
+                  apiBaseUrl={apiBaseUrl}
+                  onResult={(scenario) => {
+                    setFaceLive(scenario);
+                    setView("overview");
+                  }}
+                />
+              </>
+            )}
+          </div>
         </header>
 
-        {error && (
-          <div className="mb-6 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-sm text-red-400">
-            {error}
-          </div>
-        )}
-
-        {traces.length > 0 && selectedId && (
-          <div className="mb-4">
-            <ScenarioPicker
-              traces={traces}
-              selectedId={liveTrace ? "" : selectedId}
-              onSelect={(id) => {
-                setLiveTrace(null);
-                setSelectedId(id);
-              }}
+        <div className="flex-1 relative">
+          <ReactFlowProvider>
+            <FlowCanvas
+              view={view}
+              voiceTrace={voiceTrace}
+              faceScenario={faceScenario}
+              onNavigate={setView}
+              onSelectLayer={handleSelectLayer}
+              onSelectFace={handleSelectFace}
             />
-          </div>
-        )}
+          </ReactFlowProvider>
 
-        <div className="mb-6 p-4 rounded-xl bg-(--bg-card) border border-(--border-color)/20">
-          <p className="text-sm font-medium text-(--text-primary) mb-2">
-            Coba Live
-          </p>
-          {!apiBaseUrl && (
-            <p className="text-xs text-(--text-muted)">
-              NEXT_PUBLIC_SERVER_URL belum dikonfigurasi.
-            </p>
-          )}
-          {apiBaseUrl && !session && (
-            <p className="text-xs text-(--text-muted)">
-              Login untuk coba live mode (perlu baca enrollment suara akun
-              kamu).
-            </p>
-          )}
-          {apiBaseUrl && session && (
-            <div className="space-y-2">
-              <LiveCapturePanel
-                token={session.access_token}
-                apiBaseUrl={apiBaseUrl}
-                onResult={setLiveTrace}
+          {(view === "ecapa" || view === "antispoof") && voiceTrace && (
+            <div className="absolute bottom-4 left-4 right-4 sm:right-auto sm:w-105 bg-white/95 backdrop-blur border border-slate-200 rounded-xl p-3 shadow-lg">
+              <p className="text-xs font-medium text-slate-700 mb-1">
+                Perkembangan magnitude aktivasi
+              </p>
+              <LayerMagnitudeChart
+                blocks={
+                  view === "ecapa"
+                    ? voiceTrace.speaker_verification.ecapa_blocks
+                    : voiceTrace.anti_spoof.antispoof_blocks
+                }
+                labelFn={view === "ecapa" ? ecapaBlockLabel : antispoofBlockLabel}
+                color={view === "ecapa" ? ACCENT_SPEAKER : ACCENT_ANTISPOOF}
               />
-              {liveTrace && (
-                <button
-                  onClick={() => setLiveTrace(null)}
-                  className="text-xs text-(--text-muted) hover:text-(--text-primary) underline cursor-pointer"
-                >
-                  Kembali ke mode replay
-                </button>
-              )}
+            </div>
+          )}
+
+          {view === "face" && faceTrace && (
+            <div className="absolute bottom-4 left-4 bg-white/95 backdrop-blur border border-slate-200 rounded-xl p-3 shadow-lg max-w-sm">
+              <p className="text-xs text-slate-600 leading-relaxed flex items-start gap-1.5">
+                <MapPin size={13} className="mt-0.5 shrink-0 text-amber-500" />
+                {faceTrace.liveness_note}
+              </p>
             </div>
           )}
         </div>
 
-        {trace && (
-          <>
-            <div className="flex gap-2 mb-6">
-              <button
-                onClick={play}
-                className="px-4 py-2 rounded-lg bg-(--bg-secondary) border border-(--border-color)/30 text-sm text-(--text-primary) hover:border-(--border-color)/60 cursor-pointer"
-              >
-                ▶ Mulai animasi
-              </button>
-              <button
-                onClick={showAll}
-                className="px-4 py-2 rounded-lg bg-(--bg-secondary) border border-(--border-color)/30 text-sm text-(--text-primary) hover:border-(--border-color)/60 cursor-pointer"
-              >
-                Tampilkan semua
-              </button>
-            </div>
-
-            <div className="space-y-5">
-              <PipelineStage
-                index={0}
-                activeStage={activeStage}
-                stepNumber={1}
-                icon={AudioLines}
-                accent={ACCENT_AUDIO}
-                title="Audio Masuk"
-                subtitle={trace.source_file ?? undefined}
-              >
-                <WaveformPreview
-                  preview={trace.input.waveform_preview}
-                  trimStartSec={trace.input.trim_start_sec}
-                  trimEndSec={trace.input.trim_end_sec}
-                  durationSec={trace.input.duration_sec}
-                />
-              </PipelineStage>
-
-              <PipelineStage
-                index={1}
-                activeStage={activeStage}
-                stepNumber={2}
-                icon={Fingerprint}
-                accent={ACCENT_SPEAKER}
-                title="Speaker Verification — ECAPA-TDNN"
-                subtitle="Apakah suara ini cocok dengan suara yang terdaftar?"
-              >
-                <HeroStat
-                  label="Cosine similarity vs profil terdaftar"
-                  value={trace.speaker_verification.score.toFixed(3)}
-                  color={ACCENT_SPEAKER}
-                  caption={`dibandingkan dengan "${trace.speaker_verification.best_label}"`}
-                />
-                <EcapaArchitectureDiagram
-                  embeddingDim={trace.speaker_verification.embedding_dim}
-                  score={trace.speaker_verification.score}
-                  matchedLabel={trace.speaker_verification.best_label}
-                />
-                <div className="mt-4">
-                  <ThresholdGauge
-                    value={trace.speaker_verification.score}
-                    min={0}
-                    max={1}
-                    thresholds={[
-                      {
-                        value:
-                          trace.speaker_verification.thresholds.abs_min_speaker,
-                        label: "min",
-                        color: "#d03b3b",
-                      },
-                      {
-                        value: trace.speaker_verification.thresholds.voice_repeat,
-                        label: "repeat",
-                        color: "#fab219",
-                      },
-                      {
-                        value: trace.speaker_verification.thresholds.voice_accept,
-                        label: "accept",
-                        color: "#0ca30c",
-                      },
-                    ]}
-                    valueLabel={`score=${trace.speaker_verification.score.toFixed(3)}`}
-                  />
-                </div>
-                <div className="mt-4">
-                  <SpectrogramComparison
-                    live={trace.input.spectrogram}
-                    enrolled={trace.speaker_verification.enrolled_spectrogram}
-                    enrolledLabel={trace.speaker_verification.best_label}
-                  />
-                </div>
-                <div className="mt-4">
-                  <p className="text-xs font-medium text-(--text-primary) mb-2">
-                    Fingerprint embedding (live vs enrolled)
-                  </p>
-                  <EmbeddingFingerprint
-                    values={trace.speaker_verification.live_embedding}
-                    compareValues={
-                      trace.speaker_verification.matched_enroll_embedding
-                    }
-                    label="live"
-                    compareLabel="enrolled"
-                  />
-                </div>
-                <div className="mt-5 pt-4 border-t border-(--border-color)/15">
-                  <ModelBlockTrace
-                    blocks={trace.speaker_verification.ecapa_blocks}
-                    workedExample={trace.speaker_verification.ecapa_worked_example}
-                    workedExampleIntro={ECAPA_WORKED_INTRO}
-                    labelFn={ecapaBlockLabel}
-                    formulaFn={ecapaBlockFormula}
-                    color={ACCENT_SPEAKER}
-                  />
-                </div>
-              </PipelineStage>
-
-              <PipelineStage
-                index={2}
-                activeStage={activeStage}
-                stepNumber={3}
-                icon={ShieldAlert}
-                accent={ACCENT_ANTISPOOF}
-                title="Anti-Spoofing — wav2vec2"
-                subtitle="Apakah audio ini rekaman ulang/sintetis, bukan suara langsung?"
-              >
-                <HeroStat
-                  label="Probabilitas audio ini palsu (replay/sintetis)"
-                  value={trace.anti_spoof.fake_prob.toFixed(5)}
-                  color={ACCENT_ANTISPOOF}
-                  caption={
-                    trace.anti_spoof.real_prob != null
-                      ? `real_prob = ${trace.anti_spoof.real_prob.toFixed(5)}`
-                      : undefined
-                  }
-                />
-                <AntiSpoofArchitectureDiagram
-                  fakeProb={trace.anti_spoof.fake_prob}
-                  realProb={trace.anti_spoof.real_prob}
-                />
-                <div className="mt-4">
-                  <ThresholdGauge
-                    value={trace.anti_spoof.fake_prob}
-                    min={0}
-                    max={1}
-                    scale="log"
-                    thresholds={[
-                      {
-                        value: trace.anti_spoof.thresholds.replay_warn,
-                        label: "warn",
-                        color: "#fab219",
-                      },
-                      {
-                        value: trace.anti_spoof.thresholds.replay_deny,
-                        label: "deny",
-                        color: "#d03b3b",
-                      },
-                    ]}
-                    valueLabel={`fake_prob=${trace.anti_spoof.fake_prob.toFixed(5)}`}
-                  />
-                </div>
-                <div className="mt-5 pt-4 border-t border-(--border-color)/15">
-                  <ModelBlockTrace
-                    blocks={trace.anti_spoof.antispoof_blocks}
-                    workedExample={trace.anti_spoof.antispoof_worked_example}
-                    workedExampleIntro={ANTISPOOF_WORKED_INTRO}
-                    labelFn={antispoofBlockLabel}
-                    formulaFn={antispoofBlockFormula}
-                    color={ACCENT_ANTISPOOF}
-                  />
-                </div>
-              </PipelineStage>
-
-              <PipelineStage
-                index={3}
-                activeStage={activeStage}
-                stepNumber={4}
-                icon={Activity}
-                accent={ACCENT_BEHAVIOR}
-                title="Behavior Profiling"
-                subtitle="Hanya aktif jika histori suara user cukup — bisa men-downgrade VERIFIED jadi REPEAT, tidak pernah DENIED sendiri"
-              >
-                <BehaviorProfilePanel
-                  behaviorProfiling={trace.behavior_profiling}
-                />
-              </PipelineStage>
-
-              <PipelineStage
-                index={4}
-                activeStage={activeStage}
-                stepNumber={5}
-                icon={GitBranch}
-                accent={ACCENT_DECISION}
-                title="Decision Engine"
-                subtitle="Cascade threshold berurutan — gate pertama yang gagal menentukan hasil"
-              >
-                <DecisionCascade steps={trace.decision.steps} />
-                {trace.synthetic_note && (
-                  <p className="text-xs text-amber-400/80 mt-3 italic">
-                    ⚠ {trace.synthetic_note}
-                  </p>
-                )}
-              </PipelineStage>
-
-              <PipelineStage
-                index={5}
-                activeStage={activeStage}
-                stepNumber={6}
-                icon={CheckCircle2}
-                accent={statusColor(trace.decision.final)}
-                title="Keputusan Akhir"
-              >
-                <FinalDecisionBadge decision={trace.decision} />
-              </PipelineStage>
-            </div>
-          </>
+        {panel?.kind === "layer" && (
+          <LayerBlockPanel
+            label={panel.label}
+            block={panel.block}
+            formula={panel.formula}
+            accent={panel.accent}
+            onClose={() => setPanel(null)}
+          />
         )}
-      </div>
-    </main>
+        {panel?.kind === "face" && (
+          <FaceStagePanel
+            stage={panel.stage}
+            data={panel.data}
+            accent={panel.accent}
+            onClose={() => setPanel(null)}
+          />
+        )}
+      </main>
+    </LightThemeScope>
   );
 }

@@ -31,17 +31,18 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.colors import LinearSegmentedColormap
+from matplotlib.lines import Line2D
 
 TEST_FILE_DIR = os.path.dirname(os.path.abspath(__file__))
 BACKEND_DIR = os.path.dirname(TEST_FILE_DIR)
 if BACKEND_DIR not in sys.path:
     sys.path.insert(0, BACKEND_DIR)
 
-CONDITIONS = ("genuine", "impostor", "spoof")
+CONDITIONS = ("genuine", "impostor")
 STATUSES = ("VERIFIED", "DENIED", "ERROR")
-EXPECTED_VERIFIED = {"genuine": True, "impostor": False}  # spoof: ungraded
+EXPECTED_VERIFIED = {"genuine": True, "impostor": False} 
 
-CONDITION_COLOR = {"genuine": "#2a78d6", "impostor": "#eb6834", "spoof": "#1baf7a"}
+CONDITION_COLOR = {"genuine": "#2a78d6", "impostor": "#eb6834"}
 STATUS_COLOR = {"good": "#0ca30c", "critical": "#d03b3b"}
 SEQUENTIAL_BLUE = ["#fcfcfb", "#cde2fb", "#9ec5f4", "#5598e7", "#2a78d6", "#184f95"]
 
@@ -114,6 +115,7 @@ def plot_similarity_distribution(rows: list[dict], out_path: Path) -> None:
 
     rng = np.random.default_rng(0)
     any_points = False
+    values_by_condition: dict[str, list[float]] = {}
     for i, condition in enumerate(CONDITIONS):
         values = [
             float(r["similarity"])
@@ -123,6 +125,7 @@ def plot_similarity_distribution(rows: list[dict], out_path: Path) -> None:
         if not values:
             continue
         any_points = True
+        values_by_condition[condition] = values
         jitter = rng.uniform(-0.12, 0.12, size=len(values))
         ax.scatter(
             np.full(len(values), i) + jitter,
@@ -139,6 +142,36 @@ def plot_similarity_distribution(rows: list[dict], out_path: Path) -> None:
         print(f"⚠️  No similarity values to plot — skipping {out_path.name}")
         plt.close(fig)
         return
+
+    for i, condition in enumerate(CONDITIONS):
+        values = values_by_condition.get(condition)
+        if not values:
+            continue
+        mean_val = float(np.mean(values))
+        ax.hlines(mean_val, i - 0.22, i + 0.22, color=INK_PRIMARY, linewidth=2.2, zorder=5)
+        ax.text(
+            i,
+            mean_val,
+            f"{mean_val:.2f}",
+            ha="center",
+            va="center",
+            fontsize=8,
+            fontweight="bold",
+            color="white",
+            zorder=6,
+            bbox=dict(facecolor=INK_PRIMARY, edgecolor="none", pad=1.5, boxstyle="round,pad=0.2"),
+        )
+
+    ax.legend(
+        handles=[Line2D([0], [0], color=INK_PRIMARY, linewidth=2.2, label="Rata-rata per kondisi")],
+        loc="upper left",
+        frameon=True,
+        facecolor=SURFACE,
+        edgecolor="none",
+        framealpha=0.9,
+        fontsize=8,
+        labelcolor=INK_SECONDARY,
+    )
 
     for value in thresholds:
         ax.axhline(value, color=STATUS_COLOR["critical"], linestyle="--", linewidth=1.2, zorder=1)

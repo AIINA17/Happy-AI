@@ -7,6 +7,7 @@ import { ExternalLink, MapPin, MessageSquareText, Package } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { cn, sourceBadgeClass } from "@/lib/utils";
 import { Product } from "@/types";
 
 interface ProductCardsProps {
@@ -63,7 +64,9 @@ export default function ProductCards({ products }: ProductCardsProps) {
                                 </div>
                             )}
                             {product.source_label && (
-                                <Badge className="absolute top-2 left-2" variant="default">
+                                <Badge
+                                    className={cn("absolute top-2 left-2", sourceBadgeClass(product.source))}
+                                    variant="default">
                                     {product.source_label}
                                 </Badge>
                             )}

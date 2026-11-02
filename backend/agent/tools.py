@@ -295,6 +295,21 @@ async def send_product_cards(products: list) -> str:
     # cards to the carousel.
     normalized = [p for p in normalized if p]
 
+    if not normalized:
+        # Never publish an empty PRODUCT_CARDS payload — the frontend
+        # replaces whatever cards are currently shown with whatever array
+        # arrives, so an empty list silently wipes the carousel (user
+        # report: asked for laptops, then "yang di atas 25 juta", cards
+        # vanished with no explanation). Leave the existing cards alone
+        # and tell the LLM to explain instead of calling this with [].
+        return (
+            "SEND_PRODUCT_CARDS_SKIPPED: list produk kosong, TIDAK dikirim ke "
+            "frontend — kartu yang sedang tampil di layar user TETAP ada, "
+            "jangan dianggap sudah diganti.\n"
+            "Beri tahu user bahwa gak ada produk yang cocok dengan filter "
+            "itu, dan tawarkan alternatif (longgarin budget atau filter lain)."
+        )
+
     await _send_product_cards_internal(normalized[:5])
 
     sent = normalized[:5]

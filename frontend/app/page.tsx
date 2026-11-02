@@ -130,6 +130,11 @@ export default function Home() {
   };
 
   const handleProductCards = (newProducts: Product[]) => {
+    // Defense in depth: an empty array should never wipe cards already on
+    // screen (backend normally guards against sending one, but if it ever
+    // does, silently clearing the carousel with no explanation is worse
+    // than just leaving the last results visible).
+    if (!newProducts || newProducts.length === 0) return;
     setProducts(newProducts);
     // When a new product list arrives, clear stale reviews — they belonged
     // to the previous product the user asked about.

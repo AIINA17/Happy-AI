@@ -11,6 +11,7 @@ import {
     Star,
 } from "lucide-react";
 
+import { cn, sourceBadgeClass } from "@/lib/utils";
 import { Product, Review } from "@/types";
 import ReviewCards from "./ReviewCards";
 
@@ -364,11 +365,22 @@ function ProductCard({
             className="h-full w-full rounded-3xl bg-card
                        border border-border/60 shadow-2xl shadow-black/40
                        overflow-hidden flex flex-col">
-            {/* Header mini */}
+            {/* Header mini — shows which dummy store (Toko Oren/Hijau) this
+                product came from, color-matched to the store's theme. */}
             <div className="px-5 pt-4 pb-1 flex items-center justify-between">
-                <div className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                    E-Commerce
-                </div>
+                {product.source_label ? (
+                    <span
+                        className={cn(
+                            "text-[0.65rem] font-semibold tracking-wide uppercase px-2 py-0.5 rounded-full",
+                            sourceBadgeClass(product.source),
+                        )}>
+                        {product.source_label}
+                    </span>
+                ) : (
+                    <div className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                        E-Commerce
+                    </div>
+                )}
                 <div className="text-[0.65rem] text-muted-foreground font-medium">
                     {index + 1} / {total}
                 </div>

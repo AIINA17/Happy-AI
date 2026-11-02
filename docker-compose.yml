@@ -5,12 +5,18 @@ services:
             dockerfile: Dockerfile
         container_name: backend
         ports:
-            - "8000:8000"
+            - "8001:8000"
         env_file:
             - ./backend/.env
         restart: always
         healthcheck:
-            test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://localhost:8000/health', timeout=3)"]
+            test:
+                [
+                    "CMD",
+                    "python",
+                    "-c",
+                    "import urllib.request as u; u.urlopen('http://localhost:8000/health', timeout=3)",
+                ]
             interval: 30s
             timeout: 5s
             retries: 3
@@ -33,7 +39,13 @@ services:
             - backend
         restart: always
         healthcheck:
-            test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://localhost:8081/', timeout=3)"]
+            test:
+                [
+                    "CMD",
+                    "python",
+                    "-c",
+                    "import urllib.request as u; u.urlopen('http://localhost:8081/', timeout=3)",
+                ]
             interval: 30s
             timeout: 5s
             retries: 3
@@ -48,6 +60,11 @@ services:
     frontend:
         build:
             context: ./frontend
+            args:
+                NEXT_PUBLIC_LIVEKIT_URL: ${NEXT_PUBLIC_LIVEKIT_URL}
+                NEXT_PUBLIC_SERVER_URL: ${NEXT_PUBLIC_SERVER_URL}
+                NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+                NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
         container_name: frontend
         ports:
             - "3000:3000"

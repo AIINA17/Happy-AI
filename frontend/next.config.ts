@@ -14,7 +14,7 @@ const nextConfig: NextConfig = {
 
     // Lets the dev server serve HMR/_next assets when accessed via the
     // Tailscale Serve HTTPS hostname (phone access) instead of localhost.
-    allowedDevOrigins: ["ai18.tail4b36b8.ts.net"],
+    allowedDevOrigins: ["izz-ubuntu.tail4b36b8.ts.net"],
 
     turbopack: {
         root: turbopackRoot,
@@ -32,7 +32,8 @@ const nextConfig: NextConfig = {
         // The CSP below mitigates XSS risks from untrusted SVG content.
         dangerouslyAllowSVG: true,
         contentDispositionType: "attachment",
-        contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+        contentSecurityPolicy:
+            "default-src 'self'; script-src 'none'; sandbox;",
     },
 };
 

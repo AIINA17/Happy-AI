@@ -222,6 +222,67 @@ export function useLiveKit({
             onVerifyStatusRef.current("❌ Mic belum siap, coba lagi");
             return;
         }
+
+        const START = 0.015;
+        const STOP = 0.01;
+        const SILENCE_MS = 800;
+        // ECAPA needs a few seconds of speech to place a voice reliably. On
+        // identical audio, the score climbs 0.17 (0.5s) → 0.39 (1.4s) → 0.77
+        // (2.9s) → 0.94 (5.7s), so a short "iya" scores like an impostor and
+        // gets DENIED. Keep listening until enough speech has accumulated
+        // (silence in between doesn't count), then stop on the usual pause.
+        const MIN_SPEECH_MS = 3000;
+        // Cap a single take so a noisy room can't record indefinitely.
+        const MAX_RECORD_MS = 15000;
+
+        // Chrome's default echo-cancellation/noise-suppression/auto-gain
+        // (createLocalAudioTrack() requests no explicit constraints, so
+        // these are all on) reshape the signal enough that the anti-spoof
+        // model — calibrated on raw, unprocessed recordings — misreads
+        // real speech as a replay attack far too often in production (see
+        // decision_engine.py's replay_deny comment). Turn them off just
+        // for this take. This is the same track the live call keeps
+        // using, so the agent briefly loses its own echo cancellation too
+        // — an acceptable trade for a few seconds against a false "replay
+        // attack" rejection. Best-effort: not every browser/device honors
+        // these constraints, so a failure here just means we record with
+        // whatever processing was already active.
+        let rawConstraintsApplied = false;
+        try {
+            await liveMicTrack.applyConstraints({
+                echoCancellation: false,
+                noiseSuppression: false,
+                autoGainControl: false,
+            } as MediaTrackConstraints);
+            rawConstraintsApplied = true;
+        } catch (err) {
+            console.warn("Could not disable mic processing for verification:", err);
+        }
+
+        let micProcessingRestored = false;
+        const restoreMicProcessing = async () => {
+            if (micProcessingRestored || !rawConstraintsApplied) return;
+            micProcessingRestored = true;
+            try {
+                await liveMicTrack.applyConstraints({
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true,
+                } as MediaTrackConstraints);
+            } catch (err) {
+                console.warn("Could not restore mic processing after verification:", err);
+            }
+        };
+        // Safety net: if the VAD loop below never hears speech loud enough
+        // to call recorder.start() (so onstop, which normally restores
+        // this, never fires), don't leave the live call's echo
+        // cancellation off indefinitely. Comfortably past MAX_RECORD_MS +
+        // SILENCE_MS, which bounds every path that *does* start recording.
+        const restoreSafetyTimer = setTimeout(
+            () => { void restoreMicProcessing(); },
+            MAX_RECORD_MS + SILENCE_MS + 5000,
+        );
+
         const stream = new MediaStream([liveMicTrack]);
         const audioCtx = new AudioContext();
         const source = audioCtx.createMediaStreamSource(stream);
@@ -242,18 +303,6 @@ export function useLiveKit({
         let silenceStart: number | null = null;
         let speechMs = 0;
         let lastTick = performance.now();
-
-        const START = 0.015;
-        const STOP = 0.01;
-        const SILENCE_MS = 800;
-        // ECAPA needs a few seconds of speech to place a voice reliably. On
-        // identical audio, the score climbs 0.17 (0.5s) → 0.39 (1.4s) → 0.77
-        // (2.9s) → 0.94 (5.7s), so a short "iya" scores like an impostor and
-        // gets DENIED. Keep listening until enough speech has accumulated
-        // (silence in between doesn't count), then stop on the usual pause.
-        const MIN_SPEECH_MS = 3000;
-        // Cap a single take so a noisy room can't record indefinitely.
-        const MAX_RECORD_MS = 15000;
         let recordStartedAt = 0;
 
         recorder.ondataavailable = (e) => {
@@ -263,10 +312,12 @@ export function useLiveKit({
         recorder.onstop = async () => {
             if (rafRef.current) cancelAnimationFrame(rafRef.current);
             recorderRef.current = null;
+            clearTimeout(restoreSafetyTimer);
 
             // Don't stop the track — it's shared with the live LiveKit
             // publish, only tear down our own analyser/recorder plumbing.
             audioCtx.close();
+            await restoreMicProcessing();
 
             if (!chunksRef.current.length) return;
 

@@ -10,6 +10,7 @@ import {
   MoreVertical,
   Pencil,
   Plus,
+  Sparkles,
   Store,
   Trash2,
   X,
@@ -26,6 +27,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import ConfirmDialog from "./ConfirmDialog";
 import EcommerceAccountLink from "./EcommerceAccountLink";
+import OnboardingTour from "./OnboardingTour";
 import VoiceEnrollment from "./VoiceEnrollment";
 import FaceEnrollment from "./FaceEnrollment";
 import FaceVerification from "./FaceVerification";
@@ -72,6 +74,7 @@ export default function Sidebar({
 }: SidebarProps) {
   const [showEnrollmentList, setShowEnrollmentList] = useState(false);
   const [showEcommerceAccount, setShowEcommerceAccount] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const [sessions, setSessions] = useState<ConversationSession[]>(
     () => cachedSessions,
   );
@@ -85,6 +88,32 @@ export default function Sidebar({
       setIsCollapsed(false);
     }
   }, [isMobileOpen, isCollapsed]);
+
+  // Auto-launch the first-run setup tour exactly once per user (tracked in
+  // localStorage, not the backend — this is onboarding UX, not account
+  // state). Covers the "just signed up" case and any existing account that
+  // hasn't seen it yet; re-openable later via the "Panduan Awal" menu item.
+  useEffect(() => {
+    if (!isLoggedIn || !userId) return;
+    try {
+      if (!localStorage.getItem(`happy_onboarding_done_${userId}`)) {
+        setShowOnboarding(true);
+      }
+    } catch {
+      // localStorage unavailable (private mode, etc.) — skip auto-tour.
+    }
+  }, [isLoggedIn, userId]);
+
+  const closeOnboarding = () => {
+    setShowOnboarding(false);
+    try {
+      if (userId) {
+        localStorage.setItem(`happy_onboarding_done_${userId}`, "1");
+      }
+    } catch {
+      // Ignore — worst case the tour reappears next session.
+    }
+  };
 
   // Swipe-to-close for mobile overlay.
   // Tracks horizontal finger movement; drags sidebar leftward with finger,
@@ -338,6 +367,13 @@ export default function Sidebar({
         onClose={() => setShowEcommerceAccount(false)}
       />
 
+      <OnboardingTour
+        isOpen={showOnboarding}
+        onClose={closeOnboarding}
+        token={token}
+        userId={userId}
+      />
+
       {/* Mobile backdrop (only visible on mobile when sidebar is open) */}
       {isMobileOpen && (
         <div
@@ -544,6 +580,10 @@ export default function Sidebar({
                 <DropdownMenuItem onClick={() => setShowEcommerceAccount(true)}>
                   <Store />
                   <span>Akun E-commerce</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setShowOnboarding(true)}>
+                  <Sparkles />
+                  <span>Panduan Awal</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   variant="destructive"

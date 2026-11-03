@@ -11,11 +11,11 @@ import type { FaceScenario } from "./faceTypes";
 // flow), matching /face/verify-face/explain's same "recognition-only, no
 // liveness_token" path the existing /face/verify-face already supports.
 export function LiveFaceCapturePanel({
-  userId,
+  token,
   apiBaseUrl,
   onResult,
 }: {
-  userId: string;
+  token: string;
   apiBaseUrl: string;
   onResult: (scenario: FaceScenario) => void;
 }) {
@@ -53,12 +53,12 @@ export function LiveFaceCapturePanel({
   const uploadAndVerify = async (blob: Blob) => {
     setIsUploading(true);
     const form = new FormData();
-    form.append("user_id", userId);
     form.append("image", blob, "live.jpg");
 
     try {
       const res = await fetch(`${apiBaseUrl}/face/verify-face/explain`, {
         method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
         body: form,
       });
       const data = await res.json().catch(() => null);

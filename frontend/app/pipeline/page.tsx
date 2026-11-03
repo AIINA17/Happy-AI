@@ -482,7 +482,7 @@ export default function PipelinePage() {
                   }}
                 />
                 <LiveFaceCapturePanel
-                  userId={session.user.id}
+                  token={session.access_token}
                   apiBaseUrl={apiBaseUrl}
                   onResult={(scenario) => {
                     setFaceLive(scenario);

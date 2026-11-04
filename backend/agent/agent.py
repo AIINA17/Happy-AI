@@ -575,6 +575,24 @@ async def connect(ctx: agents.JobContext):
         print(f"🧹 Room released: {room_name}")
         disconnected_event.set()
 
+    # The room is named "user-{user_id}" (same name every session for a
+    # given user), and the agent is its own room participant distinct from
+    # the user. So when the user leaves but the agent doesn't, the room
+    # never goes empty from LiveKit's point of view — the agent just sits
+    # there holding it open. A user who rejoins shortly after then hits
+    # server.py's /join-token ground-truth check ("is an agent already
+    # active in this room?"), finds this stale agent still present, and
+    # skips creating a fresh dispatch — so the *same* agent process/session
+    # picks the new join back up instead of starting over, and never says
+    # the greeting again. Leaving as soon as the room is empty closes that
+    # gap: the next join always gets a brand-new dispatch and a fresh start.
+    @room.on("participant_disconnected")
+    def on_participant_disconnected(participant):
+        if room.remote_participants:
+            return
+        print(f"👋 User left room: {room_name}, agent ikut disconnect")
+        asyncio.create_task(room.disconnect())
+
     # ================= VOICE / FACE RESULT =================
     @room.on("data_received")
     def on_data(packet):

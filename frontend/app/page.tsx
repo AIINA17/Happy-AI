@@ -10,7 +10,7 @@ import ChatArea from "@/components/ChatArea";
 import Sidebar from "@/components/Sidebar";
 import { useVerificationToast } from "@/hooks/useVerificationToast";
 import { supabase } from "@/lib/supabase";
-import { Message, Product, Review } from "@/types";
+import { LinkCard, Message, Product, Review } from "@/types";
 
 type VerificationStatus = "VERIFIED" | "REPEAT" | "DENIED" | null;
 
@@ -103,10 +103,11 @@ export default function Home() {
     extras?: {
       reviews?: Review[];
       reviewProductName?: string;
+      linkCard?: LinkCard;
     },
   ) => {
     const trimmedText = text?.trim() || "";
-    if (!trimmedText && !extras?.reviews) return;
+    if (!trimmedText && !extras?.reviews && !extras?.linkCard) return;
 
     const newMessage: Message = {
       role,
@@ -114,6 +115,7 @@ export default function Home() {
       timestamp: new Date(),
       reviews: extras?.reviews,
       reviewProductName: extras?.reviewProductName,
+      linkCard: extras?.linkCard,
     };
 
     setMessages((prev) => [...prev, newMessage]);

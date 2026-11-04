@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 
+import LinkCardMessage from "./LinkCardMessage";
 import ReviewCards from "./ReviewCards";
 import { Message } from "@/types";
 
@@ -14,7 +15,7 @@ export default function MessageBubble({
   message,
   userName = "You",
 }: MessageBubbleProps) {
-  const { role, text, reviews, reviewProductName } = message;
+  const { role, text, reviews, reviewProductName, linkCard } = message;
   const isUser = role === "user";
   const hasText = text && text.trim().length > 0;
 
@@ -61,6 +62,8 @@ export default function MessageBubble({
             reviews={reviews}
           />
         )}
+
+        {linkCard && <LinkCardMessage linkCard={linkCard} />}
       </div>
     </div>
   );

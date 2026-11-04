@@ -221,6 +221,41 @@ async def _send_review_cards_internal(product_name: str, reviews: list):
         logging.error(f"❌ Failed to send REVIEW_CARDS: {e}")
 
 
+async def _send_link_card_internal(label: str, url: str | None):
+    """
+    Internal function untuk kirim satu clickable link card ke frontend.
+    BUKAN @function_tool — tidak dipanggil langsung oleh LLM.
+
+    The model is told (see prompts.py's LINK HANDLING RULES) to never read
+    URLs out loud and to just say the link is in the chat — this is what
+    actually puts it there, since Gemini's spoken/transcribed reply text
+    (sent as the plain AGENT_MESSAGE chat bubble) never contains the raw
+    URL for it to be parsed out of.
+    """
+    if not url:
+        return
+
+    room = auth_state.get("room_ref")
+    if not room:
+        logging.error("❌ LINK_CARD NOT SENT: room_ref is None")
+        return
+
+    try:
+        payload = json.dumps({
+            "type": "LINK_CARD",
+            "label": label,
+            "url": url,
+        }).encode("utf-8")
+        await room.local_participant.publish_data(
+            payload,
+            reliable=True,
+            topic="PRODUCT_DATA"
+        )
+        logging.info(f"📤 LINK_CARD SENT ({label}: {url})")
+    except Exception as e:
+        logging.error(f"❌ Failed to send LINK_CARD: {e}")
+
+
 # ==================== USER CONTEXT TOOLS ====================
 
 @function_tool
@@ -602,6 +637,10 @@ async def get_product_detail(product_id: int, source: str) -> str:
             if len(reviews) > 5:
                 reviews_section += f"(ada {len(reviews) - 5} review lagi)\n"
 
+        await _send_link_card_internal(
+            f"Produk — {p.get('name', 'Unknown')}", p.get('link')
+        )
+
         return (
             f"📦 Detail Produk ({adapter.label}):\n"
             f"• Nama: {p.get('name', 'Unknown')}\n"
@@ -965,6 +1004,9 @@ async def get_cart(source: str) -> str:
 
         result += f"💰 Total: Rp {total:,.0f}\n\n"
         result += f"🔗 Link Keranjang: {adapter.cart_link()}"
+
+        await _send_link_card_internal(f"Keranjang — {adapter.label}", adapter.cart_link())
+
         return result
 
     except Exception as e:
@@ -1070,6 +1112,11 @@ async def checkout(source: str, payment_method: str = "GoPay") -> str:
             for item in cart_items
         ])
 
+        await _send_link_card_internal(
+            f"Pesanan #{order.get('id')} — {adapter.label}",
+            adapter.order_link(order.get('id')),
+        )
+
         return (
             f"🎉 Pesanan berhasil dibuat di {adapter.label}!\n\n"
             f"📦 Order ID: {order.get('id')}\n"
@@ -1125,6 +1172,9 @@ async def get_order_history(source: str) -> str:
             result += f"  🔗 Link: {adapter.order_link(order.get('id'))}\n\n"
 
         result += f"🔗 Lihat Semua Pesanan: {adapter.orders_link()}"
+
+        await _send_link_card_internal(f"Semua Pesanan — {adapter.label}", adapter.orders_link())
+
         return result
 
     except Exception as e:
@@ -1177,6 +1227,10 @@ async def get_order_detail(order_id: int, source: str) -> str:
             result += f"  {item.get('quantity')}x Rp {price_at_purchase:,.0f} = Rp {subtotal:,.0f}\n"
 
         result += f"\n🔗 Link Pesanan: {adapter.order_link(order_id)}"
+
+        await _send_link_card_internal(
+            f"Pesanan #{order_id} — {adapter.label}", adapter.order_link(order_id)
+        )
 
         if order.get('status') == 'pending':
             result += f"\n\n⚠️ Pesanan ini belum dibayar. Mau bayar sekarang?"

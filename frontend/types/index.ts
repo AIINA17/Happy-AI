@@ -15,12 +15,22 @@ export interface Review {
   created_at: string;
 }
 
+// A product/cart/order link the agent wants the user to be able to click,
+// sent as its own LINK_CARD data message (see backend/agent/tools.py's
+// _send_link_card_internal) instead of relying on Gemini's spoken reply
+// text to carry the raw URL.
+export interface LinkCard {
+  label: string;
+  url: string;
+}
+
 export interface Message {
   role: "user" | "assistant";
   text: string;
   timestamp: Date;
   reviews?: Review[];
   reviewProductName?: string;
+  linkCard?: LinkCard;
 }
 
 export interface Product {
@@ -52,6 +62,8 @@ export interface AgentCommand {
   product_name?: string;
   text?: string;
   role?: string;
+  label?: string;
+  url?: string;
   [key: string]: unknown;
 }
 

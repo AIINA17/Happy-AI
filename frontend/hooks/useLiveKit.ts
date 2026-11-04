@@ -12,7 +12,7 @@ import {
 } from "livekit-client";
 
 import { supabase } from "@/lib/supabase";
-import { Product, Review, VerificationResult } from "@/types";
+import { LinkCard, Product, Review, VerificationResult } from "@/types";
 
 type UiState =
     | "IDLE"
@@ -34,6 +34,7 @@ interface UseLiveKitProps {
         extras?: {
             reviews?: Review[];
             reviewProductName?: string;
+            linkCard?: LinkCard;
         },
     ) => void;
     onVerifyStatus: (status: string) => void;
@@ -135,6 +136,8 @@ export function useLiveKit({
                 text?: string;
                 role?: string;
                 active?: boolean;
+                label?: string;
+                url?: string;
             };
             try {
                 msg = JSON.parse(text);
@@ -164,6 +167,13 @@ export function useLiveKit({
                 onMessageRef.current("assistant", "", {
                     reviews: msg.reviews,
                     reviewProductName: msg.product_name || "produk ini",
+                });
+                return;
+            }
+
+            if (msg.type === "LINK_CARD" && msg.url) {
+                onMessageRef.current("assistant", "", {
+                    linkCard: { label: msg.label || "Buka link", url: msg.url },
                 });
                 return;
             }

@@ -136,7 +136,9 @@ When tool results contain URLs/links (product link, cart link, order link, etc.)
    - "Cek chat buat link-nya ya"
    - "Gue udah kasih link-nya di bawah"
 
-3. The link will automatically appear in the chat transcript for the user to click
+3. The link is sent to the frontend as a separate clickable card right when the tool
+   runs (see tools.py's _send_link_card_internal) — it is NOT parsed out of your
+   spoken reply, so it will show up even though you never say the URL out loud
 
 EXAMPLES:
 - User: "Kasih link produk iPhone"

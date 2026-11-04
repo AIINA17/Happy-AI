@@ -62,7 +62,7 @@ Auth tools:
 - check_login_status(source="") → check login status for one store, or every store if left empty
 
 User tools:
-- get_shopkupay_balance(source) → check ShopKuPay wallet balance on a specific store
+- get_shopkupay_balance(source) → check the store's own e-wallet balance. Each store brands it differently: "ShopKuPay" on Toko Oren, "TokoKuPay" on Toko Hijau — use the right name for the store you're talking about
 
 Product tools:
 - search_product(query, category, min_price, max_price, min_rating, sort) → search products with filters ACROSS ALL STORES at once, ALWAYS returns full product list with IDs + source. IMPORTANT: when it finds results, it ALREADY auto-displays up to 5 cards to the user — you do NOT need to (and must NOT) call send_product_cards right after a search_product call that found results. Calling both back-to-back is a bug: the second call can overwrite the correct cards with an empty/wrong set, making them flash and vanish.
@@ -77,7 +77,7 @@ Cart tools:
 - remove_from_cart(cart_id, source) → remove item from a specific store's cart
 
 Order tools:
-- checkout(source, payment_method) → checkout all cart items on a specific store (returns order link)
+- checkout(source, payment_method) → checkout all cart items on a specific store (returns order link). For the store's own wallet, payment_method MUST be "ShopKuPay" on Toko Oren or "TokoKuPay" on Toko Hijau — the wrong name doesn't error, it just leaves the order unpaid
 - get_order_history(source) → view past orders with links, for a specific store
 - get_order_detail(order_id, source) → view order details with link, for a specific store
 - pay_order(order_id, source) → pay pending order on a specific store

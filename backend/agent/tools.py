@@ -902,29 +902,32 @@ async def check_voice_status() -> str:
 @function_tool
 async def get_shopkupay_balance(source: str) -> str:
     """
-    Get user's ShopKuPay balance/saldo on a specific store.
+    Get user's e-wallet balance/saldo on a specific store. Each store brands
+    its own wallet differently: Toko Oren's is called "ShopKuPay", Toko
+    Hijau's is called "TokoKuPay" — use the right name for the store you're
+    talking about when you tell the result back to the user.
 
     Args:
         source: store code, e.g. "oren" or "hijau"
 
     ⚠️ This action requires voice verification for security.
     """
-    voice_error = require_voice_verification("cek saldo ShopKuPay")
-    if voice_error:
-        return voice_error
-
     adapter, account, error = _resolve_account(source)
     if error:
         return error
 
+    voice_error = require_voice_verification(f"cek saldo {adapter.wallet_name}")
+    if voice_error:
+        return voice_error
+
     if not account["is_logged_in"]:
-        return f"Lo harus login dulu ke {adapter.label} buat cek saldo ShopKuPay."
+        return f"Lo harus login dulu ke {adapter.label} buat cek saldo {adapter.wallet_name}."
 
     try:
         user = await adapter.get_user(account["token"])
         if user is None:
             return "Gagal mengambil data saldo."
-        return f"Saldo ShopKuPay lo di {adapter.label}: Rp {user.get('balance', 0):,.0f}"
+        return f"Saldo {adapter.wallet_name} lo di {adapter.label}: Rp {user.get('balance', 0):,.0f}"
 
     except Exception as e:
         logging.error(f"Get balance error: {e}")
@@ -1053,7 +1056,11 @@ async def remove_from_cart(cart_id: int, source: str) -> str:
 async def checkout(source: str, payment_method: str = "GoPay") -> str:
     """
     Complete the purchase and create an order from a specific store's cart items.
-    Payment methods: VA_BCA, VA_BRI, VA_Mandiri, GoPay, OVO, ShopeePay, DANA, ShopKuPay
+    Payment methods: VA_BCA, VA_BRI, VA_Mandiri, GoPay, OVO, ShopeePay, DANA,
+    or the store's own e-wallet — pass "ShopKuPay" for Toko Oren, "TokoKuPay"
+    for Toko Hijau (NOT interchangeable, each store only recognizes its own
+    wallet name and silently leaves the order unpaid if you send the wrong
+    one).
 
     Args:
         source: store code to checkout on, e.g. "oren" or "hijau"
@@ -1083,12 +1090,12 @@ async def checkout(source: str, payment_method: str = "GoPay") -> str:
             for item in cart_items
         )
 
-        if payment_method == "ShopKuPay":
+        if payment_method == adapter.wallet_name:
             user = await adapter.get_user(account["token"])
             if user is not None:
                 balance = _num(user.get("balance"))
                 if balance < total:
-                    return f"Saldo ShopKuPay tidak cukup. Saldo: Rp {balance:,.0f}, Total: Rp {total:,.0f}"
+                    return f"Saldo {adapter.wallet_name} tidak cukup. Saldo: Rp {balance:,.0f}, Total: Rp {total:,.0f}"
 
         items = []
         for item in cart_items:

@@ -30,10 +30,28 @@ class EcommerceAdapter:
     methods that differ.
     """
 
-    def __init__(self, source: str, label: str, base_url: str):
+    def __init__(
+        self,
+        source: str,
+        label: str,
+        base_url: str,
+        wallet_name: str,
+        order_detail_path: str,
+    ):
         self.source = source
         self.label = label
         self.base_url = base_url.rstrip("/")
+        # This store's own branded e-wallet payment method name (e.g.
+        # "ShopKuPay" vs "TokoKuPay") — passed as `payment_method` to
+        # checkout() verbatim, so it must match what this store's API
+        # actually registers as its wallet.
+        self.wallet_name = wallet_name
+        # Order-DETAIL page path segment — differs per store's own frontend
+        # routing (confirmed live: Oren is plural "orders/{id}", Hijau is
+        # singular "order/{id}"; the other one 404s). The order-LIST page
+        # (orders_link, no id) is plural "orders" on both, so that one
+        # method stays hardcoded.
+        self.order_detail_path = order_detail_path
 
     # ---------------------------------------------------------------- utils
 
@@ -80,7 +98,7 @@ class EcommerceAdapter:
         return f"{self.base_url}/cart"
 
     def order_link(self, order_id) -> str:
-        return f"{self.base_url}/orders/{order_id}"
+        return f"{self.base_url}/{self.order_detail_path}/{order_id}"
 
     def orders_link(self) -> str:
         return f"{self.base_url}/orders"
@@ -183,8 +201,16 @@ class EcommerceAdapter:
 
         items = response.json().get("data", [])
         for item in items:
-            product = item.get("products") or {}
+            # Some sources (e.g. Toko Hijau) nest the product under a
+            # singular "product" key instead of "products" like Toko Oren.
+            # Normalize to "products" (and write it back onto the item) so
+            # callers — get_cart/checkout in tools.py — don't need to know
+            # which source they're talking to. Without this, Hijau cart
+            # items silently got product_id=None/price=0, which checkout
+            # then sent to /api/orders, where it's rejected outright.
+            product = item.get("products") or item.get("product") or {}
             product["price"] = _num(product.get("price"))
+            item["products"] = product
         return items
 
     async def remove_from_cart(self, token: str, cart_id: int) -> bool:

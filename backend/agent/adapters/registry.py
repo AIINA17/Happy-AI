@@ -3,7 +3,13 @@ from ecommerce_sources import ECOMMERCE_SOURCES
 from agent.adapters.base import EcommerceAdapter
 
 ADAPTERS: dict[str, EcommerceAdapter] = {
-    key: EcommerceAdapter(source=key, label=cfg["label"], base_url=cfg["base_url"])
+    key: EcommerceAdapter(
+        source=key,
+        label=cfg["label"],
+        base_url=cfg["base_url"],
+        wallet_name=cfg["wallet_name"],
+        order_detail_path=cfg["order_detail_path"],
+    )
     for key, cfg in ECOMMERCE_SOURCES.items()
 }
 

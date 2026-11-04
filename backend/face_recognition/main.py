@@ -5,6 +5,7 @@ import numpy as np
 
 from face_recognition.arcface_model import ArcFaceModel
 from face_recognition.face_service import FaceRecognitionService
+from face_recognition.face_trace import decode_image, extract_face_trace, json_safe
 from face_recognition.liveness_challenge import (
     CHALLENGE_TTL_SECONDS,
     consume_challenge,
@@ -37,9 +38,10 @@ def health_check():
 
 @router.post("/enroll-face")
 async def enroll_face(
-    user_id: str = Form(...),
+    request: Request,
     image: UploadFile = File(...)
 ):
+    user_id = get_user_id_from_request(request)
     try:
         image_bytes = await image.read()
         embedding = arcface_model.extract_embedding(image_bytes)
@@ -65,8 +67,8 @@ async def enroll_face(
 
 
 @router.post("/liveness-challenge")
-async def create_liveness_challenge(user_id: str = Form(...)):
-    """Issues a single-use, server-picked liveness challenge for user_id.
+async def create_liveness_challenge(request: Request):
+    """Issues a single-use, server-picked liveness challenge for the caller.
 
     Called by FaceLivenessCapture.tsx (the agent-triggered production
     flow) before it starts the camera, so the challenge *type* comes from
@@ -76,6 +78,7 @@ async def create_liveness_challenge(user_id: str = Form(...)):
     calls this and omits liveness_token entirely, which /verify-face treats
     as a plain recognition-only test.
     """
+    user_id = get_user_id_from_request(request)
     token, challenge_type = issue_challenge(user_id)
     return {
         "liveness_token": token,
@@ -86,10 +89,11 @@ async def create_liveness_challenge(user_id: str = Form(...)):
 
 @router.post("/verify-face")
 async def verify_face(
-    user_id: str = Form(...),
+    request: Request,
     image: UploadFile = File(...),
     liveness_token: str | None = Form(None),
 ):
+    user_id = get_user_id_from_request(request)
     image_filename = image.filename
     room_name = f"user-{user_id}"
 
@@ -211,8 +215,59 @@ async def verify_face(
         raise HTTPException(status_code=500, detail=f"Terjadi kesalahan server: {str(error)}")
 
 
+# EXPLAIN-MODE VERIFICATION FOR THE /pipeline EXPLAINER PAGE'S LIVE FACE
+# CAPTURE
+#
+# Same real buffalo_l pipeline as /verify-face, but returns every stage's
+# real output (bbox, keypoints, aligned crop, embedding preview) instead of
+# just the final decision, and does NOT persist anything: no
+# face_verification_logs row, no FACE_RESULT room publish — booth capture
+# attempts must never pollute the presenter's real account history or fire
+# an agent-facing event. No liveness check either (same as /verify-face's
+# no-liveness_token path) — this is a recognition-only demo capture.
+@router.post("/verify-face/explain")
+async def verify_face_explain(
+    request: Request,
+    image: UploadFile = File(...),
+):
+    user_id = get_user_id_from_request(request)
+    try:
+        reference_embedding = face_repo.get_embedding(user_id)
+    except Exception as error:
+        raise HTTPException(status_code=500, detail=f"Terjadi kesalahan server: {str(error)}")
+
+    if reference_embedding is None:
+        raise HTTPException(status_code=400, detail="User belum memiliki face embedding.")
+
+    try:
+        image_bytes = await image.read()
+        img = decode_image(image_bytes)
+        trace = extract_face_trace(arcface_model, img, source_file=None)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error))
+    except Exception as error:
+        raise HTTPException(status_code=500, detail=f"Terjadi kesalahan server: {str(error)}")
+
+    result = face_service.verify(
+        test_embedding=trace["_embedding"],
+        reference_embedding=reference_embedding,
+    )
+
+    return {
+        "scenario_id": "live",
+        "title": "Percobaan live",
+        "probe": json_safe(trace),
+        "similarity": round(float(result["similarity"]), 4),
+        "threshold": result["threshold"],
+        "decision": result["status"],
+    }
+
+
 @router.get("/enroll-face/{user_id}")
-def get_enrollment_status(user_id: str):
+def get_enrollment_status(user_id: str, request: Request):
+    if get_user_id_from_request(request) != user_id:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
     embedding = face_repo.get_embedding(user_id)
 
     return {
@@ -232,7 +287,10 @@ def get_enrolled_users():
 
 
 @router.delete("/enroll-face/{user_id}")
-def delete_face_enrollment(user_id: str):
+def delete_face_enrollment(user_id: str, request: Request):
+    if get_user_id_from_request(request) != user_id:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
     deleted = face_repo.delete_embedding(user_id)
 
     if not deleted:

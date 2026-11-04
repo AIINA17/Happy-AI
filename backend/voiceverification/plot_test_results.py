@@ -27,6 +27,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.colors import LinearSegmentedColormap
+from matplotlib.lines import Line2D
 
 TEST_FILE_DIR = os.path.dirname(os.path.abspath(__file__))
 BACKEND_DIR = os.path.dirname(TEST_FILE_DIR)
@@ -113,9 +114,15 @@ def _scatter_by_condition(
     fig, ax = plt.subplots(figsize=(6, 4.5), facecolor=SURFACE)
     ax.set_facecolor(SURFACE)
 
+    # Tighter than 1.0 so the condition clusters sit closer together instead
+    # of spreading across the full axis width.
+    spacing = 0.6
+    positions = [i * spacing for i in range(len(CONDITIONS))]
+
     rng = np.random.default_rng(0)
     any_points = False
-    for i, condition in enumerate(CONDITIONS):
+    values_by_condition: dict[str, list[float]] = {}
+    for pos, condition in zip(positions, CONDITIONS):
         values = [
             float(r[value_key])
             for r in rows
@@ -124,9 +131,10 @@ def _scatter_by_condition(
         if not values:
             continue
         any_points = True
-        jitter = rng.uniform(-0.12, 0.12, size=len(values))
+        values_by_condition[condition] = values
+        jitter = rng.uniform(-0.1, 0.1, size=len(values))
         ax.scatter(
-            np.full(len(values), i) + jitter,
+            np.full(len(values), pos) + jitter,
             values,
             color=CONDITION_COLOR[condition],
             edgecolors="white",
@@ -141,10 +149,41 @@ def _scatter_by_condition(
         plt.close(fig)
         return
 
+    for pos, condition in zip(positions, CONDITIONS):
+        values = values_by_condition.get(condition)
+        if not values:
+            continue
+        mean_val = float(np.mean(values))
+        ax.hlines(mean_val, pos - 0.18, pos + 0.18, color=INK_PRIMARY, linewidth=2.2, zorder=5)
+        ax.text(
+            pos,
+            mean_val,
+            f"{mean_val:.2f}",
+            ha="center",
+            va="center",
+            fontsize=8,
+            fontweight="bold",
+            color="white",
+            zorder=6,
+            bbox=dict(facecolor=INK_PRIMARY, edgecolor="none", pad=1.5, boxstyle="round,pad=0.2"),
+        )
+
+    ax.legend(
+        handles=[Line2D([0], [0], color=INK_PRIMARY, linewidth=2.2, label="Rata-rata per kondisi")],
+        loc="upper left",
+        frameon=True,
+        facecolor=SURFACE,
+        edgecolor="none",
+        framealpha=0.9,
+        fontsize=8,
+        labelcolor=INK_SECONDARY,
+    )
+
+    label_x = positions[-1] + 0.3
     for label, value, color in thresholds:
         ax.axhline(value, color=color, linestyle="--", linewidth=1.2, zorder=1)
         ax.text(
-            len(CONDITIONS) - 0.52,
+            label_x,
             value,
             f" {label} ({value:.2f})",
             color=color,
@@ -154,12 +193,12 @@ def _scatter_by_condition(
             bbox=dict(facecolor=SURFACE, edgecolor="none", pad=1.5),
         )
 
-    ax.set_xticks(range(len(CONDITIONS)))
+    ax.set_xticks(positions)
     ax.set_xticklabels([c.capitalize() for c in CONDITIONS])
     ax.set_ylabel(ylabel)
     ax.set_title(title)
     ax.grid(axis="y", color=GRIDLINE, linewidth=0.8, zorder=0)
-    ax.set_xlim(-0.6, len(CONDITIONS) + 0.4)
+    ax.set_xlim(positions[0] - 0.4, positions[-1] + 0.95)
     _style_axes(ax)
 
     fig.tight_layout()
@@ -172,7 +211,6 @@ def plot_speaker_score(rows: list[dict], out_path: Path, config: DecisionConfig)
     thresholds = [
         ("Accept", config.voice_accept, STATUS_COLOR["good"]),
         ("Repeat", config.voice_repeat, STATUS_COLOR["warning"]),
-        ("Min. absolut", config.abs_min_speaker, STATUS_COLOR["critical"]),
     ]
     _scatter_by_condition(
         rows,

@@ -12,6 +12,11 @@ const turbopackRoot = fs.existsSync(path.join(__dirname, "node_modules"))
 const nextConfig: NextConfig = {
     output: "standalone",
 
+    // Lets the dev server serve HMR/_next assets when accessed via the
+    // Tailscale Serve HTTPS hostname (phone access) instead of localhost.
+    allowedDevOrigins: ["https://wrap-mystery-surrounded-storm.trycloudflare.com/"],
+
+
     turbopack: {
         root: turbopackRoot,
     },
@@ -28,7 +33,8 @@ const nextConfig: NextConfig = {
         // The CSP below mitigates XSS risks from untrusted SVG content.
         dangerouslyAllowSVG: true,
         contentDispositionType: "attachment",
-        contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+        contentSecurityPolicy:
+            "default-src 'self'; script-src 'none'; sandbox;",
     },
 };
 

@@ -12,6 +12,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { MEDIAPIPE_WASM_URL } from "@/lib/mediapipe";
+import { supabase } from "@/lib/supabase";
+
+async function authHeader(): Promise<Record<string, string>> {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  const accessToken = session?.access_token;
+  return accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
+}
 
 interface Props {
   userId: string | null;
@@ -104,7 +114,7 @@ export default function FaceEnrollment({ userId, setVerifyStatus }: Props) {
   const loadFaceDetector = useCallback(async () => {
     try {
       const vision = await FilesetResolver.forVisionTasks(
-        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm",
+        MEDIAPIPE_WASM_URL,
       );
 
       const detector = await FaceDetector.createFromOptions(vision, {
@@ -131,7 +141,9 @@ export default function FaceEnrollment({ userId, setVerifyStatus }: Props) {
     }
 
     try {
-      const res = await fetch(`${SERVER_URL}/enroll-face/${userId}`);
+      const res = await fetch(`${SERVER_URL}/enroll-face/${userId}`, {
+        headers: await authHeader(),
+      });
       if (!res.ok) return;
       const data = await res.json();
       setIsEnrolled(!!data.enrolled);
@@ -154,6 +166,7 @@ export default function FaceEnrollment({ userId, setVerifyStatus }: Props) {
     try {
       const res = await fetch(`${SERVER_URL}/enroll-face/${userId}`, {
         method: "DELETE",
+        headers: await authHeader(),
       });
       const result = await res.json();
 
@@ -227,11 +240,11 @@ export default function FaceEnrollment({ userId, setVerifyStatus }: Props) {
       const blob = await captureFrame();
 
       const form = new FormData();
-      form.append("user_id", userId);
       form.append("image", blob, "face.jpg");
 
       const res = await fetch(`${SERVER_URL}/enroll-face`, {
         method: "POST",
+        headers: await authHeader(),
         body: form,
       });
 

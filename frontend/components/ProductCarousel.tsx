@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import {
     ChevronLeft,
@@ -11,6 +11,7 @@ import {
     Star,
 } from "lucide-react";
 
+import { cn, sourceBadgeClass } from "@/lib/utils";
 import { Product, Review } from "@/types";
 import ReviewCards from "./ReviewCards";
 
@@ -33,27 +34,45 @@ export default function ProductCarousel({
     onActiveChange,
     reviewsForProduct,
 }: ProductCarouselProps) {
+    // Product IDs can overlap between stores, while duplicate records can
+    // also occur when search results are merged. Keep one card per
+    // source/product identity so the rendered list has stable unique keys.
+    const uniqueProducts = useMemo(
+        () =>
+            Array.from(
+                new Map(
+                    products.map((product) => [
+                        `${product.source ?? ""}-${product.id}`,
+                        product,
+                    ]),
+                ).values(),
+            ),
+        [products],
+    );
+
     const [internalIndex, setInternalIndex] = useState(0);
     const activeIndex = controlledIndex ?? internalIndex;
 
     // Reset to first card whenever the product list identity changes
     const prevIdsRef = useRef<string>("");
     useEffect(() => {
-        const ids = products.map((p) => p.id).join(",");
+        const ids = uniqueProducts
+            .map((product) => `${product.source ?? ""}-${product.id}`)
+            .join(",");
         if (ids !== prevIdsRef.current) {
             prevIdsRef.current = ids;
             setInternalIndex(0);
             onActiveChange?.(0);
         }
-    }, [products, onActiveChange]);
+    }, [uniqueProducts, onActiveChange]);
 
     const setActive = useCallback(
         (next: number) => {
-            const clamped = Math.max(0, Math.min(products.length - 1, next));
+            const clamped = Math.max(0, Math.min(uniqueProducts.length - 1, next));
             if (controlledIndex === undefined) setInternalIndex(clamped);
             onActiveChange?.(clamped);
         },
-        [products.length, controlledIndex, onActiveChange],
+        [uniqueProducts.length, controlledIndex, onActiveChange],
     );
 
     const goPrev = () => setActive(activeIndex - 1);
@@ -98,14 +117,14 @@ export default function ProductCarousel({
         window.addEventListener("keydown", onKey);
         return () => window.removeEventListener("keydown", onKey);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [activeIndex, products.length]);
+    }, [activeIndex, uniqueProducts.length]);
 
-    if (!products || products.length === 0) return null;
+    if (uniqueProducts.length === 0) return null;
 
     // Check whether we have fresh reviews that match the ACTIVE product's
     // name. When yes, we animate the card smaller/higher to open space for
     // the reviews panel below.
-    const activeProduct = products[activeIndex];
+    const activeProduct = uniqueProducts[activeIndex];
     const showReviewsPanel =
         !!reviewsForProduct &&
         reviewsForProduct.reviews.length > 0 &&
@@ -137,7 +156,7 @@ export default function ProductCarousel({
             )}
 
             {/* Next chevron (always visible) */}
-            {activeIndex < products.length - 1 && (
+            {activeIndex < uniqueProducts.length - 1 && (
                 <button
                     onClick={goNext}
                     aria-label="Next product"
@@ -162,7 +181,7 @@ export default function ProductCarousel({
                                    ? "h-[460px] -translate-y-2 scale-[0.95]"
                                    : "h-[520px] translate-y-0 scale-100"
                            }`}>
-                {products.map((product, idx) => {
+                {uniqueProducts.map((product, idx) => {
                     const distance = idx - activeIndex;
                     const absDist = Math.abs(distance);
                     // Only render the active card plus one on each side.
@@ -216,7 +235,7 @@ export default function ProductCarousel({
                                 product={product}
                                 isActive={isActive}
                                 index={idx}
-                                total={products.length}
+                                total={uniqueProducts.length}
                             />
                         </div>
                     );
@@ -224,9 +243,9 @@ export default function ProductCarousel({
             </div>
 
             {/* Dots indicator */}
-            {products.length > 1 && !showReviewsPanel && (
+            {uniqueProducts.length > 1 && !showReviewsPanel && (
                 <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5 z-30">
-                    {products.map((_, idx) => (
+                    {uniqueProducts.map((_, idx) => (
                         <button
                             key={idx}
                             onClick={() => setActive(idx)}
@@ -346,11 +365,22 @@ function ProductCard({
             className="h-full w-full rounded-3xl bg-card
                        border border-border/60 shadow-2xl shadow-black/40
                        overflow-hidden flex flex-col">
-            {/* Header mini */}
+            {/* Header mini — shows which dummy store (Toko Oren/Hijau) this
+                product came from, color-matched to the store's theme. */}
             <div className="px-5 pt-4 pb-1 flex items-center justify-between">
-                <div className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                    E-Commerce
-                </div>
+                {product.source_label ? (
+                    <span
+                        className={cn(
+                            "text-[0.65rem] font-semibold tracking-wide uppercase px-2 py-0.5 rounded-full",
+                            sourceBadgeClass(product.source),
+                        )}>
+                        {product.source_label}
+                    </span>
+                ) : (
+                    <div className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                        E-Commerce
+                    </div>
+                )}
                 <div className="text-[0.65rem] text-muted-foreground font-medium">
                     {index + 1} / {total}
                 </div>
@@ -375,6 +405,7 @@ function ProductCard({
                                 className={`object-cover transition-opacity duration-500
                                     ${i === currentImage ? "opacity-100" : "opacity-0"}`}
                                 sizes="(max-width: 640px) 280px, 320px"
+                                unoptimized
                                 priority={i === 0 && isActive}
                             />
                         ))}

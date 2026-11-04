@@ -285,7 +285,8 @@ async def send_product_cards(products: list) -> str:
     Explicitly send product cards to the frontend display.
     Automatically trims to a maximum of 5 products for the voice-first
     carousel UI (showing more overwhelms the user when they're listening).
-    Pass the products you consider the best matches first.
+    Pass the products you consider the best matches first. After sending
+    cards, only confirm that they are visible; do not read every card aloud.
     """
     # Normalize every item to a dict regardless of whether Gemini sent dict
     # or JSON-string. See _coerce_product's docstring for why this matters.
@@ -294,18 +295,37 @@ async def send_product_cards(products: list) -> str:
     # cards to the carousel.
     normalized = [p for p in normalized if p]
 
+    if not normalized:
+        # Never publish an empty PRODUCT_CARDS payload — the frontend
+        # replaces whatever cards are currently shown with whatever array
+        # arrives, so an empty list silently wipes the carousel (user
+        # report: asked for laptops, then "yang di atas 25 juta", cards
+        # vanished with no explanation). Leave the existing cards alone
+        # and tell the LLM to explain instead of calling this with [].
+        return (
+            "SEND_PRODUCT_CARDS_SKIPPED: list produk kosong, TIDAK dikirim ke "
+            "frontend — kartu yang sedang tampil di layar user TETAP ada, "
+            "jangan dianggap sudah diganti.\n"
+            "Beri tahu user bahwa gak ada produk yang cocok dengan filter "
+            "itu, dan tawarkan alternatif (longgarin budget atau filter lain)."
+        )
+
     await _send_product_cards_internal(normalized[:5])
 
     sent = normalized[:5]
-    summary = f"✅ {len(sent)} produk berhasil dikirim ke tampilan user:\n\n"
+    summary = (
+        f"PRODUCT_CARDS_SENT_INTERNAL: {len(sent)} produk berhasil dikirim "
+        "ke tampilan user. Jangan bacakan detail kartu satu per satu.\n"
+    )
     for i, p in enumerate(sent, 1):
         summary += (
-            f"{i}. {p.get('name', 'Unknown')}\n"
-            f"   ID: {p.get('id', '-')} | "
-            f"Harga: Rp {_num(p.get('price')):,.0f} | "
-            f"Stok: {p.get('stock', '-')} | "
-            f"Kategori: {p.get('category', '-')}\n"
+            f"{i}. {p.get('name', 'Unknown')} — "
+            f"ID: {p.get('id', '-')} | source=\"{p.get('source')}\"\n"
         )
+    summary += (
+        "Respons suara wajib singkat: beri tahu user kartunya sudah tampil "
+        "dan tawarkan detail satu produk."
+    )
     return summary
 
 
@@ -452,32 +472,35 @@ async def search_product(
     # ✅ Kirim ke frontend via internal function (bukan @function_tool)
     await _send_product_cards_internal(products[:5])
 
-    # ✅ Return daftar lengkap ke LLM agar agent tahu semua produk
+    # Return only compact selection context. The cards already contain the
+    # prices, ratings, stock, and store details; reading all of those fields
+    # in the voice response defeats the browse-first flow.
     search_term = query if query else "semua produk"
     result = (
-        f"Ketemu {len(products)} produk untuk '{search_term}' dari "
-        f"{len(ADAPTERS)} toko. Gue tampilin {min(len(products), 8)} di layar.\n\n"
+        f"SEARCH_RESULT_INTERNAL: Ketemu {len(products)} produk untuk "
+        f"'{search_term}' dari {len(ADAPTERS)} toko. "
+        f"{min(len(products), 5)} kartu sudah ditampilkan di layar.\n"
+        "Jangan bacakan daftar ini atau atribut produknya ke user. "
+        "Gunakan konteks ini hanya untuk memilih produk saat user meminta "
+        "nomor/nama tertentu.\n\n"
     )
-    result += "Daftar produk yang ditampilkan (sebutin source-nya kalau mau add_to_cart/checkout):\n"
+    result += "Konteks internal hasil kartu (nomor, nama, ID, source):\n"
     for i, p in enumerate(products[:5], 1):
-        store = p.get("store") or {}
-        store_label = f" ({store.get('city')})" if store.get("city") else ""
         result += (
-            f"{i}. {p.get('name', 'Unknown')} — toko: {p.get('source_label')}{store_label} (source=\"{p.get('source')}\")\n"
-            f"   ID: {p.get('id', '-')} | "
-            f"Harga: Rp {p.get('price', 0):,.0f} | "
-            f"Rating: {p.get('rating', 0)}⭐ | "
-            f"Stok: {p.get('stock', 0)} | "
-            f"Kategori: {p.get('category', '-')}\n"
+            f"{i}. {p.get('name', 'Unknown')} — "
+            f"ID: {p.get('id', '-')} | source=\"{p.get('source')}\"\n"
         )
 
-    if len(products) > 8:
-        result += f"\n(Ada {len(products) - 8} produk lagi yang gak ditampilin.)\n"
+    if len(products) > 5:
+        result += f"\n(Ada {len(products) - 5} produk lain yang tidak ditampilkan.)\n"
 
     if failed_sources:
         result += f"\n⚠️ Toko yang gagal diakses: {', '.join(failed_sources)}.\n"
 
-    result += "\nUser bisa minta detail atau tambahin ke keranjang dengan sebut nama/nomor produk."
+    result += (
+        "\nRespons suara wajib singkat: beri tahu user hasilnya sudah ditampilkan "
+        "dan tawarkan detail satu produk berdasarkan nomor/nama."
+    )
     return result
 
 @function_tool

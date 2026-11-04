@@ -14,7 +14,7 @@ from voiceverification.core.behavior_scoring import compute_behavior_score
 
 # Below this much *speech* (silence trimmed), a speaker embedding is too
 # unstable to judge — see the REPEAT branch in verify_against_multiple_embeddings.
-MIN_SPEECH_SEC = 2.0
+MIN_SPEECH_SEC = 1.0
 
 
 def _speech_duration(wav_path: str) -> float:

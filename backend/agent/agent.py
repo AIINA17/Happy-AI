@@ -211,10 +211,22 @@ THINKING_INDICATOR_DELAY_SEC = 5.0
 # can prompt the user to retry, and log a warning so stuck sessions are
 # visible in the dev logs instead of looking like normal silence.
 #
-# Note: the state-timeout only catches "stuck in thinking" cases. Websocket
-# errors (1007 / 1011) are caught via the `error` event handler instead —
-# that fires immediately and doesn't wait for this timeout.
+# Note: the state-timeout only catches "stuck in thinking" cases, and the
+# `error` event handler below turned out NOT to catch 1007/1011 — traced
+# this by reading livekit/plugins/google/realtime/realtime_api.py: on a
+# 1007 CONTENT_TYPE_AUDIO error, `_recv_task`'s except block swallows the
+# exception and calls `_mark_restart_needed()` without ever calling
+# `_emit_error()`, so `session.on("error")` never fires for this case. The
+# only observable symptom is a "thinking" episode that ends (state flips to
+# "listening"/"idle") without ever passing through "speaking" — see the
+# turn_had_speech tracking in install_stuck_watchdog below.
 STUCK_TIMEOUT_SEC = 10.0
+
+# Minimum gap between two recovery attempts (notify + generate_reply). The
+# "error" event and the "turn ended without a reply" check can both fire
+# for the same underlying failure within a second of each other; without
+# this debounce the agent would apologize and re-ask twice in a row.
+RECOVERY_DEBOUNCE_SEC = 5.0
 
 
 def install_thinking_indicator(session, room) -> None:
@@ -268,7 +280,8 @@ def install_stuck_watchdog(session, room) -> None:
     auto-reconnects on socket close; the watchdog's job is just to make the
     silent window visible to the user and in the logs.
     """
-    state = {"generation": 0}
+    state = {"generation": 0, "turn_had_speech": True}
+    recovery_state = {"last_recovery_ts": 0.0}
 
     async def _notify_stuck() -> None:
         try:
@@ -292,25 +305,15 @@ def install_stuck_watchdog(session, room) -> None:
             )
             await _notify_stuck()
 
-    @session.on("agent_state_changed")
-    def on_agent_state_changed(ev):
-        state["generation"] += 1
-        if ev.new_state == "thinking":
-            asyncio.create_task(_watch(state["generation"]))
-        # Any transition out of "thinking" (speaking, listening, idle)
-        # bumps generation so the pending _watch task above becomes a
-        # no-op — don't need an explicit cancel.
-
-    # Hook directly into the session's `error` event so we react the moment
-    # Gemini's realtime socket errors out (1007 CONTENT_TYPE_AUDIO not
-    # supported, 1011 Internal error). Previously the only stuck-detect was
-    # the state-timeout above, but a 1007 kicks the agent OUT of "thinking"
-    # before the 15 s timer fires, so our old watchdog never ran — users
-    # just saw dead silence. Firing AGENT_STUCK immediately on error gives
-    # the frontend a chance to prompt the user to retry *right away*, and
-    # we also kick a fresh generate_reply() so the agent recovers without
-    # the user having to speak again.
-    async def _notify_and_recover() -> None:
+    # Shared by both recovery triggers below (explicit `error` event, and
+    # "turn ended without a reply"). Debounced because the same underlying
+    # failure can tick both within the same second.
+    async def _notify_and_recover(reason: str) -> None:
+        now = time.monotonic()
+        if now - recovery_state["last_recovery_ts"] < RECOVERY_DEBOUNCE_SEC:
+            return
+        recovery_state["last_recovery_ts"] = now
+        print(f"🔁 Recovering ({reason})")
         await _notify_stuck()
         # Wait briefly for the plugin's auto-reconnect to complete before
         # kicking off a new turn — generate_reply fired too soon races
@@ -326,15 +329,39 @@ def install_stuck_watchdog(session, room) -> None:
                     "ngulang dari awal. 1 kalimat aja."
                 )
             )
-            print("🔁 Recovery generate_reply dispatched after error")
+            print("🔁 Recovery generate_reply dispatched")
         except Exception as e:
             print(f"❌ Recovery generate_reply failed: {e}")
 
+    @session.on("agent_state_changed")
+    def on_agent_state_changed(ev):
+        state["generation"] += 1
+        if ev.new_state == "thinking":
+            state["turn_had_speech"] = False
+            asyncio.create_task(_watch(state["generation"]))
+        elif ev.new_state == "speaking":
+            state["turn_had_speech"] = True
+        elif ev.new_state in ("listening", "idle") and not state["turn_had_speech"]:
+            # A "thinking" episode just ended without ever reaching
+            # "speaking" — the turn produced no reply. This is the
+            # observable fingerprint of a Gemini realtime socket error the
+            # plugin swallows internally (1007 CONTENT_TYPE_AUDIO, 1011)
+            # without emitting `error` — see the note on STUCK_TIMEOUT_SEC.
+            state["turn_had_speech"] = True  # armed again only by the next "thinking"
+            print("⚠️  Turn ended without a reply — likely a swallowed realtime-socket error.")
+            asyncio.create_task(_notify_and_recover("turn ended without a reply"))
+        # Any transition out of "thinking" also bumps generation so the
+        # pending _watch task above becomes a no-op — don't need an
+        # explicit cancel.
+
+    # Hook directly into the session's `error` event too, for whatever
+    # fraction of realtime-socket failures *do* reach it (not 1007/1011,
+    # per the note above, but worth keeping as a second signal).
     @session.on("error")
     def on_session_error(ev):
         err = getattr(ev, "error", None) or getattr(ev, "exception", ev)
         print(f"⚠️  Realtime session error — notifying frontend: {err!r}")
-        asyncio.create_task(_notify_and_recover())
+        asyncio.create_task(_notify_and_recover("session error event"))
 
 
 async def trim_chat_ctx_if_needed(agent: Agent) -> None:

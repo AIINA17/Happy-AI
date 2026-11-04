@@ -7,6 +7,7 @@ verification services for speaker enrollment and spoof detection.
 import asyncio
 import json
 import os
+import shutil
 import time
 from datetime import datetime, timezone
 import traceback
@@ -23,6 +24,8 @@ from livekit.api import (
     CreateAgentDispatchRequest,
     DeleteAgentDispatchRequest,
     LiveKitAPI,
+    ListParticipantsRequest,
+    ParticipantInfo,
     VideoGrants,
 )
 from livekit.api.twirp_client import TwirpError
@@ -77,8 +80,44 @@ LIVEKIT_API_SECRET = os.getenv("LIVEKIT_API_SECRET")
 
 AGENT_NAME = "happy-shopping-assistant"
 
+# /join-token used to unconditionally create a fresh agent dispatch on
+# every call. Two calls for the same room close together (double-click,
+# or the same user opening a second tab/device while the first session is
+# still live) could each create their own dispatch — and since LiveKit's
+# default job executor runs each dispatch's job in its own OS process
+# (see agent.py's AGENT_NAME comment), agent.py's own in-process
+# `_active_rooms` dedup guard can't see across them, so both jobs can end
+# up as two separate ShoppingAgent instances in the same room (duplicated
+# greeting/audio, two racing voice-verification attempts).
+#
+# Fixed with two checks before ever creating a dispatch:
+#   1. Ask the room itself (ground truth) whether an agent participant is
+#      already active there — covers "second tab opened minutes later".
+#   2. Fall back to this short in-memory marker for the narrow startup gap
+#      right after a dispatch is created, before the agent process has
+#      actually joined (so check #1 would still see nobody there yet) —
+#      covers "second tab opened within the same second".
+# In-memory and per-room is fine for the current single-backend-instance
+# deployment (see docker-compose.yml); move to something shared (Redis,
+# Supabase) if this backend is ever scaled to multiple instances.
+_recent_dispatches: dict[str, float] = {}
+_recent_dispatches_lock = asyncio.Lock()
+DISPATCH_GRACE_SEC = 15.0
+
 if not LIVEKIT_API_KEY or not LIVEKIT_API_SECRET:
     raise RuntimeError("LIVEKIT credentials not set")
+
+# Temporary diagnostic knob (2026-10-30 investigation into production
+# "Replay attack detected" false positives — voice_verification_logs shows
+# genuinely-matching speakers getting denied, see analysis in that thread).
+# When set, /verify-voice persists a capped number of raw browser uploads
+# (pre-ffmpeg webm, exactly as the browser encoded them) + the final scored
+# wav + decision metadata, so they can be compared offline against the
+# clean dataset/{genuine,spoof} samples. Off by default — unset the env var
+# to disable; the cap keeps a forgotten "on" from filling disk.
+VOICE_DEBUG_CAPTURE_DIR = os.getenv("VOICE_DEBUG_CAPTURE_DIR")
+VOICE_DEBUG_CAPTURE_LIMIT = int(os.getenv("VOICE_DEBUG_CAPTURE_LIMIT", "20"))
+_voice_debug_capture_count = 0
 
 
 app = FastAPI()
@@ -152,43 +191,79 @@ async def join_token(request: Request):
         api_secret=LIVEKIT_API_SECRET,
     ) as lk:
 
-        # Clean up any stale dispatches for this room/agent first. Previous
-        # sessions can leave zombie dispatches on the LiveKit server even
-        # after the local agent process exits — if we skip creation because
-        # one of those exists, no actual agent ever joins the new session.
+        # Ground truth check #1 (see DISPATCH_GRACE_SEC's comment above):
+        # is an agent participant already active in this room?
+        agent_already_active = False
         try:
-            existing = await lk.agent_dispatch.list_dispatch(room_name)
+            participants = await lk.room.list_participants(
+                ListParticipantsRequest(room=room_name)
+            )
+            agent_already_active = any(
+                p.kind == ParticipantInfo.Kind.AGENT
+                and p.state != ParticipantInfo.State.DISCONNECTED
+                for p in participants.participants
+            )
         except TwirpError as e:
             if e.code != "not_found":
                 raise
-            existing = []
 
-        for d in existing:
-            if d.agent_name != AGENT_NAME:
-                continue
+        # Check #2: a dispatch for this room was just requested a moment
+        # ago and the agent process may not have joined yet, so check #1
+        # above would still see nobody there. Checked-and-set atomically
+        # so two near-simultaneous calls for the same room can't both
+        # decide to dispatch.
+        async with _recent_dispatches_lock:
+            now = time.time()
+            for room, ts in list(_recent_dispatches.items()):
+                if now - ts > DISPATCH_GRACE_SEC:
+                    del _recent_dispatches[room]
+
+            last = _recent_dispatches.get(room_name)
+            recently_dispatched = last is not None and now - last < DISPATCH_GRACE_SEC
+            should_dispatch = not agent_already_active and not recently_dispatched
+            if should_dispatch:
+                _recent_dispatches[room_name] = now
+
+        if should_dispatch:
+            # Clean up any stale dispatches for this room/agent first. Previous
+            # sessions can leave zombie dispatches on the LiveKit server even
+            # after the local agent process exits — if we skip creation because
+            # one of those exists, no actual agent ever joins the new session.
             try:
-                await lk.agent_dispatch.delete_dispatch(
-                    DeleteAgentDispatchRequest(
-                        dispatch_id=d.id,
-                        room=room_name,
-                    )
-                )
-            except Exception as del_err:
-                # Non-fatal — if we can't delete, the create below might fail
-                # loudly, but it's better than silently refusing to start.
-                print(f"⚠️ delete_dispatch failed (continuing): {del_err}")
+                existing = await lk.agent_dispatch.list_dispatch(room_name)
+            except TwirpError as e:
+                if e.code != "not_found":
+                    raise
+                existing = []
 
-        # Always create a fresh dispatch. Agent-side `_active_rooms` guard
-        # (see agent.py) still protects against duplicate agents joining
-        # the same room from a true double-click.
-        metadata_payload = json.dumps({"user_city": user_city})
-        await lk.agent_dispatch.create_dispatch(
-            CreateAgentDispatchRequest(
-                room=room_name,
-                agent_name=AGENT_NAME,
-                metadata=metadata_payload,
+            for d in existing:
+                if d.agent_name != AGENT_NAME:
+                    continue
+                try:
+                    await lk.agent_dispatch.delete_dispatch(
+                        DeleteAgentDispatchRequest(
+                            dispatch_id=d.id,
+                            room=room_name,
+                        )
+                    )
+                except Exception as del_err:
+                    # Non-fatal — if we can't delete, the create below might fail
+                    # loudly, but it's better than silently refusing to start.
+                    print(f"⚠️ delete_dispatch failed (continuing): {del_err}")
+
+            metadata_payload = json.dumps({"user_city": user_city})
+            await lk.agent_dispatch.create_dispatch(
+                CreateAgentDispatchRequest(
+                    room=room_name,
+                    agent_name=AGENT_NAME,
+                    metadata=metadata_payload,
+                )
             )
-        )
+        else:
+            print(
+                f"⚠️ Skipping dispatch for {room_name}: agent already "
+                f"{'active' if agent_already_active else 'recently dispatched'}"
+            )
 
     return {
         "status": "OK",
@@ -215,6 +290,7 @@ async def _load_user_context(user_id: str) -> tuple[list[dict], dict[str, Behavi
 
 @app.post("/verify-voice")
 async def verify_voice(request: Request, audio: UploadFile = File(...)):
+    global _voice_debug_capture_count
     user_id = get_user_id_from_request(request)
 
     enroll_embeddings, behavior_profiles = await _load_user_context(user_id)
@@ -224,8 +300,16 @@ async def verify_voice(request: Request, audio: UploadFile = File(...)):
             "reason": "No enrollment profile found for user."
         }
 
+    capture_debug = (
+        VOICE_DEBUG_CAPTURE_DIR is not None
+        and _voice_debug_capture_count < VOICE_DEBUG_CAPTURE_LIMIT
+    )
+
     try:
-        wav_path = save_audio(audio)
+        wav_path = save_audio(
+            audio,
+            debug_capture_dir=VOICE_DEBUG_CAPTURE_DIR if capture_debug else None,
+        )
         normalize_audio(wav_path)
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Invalid/unsupported audio upload: {e}")
@@ -248,6 +332,33 @@ async def verify_voice(request: Request, audio: UploadFile = File(...)):
         matched_label: str | None = result.get("best_label")
         updated_profile: BehaviorProfile | None = result.get("updated_behavior_profile")
 
+        if capture_debug:
+            _voice_debug_capture_count += 1
+            token = os.path.splitext(os.path.basename(wav_path))[0]
+            shutil.copy(
+                wav_path,
+                os.path.join(VOICE_DEBUG_CAPTURE_DIR, f"{token}_scored.wav"),
+            )
+            meta_path = os.path.join(VOICE_DEBUG_CAPTURE_DIR, f"{token}_meta.json")
+            with open(meta_path, "w") as f:
+                json.dump(
+                    {
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "user_id": user_id,
+                        "matched_label": matched_label,
+                        "decision": result["decision"],
+                        "reason": result["reason"],
+                        "speaker_score": result["score"],
+                        "spoof_prob": result["spoof_prob"],
+                    },
+                    f,
+                    indent=2,
+                )
+            print(
+                f"🐞 debug capture #{_voice_debug_capture_count}/{VOICE_DEBUG_CAPTURE_LIMIT} "
+                f"-> {token}"
+            )
+
         if matched_label and updated_profile:
             await asyncio.to_thread(save_behavior_profile, user_id, matched_label, updated_profile)
 
@@ -262,7 +373,7 @@ async def verify_voice(request: Request, audio: UploadFile = File(...)):
         preview_dims = None
         try:
             if len(enroll_embeddings) >= 2:
-                live_emb = bio.speaker.extract_embedding(wav_path)
+                live_emb = await asyncio.to_thread(bio.speaker.extract_embedding, wav_path)
                 enroll_matrix = np.array(
                     [p["embedding"] for p in enroll_embeddings]
                 )

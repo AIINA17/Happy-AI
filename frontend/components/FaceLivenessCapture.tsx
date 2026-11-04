@@ -37,6 +37,16 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { MEDIAPIPE_WASM_URL } from "@/lib/mediapipe";
+import { supabase } from "@/lib/supabase";
+
+async function authHeader(): Promise<Record<string, string>> {
+    const {
+        data: { session },
+    } = await supabase.auth.getSession();
+    const accessToken = session?.access_token;
+    return accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
+}
 
 export type FaceVerifyDecision = "VERIFIED" | "DENIED" | "ERROR";
 
@@ -242,7 +252,7 @@ export default function FaceLivenessCapture({
         if (landmarkerRef.current) return landmarkerRef.current;
         if (!landmarkerPromiseRef.current) {
             landmarkerPromiseRef.current = FilesetResolver.forVisionTasks(
-                "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm",
+                MEDIAPIPE_WASM_URL,
             ).then((vision) =>
                 FaceLandmarker.createFromOptions(vision, {
                     baseOptions: {
@@ -374,7 +384,6 @@ export default function FaceLivenessCapture({
 
         try {
             const form = new FormData();
-            form.append("user_id", userId);
             form.append("image", blob, "face.jpg");
             if (livenessTokenRef.current) {
                 form.append("liveness_token", livenessTokenRef.current);
@@ -387,6 +396,7 @@ export default function FaceLivenessCapture({
 
             const res = await fetch(`${SERVER_URL}/verify-face`, {
                 method: "POST",
+                headers: await authHeader(),
                 body: form,
             });
 
@@ -599,7 +609,7 @@ export default function FaceLivenessCapture({
                 `${SERVER_URL}/liveness-challenge`,
                 {
                     method: "POST",
-                    body: new URLSearchParams({ user_id: userId }),
+                    headers: await authHeader(),
                 },
             );
             if (!challengeRes.ok) {

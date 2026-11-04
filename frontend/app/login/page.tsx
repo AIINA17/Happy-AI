@@ -55,34 +55,6 @@ export default function LoginPage() {
         }
     };
 
-    const handleSignup = async (email: string, password: string) => {
-        const { data, error } = await supabase.auth.signUp({
-            email,
-            password,
-        });
-
-        if (error) {
-            setDialog({
-                isOpen: true,
-                title: "Signup gagal",
-                message: error.message,
-            });
-            return;
-        }
-
-        if (!data.session) {
-            setDialog({
-                isOpen: true,
-                title: "Verifikasi diperlukan",
-                message: "Cek email kamu untuk verifikasi akun sebelum login.",
-            });
-            return;
-        }
-
-        // Jika langsung dapat session, masuk ke app
-        router.replace("/");
-    };
-
     if (isLoading) {
         return (
             <main className="h-screen bg-background flex items-center justify-center">
@@ -95,7 +67,7 @@ export default function LoginPage() {
         <main className="h-screen bg-background flex items-center justify-center p-4 relative">
             <AuthCard
                 onLogin={handleLogin}
-                onSignup={handleSignup}
+                onSignup={async () => {}}
                 onSwitchModeRoute={() => router.push("/signup")}
             />
 

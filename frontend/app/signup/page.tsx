@@ -6,11 +6,17 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import AuthCard from "@/components/AuthCard";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import { supabase } from "@/lib/supabase";
 
 export default function SignupPage() {
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(true);
+    const [dialog, setDialog] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+    }>({ isOpen: false, title: "", message: "" });
 
     useEffect(() => {
         const checkSession = async () => {
@@ -35,13 +41,24 @@ export default function SignupPage() {
         });
 
         if (error) {
-            // Error feedback is handled via the login page flow.
+            setDialog({
+                isOpen: true,
+                title: "Signup gagal",
+                message: error.message,
+            });
             return;
         }
 
-        if (data.session) {
-            router.replace("/");
+        if (!data.session) {
+            setDialog({
+                isOpen: true,
+                title: "Verifikasi diperlukan",
+                message: "Cek email kamu untuk verifikasi akun sebelum login.",
+            });
+            return;
         }
+
+        router.replace("/");
     };
 
     if (isLoading) {
@@ -53,12 +70,23 @@ export default function SignupPage() {
     }
 
     return (
-        <main className="h-screen bg-background flex items-center justify-center p-4">
+        <main className="h-screen bg-background flex items-center justify-center p-4 relative">
             <AuthCard
                 onLogin={async () => {}}
                 onSignup={handleSignup}
                 initialMode="signup"
                 onSwitchModeRoute={() => router.push("/login")}
+            />
+
+            <ConfirmDialog
+                isOpen={dialog.isOpen}
+                type="warning"
+                title={dialog.title}
+                message={dialog.message}
+                confirmText="OK"
+                cancelText="Tutup"
+                onConfirm={() => setDialog((d) => ({ ...d, isOpen: false }))}
+                onCancel={() => setDialog((d) => ({ ...d, isOpen: false }))}
             />
         </main>
     );

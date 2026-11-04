@@ -12,20 +12,25 @@ def test_denied_when_speaker_score_below_absolute_minimum():
     assert "Speaker score too low" in reason
 
 
-def test_denied_when_replay_prob_at_deny_threshold():
+def test_repeat_when_replay_prob_at_deny_threshold():
+    # Demoted from DENIED to REPEAT (see DecisionConfig.replay_deny's
+    # comment): on the real browser capture channel this threshold fires on
+    # genuinely-matching speakers too often to treat a single reading as a
+    # confirmed attack — see the 2026-10 voice_verification_logs investigation.
     config = DecisionConfig()
     decision, reason = decide(speaker_score=0.9, replay_prob=config.replay_deny)
-    assert decision == Decision.DENIED
+    assert decision == Decision.REPEAT
     assert "Replay" in reason
 
 
 def test_replay_deny_overrides_high_speaker_score():
-    # A confident-sounding spoof must still be denied, not verified —
+    # A confident-sounding spoof must still be kept out of VERIFIED —
     # the anti-spoof guard has to win even against a near-perfect
-    # speaker-similarity score.
+    # speaker-similarity score. It no longer hard-denies on one reading
+    # (see above), but it must still never let this through as VERIFIED.
     config = DecisionConfig()
     decision, _ = decide(speaker_score=0.99, replay_prob=config.replay_deny)
-    assert decision == Decision.DENIED
+    assert decision != Decision.VERIFIED
 
 
 def test_repeat_in_replay_warn_zone():

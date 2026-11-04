@@ -14,7 +14,11 @@ const nextConfig: NextConfig = {
 
     // Lets the dev server serve HMR/_next assets when accessed via the
     // Tailscale Serve HTTPS hostname (phone access) instead of localhost.
+<<<<<<< Updated upstream
     allowedDevOrigins: ["izz-ubuntu.tail4b36b8.ts.net"],
+=======
+    allowedDevOrigins: ["https://wrap-mystery-surrounded-storm.trycloudflare.com/"],
+>>>>>>> Stashed changes
 
     turbopack: {
         root: turbopackRoot,

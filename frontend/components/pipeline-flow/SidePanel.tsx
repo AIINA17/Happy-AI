@@ -1,9 +1,70 @@
 "use client";
 
-import { FormulaToggle } from "@/components/pipeline/FormulaToggle";
+import type { BlockExplainer } from "@/components/pipeline/blockExplainer";
 import type { LayerBlockOutput } from "@/components/pipeline/types";
+import { faceStageExplainer } from "./faceStageExplainer";
 import type { FaceStageData } from "./faceTypes";
 import { Panel } from "./Panel";
+
+// Structured "what is this block" breakdown, shown the same way for a real
+// captured ECAPA/anti-spoof layer and for a face-pipeline stage: the
+// formula broken into readable steps, then input/output shape+meaning,
+// what the block actually does, a short real-numbers example, and why the
+// step exists at all. Always expanded (not behind a toggle) — the user
+// already clicked into a block wanting this detail.
+function ExplainerSections({ explainer }: { explainer: BlockExplainer }) {
+  return (
+    <div className="space-y-5 mt-5 pt-5 border-t border-slate-200">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">Rumus</p>
+        <div className="space-y-1.5">
+          {explainer.formula.map((line, i) => (
+            <code
+              key={i}
+              className="block text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-md px-3 py-2 leading-relaxed"
+            >
+              {line}
+            </code>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="p-3 rounded-lg bg-blue-50 border border-blue-100">
+          <p className="text-xs font-semibold uppercase tracking-wide text-blue-500 mb-1.5">Input</p>
+          <p className="text-sm text-slate-700 leading-relaxed">{explainer.input}</p>
+        </div>
+        <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-100">
+          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600 mb-1.5">Output</p>
+          <p className="text-sm text-slate-700 leading-relaxed">{explainer.output}</p>
+        </div>
+      </div>
+
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1.5">
+          Proses: blok ini ngapain
+        </p>
+        <p className="text-sm text-slate-600 leading-relaxed">{explainer.process}</p>
+      </div>
+
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1.5">
+          Contoh perhitungan singkat
+        </p>
+        <p className="text-sm text-slate-600 leading-relaxed bg-slate-50 border border-slate-200 rounded-md px-3 py-2">
+          {explainer.calculation}
+        </p>
+      </div>
+
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-wide text-amber-500 mb-1.5">
+          Kenapa blok ini penting
+        </p>
+        <p className="text-sm text-slate-600 leading-relaxed">{explainer.why}</p>
+      </div>
+    </div>
+  );
+}
 
 function FeatureStrip({ preview }: { preview: number[] }) {
   const values = preview.slice(0, 64);
@@ -37,13 +98,13 @@ function FeatureStrip({ preview }: { preview: number[] }) {
 export function LayerBlockPanel({
   label,
   block,
-  formula,
+  explainer,
   accent,
   onClose,
 }: {
   label: string;
   block: LayerBlockOutput;
-  formula: string | null;
+  explainer: BlockExplainer | null;
   accent: string;
   onClose: () => void;
 }) {
@@ -57,39 +118,32 @@ export function LayerBlockPanel({
           ["max", block.max],
         ].map(([lbl, v]) => (
           <div key={lbl as string} className="p-2.5 rounded-lg bg-slate-50 border border-slate-200">
-            <p className="text-[10px] text-slate-500">{lbl}</p>
-            <p className="text-sm font-mono font-medium text-slate-900">
+            <p className="text-xs text-slate-500">{lbl}</p>
+            <p className="text-base font-mono font-medium text-slate-900">
               {typeof v === "number" ? v.toFixed(4) : "—"}
             </p>
           </div>
         ))}
       </div>
 
-      {formula && (
-        <div className="mb-4">
-          <p className="text-[10px] uppercase tracking-wide text-slate-400 mb-1">
-            Rumus arsitektur standar
-          </p>
-          <FormulaToggle formula={formula} />
-        </div>
-      )}
-
-      <p className="text-[10px] uppercase tracking-wide text-slate-400 mb-1">
+      <p className="text-xs uppercase tracking-wide text-slate-400 mb-1.5">
         Contoh nilai mentah (64 pertama dari tensor)
       </p>
       <FeatureStrip preview={block.preview} />
-      <p className="text-[10px] text-slate-400 mt-2 leading-relaxed">
+      <p className="text-xs text-slate-400 mt-2 leading-relaxed">
         Statistik di atas dihitung dari seluruh tensor layer ini (bukan dari
         64 nilai yang ditampilkan) — ditangkap lewat forward hook pada model
         pretrained asli.
       </p>
+
+      {explainer && <ExplainerSections explainer={explainer} />}
 
       <div className="mt-4 pt-3 border-t border-slate-200 flex items-center gap-2">
         <span
           className="inline-block w-2.5 h-2.5 rounded-full"
           style={{ backgroundColor: accent }}
         />
-        <span className="text-[11px] text-slate-500">Bagian dari {label.split(" ")[0]}</span>
+        <span className="text-sm text-slate-500">Bagian dari {label.split(" ")[0]}</span>
       </div>
     </Panel>
   );
@@ -166,6 +220,7 @@ export function FaceStagePanel({
     alignment: "Face Alignment (norm_crop)",
     recognition: "Recognition — ArcFace (w600k_r50.onnx)",
   };
+  const explainer = faceStageExplainer(stage);
 
   return (
     <Panel title={titles[stage]} subtitle={data.source_file} onClose={onClose}>
@@ -182,14 +237,14 @@ export function FaceStagePanel({
           </div>
           <div className="grid grid-cols-2 gap-3 mt-3">
             <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200">
-              <p className="text-[10px] text-slate-500">det_score</p>
-              <p className="text-sm font-mono font-medium text-slate-900">
+              <p className="text-xs text-slate-500">det_score</p>
+              <p className="text-base font-mono font-medium text-slate-900">
                 {data.detection.det_score.toFixed(4)}
               </p>
             </div>
             <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200">
-              <p className="text-[10px] text-slate-500">bbox [x1,y1,x2,y2]</p>
-              <p className="text-[11px] font-mono text-slate-900">
+              <p className="text-xs text-slate-500">bbox [x1,y1,x2,y2]</p>
+              <p className="text-sm font-mono text-slate-900">
                 {data.detection.bbox.map((v) => v.toFixed(0)).join(", ")}
               </p>
             </div>
@@ -208,7 +263,7 @@ export function FaceStagePanel({
             />
             <KpsOverlay imageShape={data.image_shape} kps={data.landmark.kps} />
           </div>
-          <p className="text-[11px] text-slate-500 mt-3">
+          <p className="text-sm text-slate-500 mt-3 leading-relaxed">
             5 titik kunci (mata, hidung, sudut mulut) dipakai untuk alignment
             — model juga menghasilkan {data.landmark.landmark_2d_106_count}{" "}
             titik landmark 2D yang lebih detail (tidak digambar di sini).
@@ -225,7 +280,7 @@ export function FaceStagePanel({
             height={112}
             className="rounded-lg border border-slate-200"
           />
-          <p className="text-[11px] text-slate-500 mt-3">
+          <p className="text-sm text-slate-500 mt-3 leading-relaxed">
             Wajah asli dipotong &amp; diluruskan (warp geometris berdasarkan 5
             titik kunci) ke {data.alignment.size.join("×")} — ini persis
             gambar yang masuk ke model pengenalan, bukan ilustrasi.
@@ -236,19 +291,19 @@ export function FaceStagePanel({
       {stage === "recognition" && (
         <>
           <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 mb-3">
-            <p className="text-[10px] text-slate-500">embedding_dim</p>
-            <p className="text-sm font-mono font-medium text-slate-900">
+            <p className="text-xs text-slate-500">embedding_dim</p>
+            <p className="text-base font-mono font-medium text-slate-900">
               {data.embedding_dim}
             </p>
           </div>
-          <p className="text-[10px] uppercase tracking-wide text-slate-400 mb-1">
+          <p className="text-xs uppercase tracking-wide text-slate-400 mb-1.5">
             16 nilai pertama embedding (dari {data.embedding_dim})
           </p>
           <div className="grid grid-cols-4 gap-1">
             {data.embedding_preview.map((v, i) => (
               <span
                 key={i}
-                className="text-[10px] font-mono text-center py-1 rounded bg-slate-50 border border-slate-200 text-slate-700"
+                className="text-xs font-mono text-center py-1 rounded bg-slate-50 border border-slate-200 text-slate-700"
               >
                 {v.toFixed(3)}
               </span>
@@ -257,12 +312,14 @@ export function FaceStagePanel({
         </>
       )}
 
+      <ExplainerSections explainer={explainer} />
+
       <div className="mt-4 pt-3 border-t border-slate-200 flex items-center gap-2">
         <span
           className="inline-block w-2.5 h-2.5 rounded-full"
           style={{ backgroundColor: accent }}
         />
-        <span className="text-[11px] text-slate-500">
+        <span className="text-sm text-slate-500">
           Data nyata dari insightface buffalo_l
         </span>
       </div>

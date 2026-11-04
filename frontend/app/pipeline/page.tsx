@@ -46,9 +46,10 @@ import { LightThemeScope } from "@/components/pipeline-flow/LightThemeScope";
 import { LiveFaceCapturePanel } from "@/components/pipeline-flow/LiveFaceCapturePanel";
 import { FaceStagePanel, LayerBlockPanel } from "@/components/pipeline-flow/SidePanel";
 import { statusColor } from "@/components/charts/VerificationChartKit";
-import { blockFormula as antispoofBlockFormula } from "@/components/pipeline/antispoofBlockFormula";
+import { blockExplainer as antispoofBlockExplainer } from "@/components/pipeline/antispoofBlockExplainer";
 import { blockLabel as antispoofBlockLabel } from "@/components/pipeline/antispoofBlockLabel";
-import { blockFormula as ecapaBlockFormula } from "@/components/pipeline/ecapaBlockFormula";
+import type { BlockExplainer } from "@/components/pipeline/blockExplainer";
+import { blockExplainer as ecapaBlockExplainer } from "@/components/pipeline/ecapaBlockExplainer";
 import { blockLabel as ecapaBlockLabel } from "@/components/pipeline/ecapaBlockLabel";
 import { LayerMagnitudeChart } from "@/components/pipeline/LayerMagnitudeChart";
 import { LiveCapturePanel } from "@/components/pipeline/LiveCapturePanel";
@@ -65,7 +66,7 @@ const ACCENT_DECISION = "#64748b";
 type View = "overview" | "ecapa" | "antispoof" | "face";
 
 type PanelSelection =
-  | { kind: "layer"; label: string; block: LayerBlockOutput; formula: string | null; accent: string }
+  | { kind: "layer"; label: string; block: LayerBlockOutput; explainer: BlockExplainer | null; accent: string }
   | { kind: "face"; stage: "detection" | "landmark" | "alignment" | "recognition"; data: FaceStageData; accent: string }
   | null;
 
@@ -391,11 +392,11 @@ export default function PipelinePage() {
     if (!voiceTrace) return;
     const blocks = kind === "ecapa" ? voiceTrace.speaker_verification.ecapa_blocks : voiceTrace.anti_spoof.antispoof_blocks;
     const labelFn = kind === "ecapa" ? ecapaBlockLabel : antispoofBlockLabel;
-    const formulaFn = kind === "ecapa" ? ecapaBlockFormula : antispoofBlockFormula;
+    const explainerFn = kind === "ecapa" ? ecapaBlockExplainer : antispoofBlockExplainer;
     const accent = kind === "ecapa" ? ACCENT_SPEAKER : ACCENT_ANTISPOOF;
     const block = blocks[index];
     if (!block) return;
-    setPanel({ kind: "layer", label: `${index + 1}. ${labelFn(block.name)}`, block, formula: formulaFn(block.name), accent });
+    setPanel({ kind: "layer", label: `${index + 1}. ${labelFn(block.name)}`, block, explainer: explainerFn(block.name), accent });
   };
 
   const handleSelectFace = (stage: "detection" | "landmark" | "alignment" | "recognition") => {
@@ -537,7 +538,7 @@ export default function PipelinePage() {
           <LayerBlockPanel
             label={panel.label}
             block={panel.block}
-            formula={panel.formula}
+            explainer={panel.explainer}
             accent={panel.accent}
             onClose={() => setPanel(null)}
           />

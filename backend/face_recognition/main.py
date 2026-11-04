@@ -13,7 +13,10 @@ from face_recognition.liveness_challenge import (
 )
 from voiceverification.auth.auth_utils import get_user_id_from_request
 from voiceverification.db import face_repo, face_verification_logs
-from voiceverification.utils.room_notify import publish_room_result
+from voiceverification.utils.room_notify import (
+    publish_room_result,
+    resolve_active_user_room,
+)
 
 # Mounted into voiceverification/server.py under this prefix (see
 # app.include_router there) so face recognition shares the same FastAPI
@@ -95,15 +98,23 @@ async def verify_face(
 ):
     user_id = get_user_id_from_request(request)
     image_filename = image.filename
-    room_name = f"user-{user_id}"
 
     # Server-authoritative push to the agent for every exit path below —
     # see room_notify.py's docstring for why the agent can no longer trust
     # the client to self-report its own FACE_RESULT over the room's data
     # channel. Mirrors /verify-voice's push in voiceverification/server.py.
+    # Room name is per-session now (see /join-token), so look it up here
+    # instead of hardcoding `user-{user_id}`.
     async def notify(verified: bool, similarity: float | None = None) -> None:
+        active_room = await resolve_active_user_room(user_id)
+        if not active_room:
+            print(
+                f"⚠️ No active voice room for user {user_id} — "
+                f"FACE_RESULT push skipped"
+            )
+            return
         await publish_room_result(
-            room_name=room_name,
+            room_name=active_room,
             topic="FACE_RESULT",
             payload={
                 "decision": "VERIFIED" if verified else "DENIED",

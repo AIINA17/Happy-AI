@@ -65,7 +65,10 @@ from voiceverification.utils.pipeline_trace import (
     build_trace_record,
     build_waveform_preview,
 )
-from voiceverification.utils.room_notify import publish_room_result
+from voiceverification.utils.room_notify import (
+    publish_room_result,
+    resolve_active_user_room,
+)
 from voiceverification.utils.spectrogram import render_spectrogram_png
 
 
@@ -160,7 +163,20 @@ async def startup_event():
 @app.post("/join-token")
 async def join_token(request: Request):
     user_id = get_user_id_from_request(request)
-    room_name = f"user-{user_id}"
+    # Per-session unique room name. Format: `user-{user_id}-{random}`.
+    # The prefix `user-` is preserved so the agent's `startswith("user-")`
+    # guard still works, and _release_room_slot / verify-voice push logic
+    # can discover the user's active room by prefix match.
+    #
+    # Before: `user-{user_id}` was reused across sessions, so if a user
+    # ended one voice session and immediately started another, the old
+    # agent process might not have cleaned up yet and the new dispatch
+    # was blocked by the duplicate-room guard → "agent gak nyapa di
+    # awal" symptom. Making each session unique eliminates that race
+    # entirely.
+    import uuid as _uuid
+    session_suffix = _uuid.uuid4().hex[:8]
+    room_name = f"user-{user_id}-{session_suffix}"
     user_city: str | None = None
     try:
         body = await request.json()
@@ -427,15 +443,24 @@ async def verify_voice(request: Request, audio: UploadFile = File(...)):
         # Server-authoritative push to the agent — see room_notify.py's
         # docstring for why this can't just be left to the client to
         # report over the room's data channel (topic="VOICE_RESULT").
-        await publish_room_result(
-            room_name=f"user-{user_id}",
-            topic="VOICE_RESULT",
-            payload={
-                "decision": result["decision"],
-                "score": result["score"],
-                "ts": time.time(),
-            },
-        )
+        # Room name is per-session now (see /join-token), so we have to
+        # look it up at push time instead of hardcoding `user-{user_id}`.
+        active_room = await resolve_active_user_room(user_id)
+        if active_room:
+            await publish_room_result(
+                room_name=active_room,
+                topic="VOICE_RESULT",
+                payload={
+                    "decision": result["decision"],
+                    "score": result["score"],
+                    "ts": time.time(),
+                },
+            )
+        else:
+            print(
+                f"⚠️ No active voice room found for user {user_id} — "
+                f"VOICE_RESULT push skipped"
+            )
 
         return {
             "verified": result["verified"],

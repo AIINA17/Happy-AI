@@ -463,14 +463,33 @@ async def connect(ctx: agents.JobContext):
     if not room_name.startswith("user-"):
         return
 
-    # ✅ Cek duplikat agent secara atomic
-    async with _active_rooms_lock:
-        if room_name in _active_rooms:
-            print(f"⚠️ Agent sudah ada di room: {room_name}, skip")
-            return
-        _active_rooms.add(room_name)
+    # Duplicate-room guard REMOVED.
+    #
+    # Previously we had `if room_name in _active_rooms: skip`. That made
+    # sense when every session reused the same `user-{user_id}` room
+    # name, but it caused "dead silence on new session right after
+    # ending old one": old agent's disconnect handler fires async and
+    # may take 1-5 s, meanwhile a fresh dispatch to the same room gets
+    # rejected and no greeting ever plays.
+    #
+    # /join-token now hands out a UNIQUE room name per session
+    # (`user-{user_id}-{suffix}`), so true duplicates are impossible —
+    # every dispatch is for a fresh room. No need for the guard, and
+    # the UX problem it created disappears.
+    _active_rooms.add(room_name)
 
     print(f"🤖 Agent CONNECT ke room: {room_name}")
+
+    # Belt-and-suspenders release: add a shutdown callback that fires when
+    # the job is being torn down regardless of socket state. The
+    # room.on("disconnected") handler below is what USUALLY releases the
+    # slot, but on crashes or ungraceful exits it may not fire. Shutdown
+    # callback is called by LiveKit in all exit paths — so this guarantees
+    # the next dispatch to the same room won't be stuck waiting.
+    def _release_room_slot():
+        _active_rooms.discard(room_name)
+        print(f"🧹 Room slot released via shutdown callback: {room_name}")
+    ctx.add_shutdown_callback(_release_room_slot)
 
     user_city: str | None = None
     try:
@@ -942,7 +961,16 @@ async def connect(ctx: agents.JobContext):
     # joining the room by the time we run this, which previously set user_id
     # to None and crashed Supabase inserts with a NOT NULL violation.
     if room_name.startswith("user-"):
-        room_state["user_id"] = room_name.replace("user-", "", 1)
+        # Room format is `user-{uuid}-{session_suffix}` (see /join-token).
+        # Strip the `user-` prefix, then peel off the trailing 8-char
+        # session suffix to recover the user's UUID. rsplit by `-` once
+        # gives us [uuid, suffix]; we only want uuid.
+        after_prefix = room_name[len("user-"):]
+        parts = after_prefix.rsplit("-", 1)
+        # Old sessions (pre-migration) may still be `user-{uuid}` with no
+        # suffix — rsplit returns a single element in that case, and we
+        # take it as-is. New sessions have the suffix which we strip.
+        room_state["user_id"] = parts[0] if len(parts) == 2 else after_prefix
     else:
         room_state["user_id"] = None
 

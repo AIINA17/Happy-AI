@@ -2,10 +2,42 @@ import json
 import logging
 import os
 
-from livekit.api import LiveKitAPI, SendDataRequest
+from livekit.api import LiveKitAPI, ListRoomsRequest, SendDataRequest
 from livekit.protocol.models import DataPacket
 
 logger = logging.getLogger(__name__)
+
+
+async def resolve_active_user_room(user_id: str) -> str | None:
+    """Find the user's currently-active LiveKit room.
+
+    Since /join-token now hands out per-session room names
+    (`user-{user_id}-{suffix}`), a caller that only knows the user_id
+    can't just push to `f"user-{user_id}"` anymore. This helper queries
+    LiveKit for all rooms whose name starts with `user-{user_id}-` and
+    returns the first one (there should be at most one active session
+    per user in normal flow).
+
+    Returns None if no active room exists — caller should treat that as
+    "best-effort failed" and keep going.
+    """
+    url = os.getenv("LIVEKIT_URL")
+    api_key = os.getenv("LIVEKIT_API_KEY")
+    api_secret = os.getenv("LIVEKIT_API_SECRET")
+    if not url or not api_key or not api_secret:
+        return None
+
+    prefix = f"user-{user_id}-"
+    try:
+        async with LiveKitAPI(url=url, api_key=api_key, api_secret=api_secret) as lk:
+            rooms = await lk.room.list_rooms(ListRoomsRequest())
+            for r in rooms.rooms:
+                if r.name.startswith(prefix):
+                    return r.name
+    except Exception:
+        logger.exception("resolve_active_user_room failed for %s", user_id)
+
+    return None
 
 
 async def publish_room_result(room_name: str, topic: str, payload: dict) -> None:

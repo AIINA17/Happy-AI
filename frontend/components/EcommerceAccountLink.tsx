@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Store } from "lucide-react";
+import { Eye, EyeOff, Store } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -26,6 +26,14 @@ const STORES = [
     { key: "hijau", label: "Toko Hijau" },
 ];
 
+// Seeded demo accounts on each dummy store — shown as a shortcut so users
+// don't have to think up credentials. Typing a brand-new username/password
+// instead works too: the backend auto-registers it on that store.
+const DEMO_ACCOUNTS: Record<string, { username: string; password: string }> = {
+    oren: { username: "admin", password: "admin123" },
+    hijau: { username: "demo", password: "demo123" },
+};
+
 interface AccountStatus {
     label: string;
     linked: boolean;
@@ -45,6 +53,7 @@ export default function EcommerceAccountLink({
     const [isEditing, setIsEditing] = useState(false);
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -78,6 +87,7 @@ export default function EcommerceAccountLink({
         setError(null);
         setUsername("");
         setPassword("");
+        setShowPassword(false);
     }, [source, current?.linked]);
 
     const handleSave = async () => {
@@ -199,6 +209,22 @@ export default function EcommerceAccountLink({
                     </div>
                 ) : (
                     <div className="space-y-3">
+                        {!current?.linked && (
+                            <div className="rounded-lg border border-dashed border-border bg-muted/50 p-3 text-xs text-muted-foreground">
+                                Belum punya akun di{" "}
+                                {STORES.find((s) => s.key === source)?.label}?
+                                Pakai akun demo:{" "}
+                                <span className="font-mono text-foreground">
+                                    {DEMO_ACCOUNTS[source]?.username}
+                                </span>{" "}
+                                /{" "}
+                                <span className="font-mono text-foreground">
+                                    {DEMO_ACCOUNTS[source]?.password}
+                                </span>
+                                . Atau isi username &amp; password baru —
+                                sistem otomatis buatkan akun baru untukmu.
+                            </div>
+                        )}
                         <div className="space-y-2">
                             <Label htmlFor="ecom-username">
                                 Username e-commerce
@@ -212,13 +238,39 @@ export default function EcommerceAccountLink({
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="ecom-password">Password</Label>
-                            <Input
-                                id="ecom-password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                type="password"
-                                placeholder="Password"
-                            />
+                            <div className="relative">
+                                <Input
+                                    id="ecom-password"
+                                    value={password}
+                                    onChange={(e) =>
+                                        setPassword(e.target.value)
+                                    }
+                                    type={
+                                        showPassword ? "text" : "password"
+                                    }
+                                    placeholder="Password"
+                                    className="pr-10"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        setShowPassword(!showPassword)
+                                    }
+                                    aria-label={
+                                        showPassword
+                                            ? "Sembunyikan password"
+                                            : "Tampilkan password"
+                                    }
+                                    className="absolute right-3 top-1/2 -translate-y-1/2
+                                    text-muted-foreground hover:text-foreground
+                                    transition-colors cursor-pointer">
+                                    {showPassword ? (
+                                        <EyeOff size={16} />
+                                    ) : (
+                                        <Eye size={16} />
+                                    )}
+                                </button>
+                            </div>
                         </div>
                         {error && (
                             <p className="text-xs text-destructive">{error}</p>

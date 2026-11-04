@@ -863,14 +863,23 @@ async def check_voice_status() -> str:
 @function_tool
 async def get_shopkupay_balance(source: str) -> str:
     """
-    Get user's ShopKuPay balance/saldo on a specific store.
+    Get user's in-house wallet balance on a specific store.
+
+    The wallet name depends on the store ("ShopKuPay" on Oren, "TokoKuPay"
+    on Hijau) but the underlying API and tool are the same — this function
+    returns the right branded name in its message.
 
     Args:
         source: store code, e.g. "oren" or "hijau"
 
     ⚠️ This action requires voice verification for security.
     """
-    voice_error = require_voice_verification("cek saldo ShopKuPay")
+    # Resolve the right wallet brand for this store so the message to
+    # the user says "ShopKuPay" on Oren but "TokoKuPay" on Hijau. Fall
+    # back to a generic label for any future store without an entry.
+    wallet_name = INHOUSE_WALLETS.get(source, "wallet toko")
+
+    voice_error = require_voice_verification(f"cek saldo {wallet_name}")
     if voice_error:
         return voice_error
 
@@ -879,13 +888,13 @@ async def get_shopkupay_balance(source: str) -> str:
         return error
 
     if not account["is_logged_in"]:
-        return f"Lo harus login dulu ke {adapter.label} buat cek saldo ShopKuPay."
+        return f"Lo harus login dulu ke {adapter.label} buat cek saldo {wallet_name}."
 
     try:
         user = await adapter.get_user(account["token"])
         if user is None:
             return "Gagal mengambil data saldo."
-        return f"Saldo ShopKuPay lo di {adapter.label}: Rp {user.get('balance', 0):,.0f}"
+        return f"Saldo {wallet_name} lo di {adapter.label}: Rp {user.get('balance', 0):,.0f}"
 
     except Exception as e:
         logging.error(f"Get balance error: {e}")
@@ -1007,15 +1016,77 @@ async def remove_from_cart(cart_id: int, source: str) -> str:
 
 # ==================== CHECKOUT TOOLS (PROTECTED) ====================
 
+# Payment methods per store source. Each store has its OWN set of
+# accepted payment strings, which DIFFER in name AND format between
+# stores — Oren uses `VA_BCA`, Hijau the opposite `BCA_VA`; Oren
+# supports GoPay/OVO/DANA/ShopeePay, Hijau has none of those but has
+# COD. Trying to send Oren's strings to Hijau's API gets a silent 400.
+#
+# Keeping this as a per-source whitelist means Happy can only offer a
+# user the methods that the destination store's API will actually accept.
+# The `wallet` field is the store's in-house wallet (for pre-pay balance
+# check and branding in user-facing messages).
+#
+# Hijau's API normalizes strings as `s.upper().replace(" ", "_")`, so
+# sending "TokoKuPay" works (it becomes "TOKOKUPAY" which Hijau accepts).
+# Oren's API is exact-match so strings there are kept as-is.
+PAYMENT_METHODS_BY_SOURCE: dict[str, dict] = {
+    "oren": {
+        "wallet": "ShopKuPay",
+        "methods": [
+            "ShopKuPay",
+            "GoPay",
+            "OVO",
+            "DANA",
+            "ShopeePay",
+            "VA_BCA",
+            "VA_BRI",
+            "VA_Mandiri",
+        ],
+    },
+    "hijau": {
+        "wallet": "TokoKuPay",
+        "methods": [
+            "TokoKuPay",
+            "BCA_VA",
+            "MANDIRI_VA",
+            "COD",
+        ],
+    },
+}
+
+# Legacy alias kept so nothing breaks if other callers still import it.
+# All lookups should now prefer PAYMENT_METHODS_BY_SOURCE above.
+INHOUSE_WALLETS: dict[str, str] = {
+    src: cfg["wallet"] for src, cfg in PAYMENT_METHODS_BY_SOURCE.items()
+}
+
+
 @function_tool
 async def checkout(source: str, payment_method: str = "GoPay") -> str:
     """
     Complete the purchase and create an order from a specific store's cart items.
-    Payment methods: VA_BCA, VA_BRI, VA_Mandiri, GoPay, OVO, ShopeePay, DANA, ShopKuPay
+
+    Payment methods DIFFER PER STORE — each store accepts its OWN list.
+    Do NOT mix. Only offer methods from the matching source below:
+
+    source="oren" (Toko Oren):
+        ShopKuPay (in-house wallet)
+        GoPay, OVO, DANA, ShopeePay (e-wallets)
+        VA_BCA, VA_BRI, VA_Mandiri (virtual accounts)
+
+    source="hijau" (Toko Hijau):
+        TokoKuPay (in-house wallet)
+        BCA_VA, MANDIRI_VA (virtual accounts — note: FORMAT REVERSED
+            compared to Oren. Toko Hijau is BCA_VA, Toko Oren is VA_BCA)
+        COD (bayar di tempat)
+
+    In-house wallets require sufficient balance on that store's account
+    (pre-checked before the order is created).
 
     Args:
         source: store code to checkout on, e.g. "oren" or "hijau"
-        payment_method: one of the payment methods listed above
+        payment_method: one of the methods listed above (match the source)
 
     ⚠️ This action requires voice verification for security.
     """
@@ -1030,6 +1101,23 @@ async def checkout(source: str, payment_method: str = "GoPay") -> str:
     if not account["is_logged_in"]:
         return f"Lo harus login dulu ke {adapter.label} sebelum checkout."
 
+    # Whitelist: payment_method must be one of the methods this store's
+    # API will actually accept. Otherwise /api/orders will silently 400
+    # or (worse for Hijau, which uppercases+replace-spaces) create an
+    # order with a garbled payment field.
+    config = PAYMENT_METHODS_BY_SOURCE.get(source)
+    if config is None:
+        return f"Toko '{source}' tidak dikenal untuk checkout."
+    allowed = config["methods"]
+    expected_wallet = config["wallet"]
+
+    if payment_method not in allowed:
+        return (
+            f"Metode bayar '{payment_method}' gak didukung sama "
+            f"{adapter.label}. Pilihan yang valid di toko ini: "
+            f"{', '.join(allowed)}."
+        )
+
     try:
         cart_items = await adapter.get_cart(account["token"])
 
@@ -1041,12 +1129,17 @@ async def checkout(source: str, payment_method: str = "GoPay") -> str:
             for item in cart_items
         )
 
-        if payment_method == "ShopKuPay":
+        # Balance pre-check for the in-house wallet (works for ShopKuPay on
+        # Oren, TokoKuPay on Hijau, and any future per-source wallet).
+        if payment_method == expected_wallet:
             user = await adapter.get_user(account["token"])
             if user is not None:
                 balance = _num(user.get("balance"))
                 if balance < total:
-                    return f"Saldo ShopKuPay tidak cukup. Saldo: Rp {balance:,.0f}, Total: Rp {total:,.0f}"
+                    return (
+                        f"Saldo {payment_method} tidak cukup. "
+                        f"Saldo: Rp {balance:,.0f}, Total: Rp {total:,.0f}"
+                    )
 
         items = []
         for item in cart_items:

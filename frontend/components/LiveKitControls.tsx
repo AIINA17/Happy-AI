@@ -98,18 +98,14 @@ export default function LiveKitControls({
         setIsAgentSpeaking(isAgentSpeaking);
     }, [isAgentSpeaking, setIsAgentSpeaking]);
 
-    // Backend watchdog says Happy has been silent too long after the user
-    // spoke — surface it so users don't just stare at a dead-looking UI.
-    useEffect(() => {
-        if (!isAgentStuck) return;
-        notify({
-            variant: "warning",
-            title: "Happy belum nyambung nih",
-            description:
-                "Koneksi suara agak tersendat. Coba ngomong lagi, atau tap tombol mic buat reset ya.",
-            duration: 5000,
-        });
-    }, [isAgentStuck, notify]);
+    // Previously surfaced the backend's AGENT_STUCK signal as a toast
+    // ("Happy belum nyambung nih..."). Disabled per user complaint: the
+    // toast fired on every realtime-socket hiccup, which made Happy feel
+    // broken even though backend recovery was already fixing it in the
+    // background. Toast off = user sees the (slightly delayed) reply
+    // instead of a worrying "disconnected" message.
+    // Kept the state wire-up (isAgentStuck) so we can re-enable with a
+    // single uncommenting if we ever want to surface it again.
 
     const getButtonState = ():
         | "idle"

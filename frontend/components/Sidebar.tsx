@@ -397,7 +397,7 @@ export default function Sidebar({
           transform: isSwiping ? `translateX(${swipeOffset}px)` : undefined,
           transition: isSwiping ? "none" : undefined,
         }}
-        className={`h-screen bg-sidebar flex flex-col border-r border-sidebar-border
+        className={`h-[100dvh] bg-sidebar flex flex-col border-r border-sidebar-border
                    transition-all duration-300 ease-in-out
                    max-w-[85vw]
                    md:relative md:translate-x-0

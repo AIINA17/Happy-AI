@@ -199,34 +199,14 @@ def install_turn_latency_logging(session) -> UserSpeechTracker:
     return tracker
 
 
-# How long the agent can sit in "thinking" (tool calls, waiting on a slow
-# Gemini response) before the frontend shows a typing indicator — without
-# this, a slow turn (logs have shown these reaching 1-2 minutes) looks like
-# dead air instead of "still working on it".
 THINKING_INDICATOR_DELAY_SEC = 5.0
 
-# How long the agent can sit stuck before we assume Gemini's realtime socket
-# silently died (symptom: Happy "diem gak jawab" after user speaks). When
-# this fires we push an AGENT_STUCK notification to the frontend so the UI
-# can prompt the user to retry, and log a warning so stuck sessions are
-# visible in the dev logs instead of looking like normal silence.
-#
-# Note: the state-timeout only catches "stuck in thinking" cases, and the
-# `error` event handler below turned out NOT to catch 1007/1011 — traced
-# this by reading livekit/plugins/google/realtime/realtime_api.py: on a
-# 1007 CONTENT_TYPE_AUDIO error, `_recv_task`'s except block swallows the
-# exception and calls `_mark_restart_needed()` without ever calling
-# `_emit_error()`, so `session.on("error")` never fires for this case. The
-# only observable symptom is a "thinking" episode that ends (state flips to
-# "listening"/"idle") without ever passing through "speaking" — see the
-# turn_had_speech tracking in install_stuck_watchdog below.
-STUCK_TIMEOUT_SEC = 10.0
 
-# Minimum gap between two recovery attempts (notify + generate_reply). The
-# "error" event and the "turn ended without a reply" check can both fire
-# for the same underlying failure within a second of each other; without
-# this debounce the agent would apologize and re-ask twice in a row.
-RECOVERY_DEBOUNCE_SEC = 5.0
+STUCK_TIMEOUT_SEC = 20.0
+
+# Raised from 5 s → 25 s to stop "Happy ngomong 2x" symptom where the
+# original delayed reply AND the recovery regenerate both reach the user.
+RECOVERY_DEBOUNCE_SEC = 25.0
 
 
 def install_thinking_indicator(session, room) -> None:
@@ -284,14 +264,13 @@ def install_stuck_watchdog(session, room) -> None:
     recovery_state = {"last_recovery_ts": 0.0}
 
     async def _notify_stuck() -> None:
-        try:
-            await room.local_participant.publish_data(
-                json.dumps({"type": "AGENT_STUCK"}).encode("utf-8"),
-                reliable=True,
-                topic="chat",
-            )
-        except Exception as e:
-            print(f"❌ Failed to send AGENT_STUCK: {e}")
+        # Previously pushed AGENT_STUCK to frontend so the UI could show a
+        # "Happy belum nyambung" toast. Removed per user request — the
+        # toast fired too often (every Gemini realtime hiccup) and made
+        # Happy feel unreliable. Silent recovery is enough: generate_reply
+        # below reconnects and keeps the conversation flowing without
+        # telling the user anything was ever wrong.
+        return
 
     async def _watch(generation: int) -> None:
         await asyncio.sleep(STUCK_TIMEOUT_SEC)

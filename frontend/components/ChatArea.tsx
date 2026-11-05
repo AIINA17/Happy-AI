@@ -84,14 +84,54 @@ export default function ChatArea({
   const [isProductSidebarOpen, setIsProductSidebarOpen] = useState(true);
   const [isMobileProductsOpen, setIsMobileProductsOpen] = useState(false);
 
+
+  const swipeStartXRef = useRef<number | null>(null);
+  const swipeStartYRef = useRef<number | null>(null);
+  const EDGE_ZONE_PX = 30;
+  const MIN_SWIPE_PX = 60; 
+
+  const handleShellTouchStart = (e: React.TouchEvent) => {
+    const t = e.touches[0];
+    swipeStartXRef.current = t.clientX;
+    swipeStartYRef.current = t.clientY;
+  };
+
+  const handleShellTouchEnd = (e: React.TouchEvent) => {
+    const startX = swipeStartXRef.current;
+    const startY = swipeStartYRef.current;
+    swipeStartXRef.current = null;
+    swipeStartYRef.current = null;
+    if (startX === null || startY === null) return;
+
+    const end = e.changedTouches[0];
+    const dx = end.clientX - startX;
+    const dy = end.clientY - startY;
+
+    if (Math.abs(dy) > Math.abs(dx)) return;
+    if (Math.abs(dx) < MIN_SWIPE_PX) return;
+
+    const screenW = window.innerWidth;
+
+    if (dx > 0) {
+      if (startX < EDGE_ZONE_PX && onOpenMobileSidebar) {
+        onOpenMobileSidebar();
+        return;
+      }
+      if (isMobileProductsOpen) {
+        setIsMobileProductsOpen(false);
+      }
+    }
+    else {
+      if (startX > screenW - EDGE_ZONE_PX && hasProducts && !isActiveSession) {
+        setIsMobileProductsOpen(true);
+      }
+
+    }
+  };
+
   const isHistoryMode =
     isViewingHistory || (messages.length > 0 && !isConnected);
 
-  // "Active session split" = voice session is live AND we're not viewing
-  // a saved transcript. On desktop (md+) we show the carousel in the
-  // center and chat as a side panel at the same time — focus on the
-  // voice-first UX while still giving the user access to the written
-  // conversation. Mobile keeps the single-view toggle (space-constrained).
   const isActiveSession = isConnected && !isHistoryMode;
 
   const scrollToBottom = () => {
@@ -107,8 +147,11 @@ export default function ChatArea({
   const hasProducts = products.length > 0;
 
   return (
-    <div className="flex-1 flex h-screen bg-background overflow-hidden relative">
-      {/* ====== Mobile Floating Buttons (visible only on mobile) ====== */}
+    <div
+      className="flex-1 flex h-[100dvh] bg-background overflow-hidden relative"
+      onTouchStart={handleShellTouchStart}
+      onTouchEnd={handleShellTouchEnd}
+    >
       {onOpenMobileSidebar && (
         <button
           onClick={onOpenMobileSidebar}
@@ -141,7 +184,6 @@ export default function ChatArea({
       )}
 
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Scrollable content */}
         <div className="flex-1 overflow-hidden">
           {isHistoryMode ? (
             <HistoryModeView
@@ -160,20 +202,18 @@ export default function ChatArea({
                     latestReviews={latestReviews}
                   />
                 ) : (
-                  <ChatModeView
-                    messages={messages}
-                    isTyping={isTyping}
-                    messagesEndRef={messagesEndRef}
-                  />
+                  <div className="h-full min-h-0 overflow-y-auto">
+                    <ChatModeView
+                      messages={messages}
+                      isTyping={isTyping}
+                      messagesEndRef={messagesEndRef}
+                    />
+                  </div>
                 )}
               </div>
 
               <div className="hidden md:flex h-full">
                 <div className="flex-1 min-w-0">
-                  {/* Desktop split: don't shrink the carousel card for
-                      reviews — reviews already show in the chat side panel
-                      below (via MessageBubble + ReviewCards). This keeps
-                      the product photos nice and large. */}
                   <VoiceModeView
                     isSpeaking={isSpeaking}
                     products={products}
@@ -193,9 +233,6 @@ export default function ChatArea({
                   >
                     Live transcript
                   </div>
-                  {/* overflow-y-auto on the wrapper — ChatModeView itself
-                      doesn't manage scroll, so without this the long chat
-                      history gets clipped by the outer overflow-hidden. */}
                   <div className="flex-1 min-h-0 overflow-y-auto">
                     <ChatModeView
                       messages={messages}
@@ -248,9 +285,6 @@ export default function ChatArea({
         )}
       </div>
 
-      {/* ProductSidebar only renders OUTSIDE active session. During active
-          session the products are front-and-center in the carousel, so this
-          sidebar would be redundant. */}
       {!isActiveSession && (
         <ProductSidebar
           products={products}
@@ -281,8 +315,6 @@ function ProductSidebar({
 }: ProductSidebarProps) {
   const hasProducts = products.length > 0;
 
-  // Swipe-to-close for mobile overlay. The products sidebar opens from the
-  // RIGHT so the "close" gesture is a RIGHTWARD swipe (positive dx).
   const [swipeOffset, setSwipeOffset] = useState(0);
   const [isSwiping, setIsSwiping] = useState(false);
   const touchStartXRef = useRef<number | null>(null);
@@ -326,7 +358,6 @@ function ProductSidebar({
 
   return (
     <>
-      {/* Mobile backdrop */}
       {isMobileOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm md:hidden
@@ -337,10 +368,6 @@ function ProductSidebar({
       )}
 
       <div className="relative flex md:relative">
-        {/* Sidebar Content — on desktop, collapsed state shrinks the sidebar
-            to a 72px icon strip (mirroring the left Sidebar's COLLAPSED_WIDTH),
-            instead of hiding it entirely. On mobile it still slides off-screen
-            as an overlay. */}
         <div
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
@@ -393,10 +420,6 @@ function ProductSidebar({
               </div>
             </>
           ) : (
-            /* Desktop collapsed strip (72px). Shows a ShoppingBag icon
-               at the top with the product count as a small badge below,
-               clickable to re-expand. Visually mirrors the left Sidebar's
-               collapsed layout (icon-top, flex spacer, action at bottom). */
             <div className="hidden md:flex flex-col items-center w-full h-full py-4">
               <button
                 onClick={onToggle}

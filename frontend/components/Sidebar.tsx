@@ -508,7 +508,13 @@ export default function Sidebar({
               setShowEnrollmentList={setShowEnrollmentList}
             />
             <FaceEnrollment userId={userId} setVerifyStatus={setVerifyStatus} />
-            <FaceVerification userId={userId} setVerifyStatus={setVerifyStatus} />
+            {/* Test Face Recognition — dev button, disabled per user request.
+                Keep the component + import so it's trivial to re-enable later
+                (e.g. debugging a face verification regression). Just drop the
+                {false && ...} wrapper to show it again. */}
+            {false && (
+              <FaceVerification userId={userId} setVerifyStatus={setVerifyStatus} />
+            )}
           </div>
         )}
 

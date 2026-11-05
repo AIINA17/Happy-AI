@@ -258,14 +258,259 @@ async def _send_link_card_internal(label: str, url: str | None):
 
 # ==================== USER CONTEXT TOOLS ====================
 
+# GPS reverse-geocoding (Nominatim) returns the nearest named feature,
+# which for Indonesian users is often a sub-district (kecamatan) or
+# village (kelurahan) rather than the city. E.g. a user physically in
+# Yogyakarta might get back "Ngemplak" or "Sinduadi" (kelurahan in
+# Sleman) — toko-toko are tagged at CITY level ("Yogyakarta") so filter
+# by "Ngemplak" never matches anything. This map rolls sub-areas up to
+# the nearest "metropolitan city" that toko inventory actually uses.
+#
+# Keys are lowercase, matched as substring. Values are the canonical
+# city used in store listings. Add more entries as new areas appear.
+SUB_AREA_TO_CITY: dict[str, str] = {
+    # =========================================================
+    # YOGYAKARTA METRO — DIY (Daerah Istimewa Yogyakarta)
+    # Covers all 5 kabupaten/kota in DIY:
+    # Kota Yogyakarta, Sleman, Bantul, Kulon Progo, Gunungkidul.
+    # Any kecamatan from these regions rolls up to "Yogyakarta"
+    # because that's the city string used in store listings.
+    # =========================================================
+
+    # ---- Kabupaten Sleman (termasuk "depok sleman" yg DISAMBIGUASI) ----
+    "sleman": "Yogyakarta",
+    "ngemplak": "Yogyakarta",
+    "sinduadi": "Yogyakarta",
+    "mlati": "Yogyakarta",
+    "gamping": "Yogyakarta",
+    "godean": "Yogyakarta",
+    "kalasan": "Yogyakarta",
+    "ngaglik": "Yogyakarta",
+    "pakem": "Yogyakarta",
+    "prambanan": "Yogyakarta",
+    "tempel": "Yogyakarta",
+    "turi": "Yogyakarta",
+    "cangkringan": "Yogyakarta",
+    "minggir": "Yogyakarta",
+    "moyudan": "Yogyakarta",
+    "seyegan": "Yogyakarta",
+    "berbah": "Yogyakarta",
+    "depok sleman": "Yogyakarta",
+    "sleman depok": "Yogyakarta",
+    "condong catur": "Yogyakarta",
+    "maguwoharjo": "Yogyakarta",
+    "caturtunggal": "Yogyakarta",
+
+    # ---- Kabupaten Bantul ----
+    "bantul": "Yogyakarta",
+    "sewon": "Yogyakarta",
+    "kasihan": "Yogyakarta",
+    "piyungan": "Yogyakarta",
+    "banguntapan": "Yogyakarta",
+    "imogiri": "Yogyakarta",
+    "pandak": "Yogyakarta",
+    "kretek": "Yogyakarta",
+    "dlingo": "Yogyakarta",
+    "pleret": "Yogyakarta",
+    "sedayu": "Yogyakarta",
+    "sanden": "Yogyakarta",
+    "srandakan": "Yogyakarta",
+    "pundong": "Yogyakarta",
+    "bambanglipuro": "Yogyakarta",
+
+    # ---- Kabupaten Kulon Progo ----
+    "wates": "Yogyakarta",
+    "nanggulan": "Yogyakarta",
+    "pengasih": "Yogyakarta",
+    "sentolo": "Yogyakarta",
+    "kalibawang": "Yogyakarta",
+    "samigaluh": "Yogyakarta",
+    "girimulyo": "Yogyakarta",
+    "lendah": "Yogyakarta",
+    "panjatan": "Yogyakarta",
+    "galur": "Yogyakarta",
+    "temon": "Yogyakarta",
+    "kokap": "Yogyakarta",
+    "kulon progo": "Yogyakarta",
+
+    # ---- Kabupaten Gunungkidul ----
+    "wonosari": "Yogyakarta",
+    "semin": "Yogyakarta",
+    "playen": "Yogyakarta",
+    "patuk": "Yogyakarta",
+    "nglipar": "Yogyakarta",
+    "ngawen": "Yogyakarta",
+    "gedangsari": "Yogyakarta",
+    "saptosari": "Yogyakarta",
+    "tanjungsari": "Yogyakarta",
+    "panggang": "Yogyakarta",
+    "girisubo": "Yogyakarta",
+    "rongkop": "Yogyakarta",
+    "tepus": "Yogyakarta",
+    "semanu": "Yogyakarta",
+    "karangmojo": "Yogyakarta",
+    "ponjong": "Yogyakarta",
+    "paliyan": "Yogyakarta",
+    "purwosari": "Yogyakarta",
+    "gunungkidul": "Yogyakarta",
+    "gunung kidul": "Yogyakarta",
+
+    # ---- Kota Yogyakarta (14 kecamatan) ----
+    "danurejan": "Yogyakarta",
+    "gondokusuman": "Yogyakarta",
+    "kraton": "Yogyakarta",
+    "keraton": "Yogyakarta",
+    "mergangsan": "Yogyakarta",
+    "mantrijeron": "Yogyakarta",
+    "umbulharjo": "Yogyakarta",
+    "pakualaman": "Yogyakarta",
+    "wirobrajan": "Yogyakarta",
+    "kotagede": "Yogyakarta",
+    "tegalrejo": "Yogyakarta",
+    "gedongtengen": "Yogyakarta",
+    "ngampilan": "Yogyakarta",
+    "gondomanan": "Yogyakarta",
+    "jetis": "Yogyakarta",
+    "malioboro": "Yogyakarta",
+    "tugu": "Yogyakarta",
+    "alun alun": "Yogyakarta",
+    "alun-alun": "Yogyakarta",
+
+    # ---- Umum / alias Yogya ----
+    "jogja": "Yogyakarta",
+    "diy": "Yogyakarta",
+    "yogya": "Yogyakarta",
+
+    # =========================================================
+    # JAKARTA & JABODETABEK
+    # Store cities di Hijau: Jakarta Pusat/Barat/Timur/Selatan,
+    # Tangerang, Bekasi, Depok. Di Oren: Jakarta Selatan.
+    # Sub-areas satelit rolled up ke kota terdekat.
+    # =========================================================
+
+    # Jakarta Utara (gak ada di toko manapun → rolled up ke Jakarta Pusat)
+    "jakarta utara": "Jakarta Pusat",
+    "kelapa gading": "Jakarta Pusat",
+    "sunter": "Jakarta Pusat",
+    "ancol": "Jakarta Pusat",
+
+    # Bogor metro
+    "bogor": "Depok",
+    "cibinong": "Depok",
+    "gunung putri": "Depok",
+    "cileungsi": "Depok",
+
+    # Tangerang Selatan / BSD area → mapped ke Tangerang
+    "tangsel": "Tangerang",
+    "tangerang selatan": "Tangerang",
+    "bsd": "Tangerang",
+    "serpong": "Tangerang",
+    "ciputat": "Tangerang",
+    "pamulang": "Tangerang",
+
+    # Bekasi area
+    "cikarang": "Bekasi",
+    "bekasi timur": "Bekasi",
+    "bekasi barat": "Bekasi",
+    "bekasi utara": "Bekasi",
+    "bekasi selatan": "Bekasi",
+
+    # =========================================================
+    # BANDUNG METRO (store city: "Bandung")
+    # =========================================================
+    "cimahi": "Bandung",
+    "bandung barat": "Bandung",
+    "padalarang": "Bandung",
+    "lembang": "Bandung",
+    "cileunyi": "Bandung",
+    "soreang": "Bandung",
+    "cicalengka": "Bandung",
+    "dago": "Bandung",
+    "ciwidey": "Bandung",
+
+    # =========================================================
+    # SURABAYA METRO (store city: "Surabaya")
+    # =========================================================
+    "sidoarjo": "Surabaya",
+    "gresik": "Surabaya",
+    "waru": "Surabaya",
+    "taman sidoarjo": "Surabaya",
+    "gedangan": "Surabaya",
+    "buduran": "Surabaya",
+
+    # =========================================================
+    # SEMARANG METRO (store city: "Semarang")
+    # =========================================================
+    "ungaran": "Semarang",
+    "demak": "Semarang",
+    "kendal": "Semarang",
+    "semarang barat": "Semarang",
+    "semarang timur": "Semarang",
+    "semarang tengah": "Semarang",
+
+    # =========================================================
+    # MALANG METRO (store city: "Malang")
+    # =========================================================
+    "batu": "Malang",
+    "kepanjen": "Malang",
+    "singosari": "Malang",
+    "kota batu": "Malang",
+
+    # =========================================================
+    # MEDAN METRO (store city: "Medan")
+    # =========================================================
+    "binjai": "Medan",
+    "deli serdang": "Medan",
+    "medan kota": "Medan",
+
+    # =========================================================
+    # MAKASSAR METRO (store city: "Makassar")
+    # =========================================================
+    "ujung pandang": "Makassar",
+    "maros": "Makassar",
+    "sungguminasa": "Makassar",
+    "gowa": "Makassar",
+
+    # =========================================================
+    # DENPASAR / BALI (store city: "Denpasar")
+    # =========================================================
+    "bali": "Denpasar",
+    "kuta": "Denpasar",
+    "sanur": "Denpasar",
+    "canggu": "Denpasar",
+    "seminyak": "Denpasar",
+    "ubud": "Denpasar",
+    "jimbaran": "Denpasar",
+    "badung": "Denpasar",
+    "nusa dua": "Denpasar",
+}
+
+
+def _normalize_city(raw: str | None) -> str | None:
+    """Collapse a sub-area name into its nearest metropolitan city.
+
+    Returns the input unchanged if no mapping matches, so already-correct
+    city names ("Yogyakarta", "Jakarta") just pass through.
+    """
+    if not raw:
+        return raw
+    key = raw.strip().lower()
+    for sub_area, city in SUB_AREA_TO_CITY.items():
+        if sub_area in key:
+            return city
+    return raw
+
+
 @function_tool
 async def get_user_city() -> str:
     """
     Get the user's current city, auto-detected from their browser's GPS.
 
     Returns the city name if GPS permission was granted when they loaded
-    the app (e.g. "Jakarta Selatan", "Ngemplak", "Yogyakarta"), or a
-    message saying it's unknown if they denied permission.
+    the app (e.g. "Yogyakarta", "Jakarta"). Sub-area detections from GPS
+    (kecamatan/kelurahan like "Ngemplak" or "Sinduadi") are automatically
+    rolled up to the nearest metropolitan city so a filter by city actually
+    matches the store listings.
 
     Use this to:
     - Prioritize stores in the user's city when recommending products
@@ -276,9 +521,17 @@ async def get_user_city() -> str:
     then remember it for the rest of the conversation.
     """
     state = auth_state.get("agent_state") or {}
-    city = state.get("user_city")
+    raw_city = state.get("user_city")
+    city = _normalize_city(raw_city)
 
     if city:
+        # If we rolled up a sub-area, mention it so Happy can disambiguate
+        # ("GPS says you're in Ngemplak which is part of Yogya area").
+        if city != raw_city and raw_city:
+            return (
+                f"User's detected city: {city} "
+                f"(GPS sub-area: {raw_city}, mapped to nearest metro area)"
+            )
         return f"User's detected city: {city}"
 
     return (

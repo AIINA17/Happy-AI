@@ -12,27 +12,13 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DEMO_ACCOUNTS, ECOMMERCE_STORES as STORES, linkEcommerceAccount } from "@/lib/ecommerceDemo";
 
 interface Props {
     token: string | null;
     isOpen: boolean;
     onClose: () => void;
 }
-
-// Mirrors backend/ecommerce_sources.py — keep in sync when a store is added
-// or removed there.
-const STORES = [
-    { key: "oren", label: "Toko Oren" },
-    { key: "hijau", label: "Toko Hijau" },
-];
-
-// Seeded demo accounts on each dummy store — shown as a shortcut so users
-// don't have to think up credentials. Typing a brand-new username/password
-// instead works too: the backend auto-registers it on that store.
-const DEMO_ACCOUNTS: Record<string, { username: string; password: string }> = {
-    oren: { username: "admin", password: "admin123" },
-    hijau: { username: "demo", password: "demo123" },
-};
 
 interface AccountStatus {
     label: string;
@@ -47,7 +33,7 @@ export default function EcommerceAccountLink({
 }: Props) {
     const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL;
 
-    const [source, setSource] = useState(STORES[0].key);
+    const [source, setSource] = useState<(typeof STORES)[number]["key"]>(STORES[0].key);
     const [accounts, setAccounts] = useState<Record<string, AccountStatus>>({});
     const [isLoading, setIsLoading] = useState(true);
     const [isEditing, setIsEditing] = useState(false);
@@ -90,42 +76,37 @@ export default function EcommerceAccountLink({
         setShowPassword(false);
     }, [source, current?.linked]);
 
-    const handleSave = async () => {
+    const saveAccount = async (u: string, p: string) => {
         if (!token) return;
+        setIsSaving(true);
+        setError(null);
+        const result = await linkEcommerceAccount(SERVER_URL, token, source, u, p);
+        if (result.success) {
+            setPassword("");
+            await fetchStatus();
+        } else {
+            setError(result.error);
+        }
+        setIsSaving(false);
+    };
+
+    const handleSave = () => {
         if (!username.trim() || !password) {
             setError("Username dan password wajib diisi");
             return;
         }
+        saveAccount(username, password);
+    };
 
-        setIsSaving(true);
-        setError(null);
-        try {
-            const res = await fetch(`${SERVER_URL}/ecommerce-account`, {
-                method: "POST",
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    username: username.trim(),
-                    password,
-                    source,
-                }),
-            });
-            const data = await res.json();
-
-            if (res.ok && data.status === "OK") {
-                setPassword("");
-                await fetchStatus();
-            } else {
-                setError(data.detail || "Gagal menyimpan akun");
-            }
-        } catch (err) {
-            console.error("Save ecommerce account error:", err);
-            setError("Terjadi kesalahan, coba lagi.");
-        } finally {
-            setIsSaving(false);
-        }
+    // One-click shortcut for users who don't have a real account on this
+    // store — uses the pre-seeded demo credentials directly, no typing
+    // required.
+    const handleUseDemoAccount = () => {
+        const demo = DEMO_ACCOUNTS[source];
+        if (!demo) return;
+        setUsername(demo.username);
+        setPassword(demo.password);
+        saveAccount(demo.username, demo.password);
     };
 
     const handleUnlink = async () => {
@@ -210,21 +191,36 @@ export default function EcommerceAccountLink({
                 ) : (
                     <div className="space-y-3">
                         {!current?.linked && (
-                            <div className="rounded-lg border border-dashed border-border bg-muted/50 p-3 text-xs text-muted-foreground">
-                                Belum punya akun di{" "}
-                                {STORES.find((s) => s.key === source)?.label}?
-                                Pakai akun demo:{" "}
-                                <span className="font-mono text-foreground">
-                                    {DEMO_ACCOUNTS[source]?.username}
-                                </span>{" "}
-                                /{" "}
-                                <span className="font-mono text-foreground">
-                                    {DEMO_ACCOUNTS[source]?.password}
-                                </span>
-                                . Atau isi username &amp; password baru —
-                                sistem otomatis buatkan akun baru untukmu.
+                            <div className="rounded-lg border border-dashed border-border bg-muted/50 p-3 space-y-2">
+                                <p className="text-xs text-muted-foreground">
+                                    Gak punya akun di{" "}
+                                    {STORES.find((s) => s.key === source)?.label}?
+                                    Pakai akun demo yang udah disiapkan — gak perlu isi apa-apa.
+                                </p>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="w-full"
+                                    onClick={handleUseDemoAccount}
+                                    disabled={isSaving}
+                                >
+                                    {isSaving
+                                        ? "Menghubungkan..."
+                                        : `Tidak punya akun? Pakai demo (${DEMO_ACCOUNTS[source]?.username})`}
+                                </Button>
                             </div>
                         )}
+                        <div className="relative py-1">
+                            <div className="absolute inset-0 flex items-center">
+                                <span className="w-full border-t border-border" />
+                            </div>
+                            <div className="relative flex justify-center text-xs">
+                                <span className="bg-background px-2 text-muted-foreground">
+                                    atau isi akun sendiri
+                                </span>
+                            </div>
+                        </div>
                         <div className="space-y-2">
                             <Label htmlFor="ecom-username">
                                 Username e-commerce

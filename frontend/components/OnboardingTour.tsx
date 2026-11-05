@@ -21,6 +21,7 @@ import {
 import EcommerceAccountLink from "./EcommerceAccountLink";
 import FaceEnrollment from "./FaceEnrollment";
 import VoiceEnrollment from "./VoiceEnrollment";
+import { DEMO_ACCOUNTS, ECOMMERCE_STORES, linkEcommerceAccount } from "@/lib/ecommerceDemo";
 
 interface Props {
     isOpen: boolean;
@@ -28,14 +29,6 @@ interface Props {
     token: string | null;
     userId: string | null;
 }
-
-// Seeded demo accounts on each dummy store, mirrored from
-// EcommerceAccountLink.tsx — shown here too so the tutorial is self
-// contained even before the user opens that form.
-const DEMO_ACCOUNTS = [
-    { label: "Toko Oren", username: "admin", password: "admin123" },
-    { label: "Toko Hijau", username: "demo", password: "demo123" },
-];
 
 const TOTAL_TASK_STEPS = 3;
 
@@ -72,6 +65,9 @@ export default function OnboardingTour({
     const [voiceDone, setVoiceDone] = useState(false);
     const [faceDone, setFaceDone] = useState(false);
     const [ecomDone, setEcomDone] = useState(false);
+
+    const [isLinkingDemo, setIsLinkingDemo] = useState(false);
+    const [demoError, setDemoError] = useState<string | null>(null);
 
     // VoiceEnrollment/FaceEnrollment expect a status-string setter (used
     // elsewhere to drive a status bar); the tour shows its own progress
@@ -124,6 +120,41 @@ export default function OnboardingTour({
             // Best-effort status check — ignore network errors.
         }
     }, [token, SERVER_URL]);
+
+    // One-click shortcut: link the pre-seeded demo account on EVERY store
+    // at once, no manual typing. Opening the full EcommerceAccountLink
+    // dialog is still available for a real account on either store.
+    const handleQuickDemoLink = async () => {
+        if (!token) return;
+        setIsLinkingDemo(true);
+        setDemoError(null);
+
+        const results = await Promise.all(
+            ECOMMERCE_STORES.map(async (store) => {
+                const demo = DEMO_ACCOUNTS[store.key];
+                if (!demo) return { store, success: true as const };
+                const result = await linkEcommerceAccount(
+                    SERVER_URL,
+                    token,
+                    store.key,
+                    demo.username,
+                    demo.password,
+                );
+                return { store, ...result };
+            }),
+        );
+
+        const failed = results.filter((r) => !r.success);
+        if (failed.length > 0) {
+            setDemoError(
+                failed
+                    .map((r) => `${r.store.label}: ${"error" in r ? r.error : "gagal"}`)
+                    .join(" · "),
+            );
+        }
+        await checkEcom();
+        setIsLinkingDemo(false);
+    };
 
     // Poll all three statuses while the tour is open so the badge on the
     // current step flips to "done" right after the user finishes it in
@@ -255,38 +286,39 @@ export default function OnboardingTour({
                 {step === 3 && (
                     <div className="space-y-4">
                         <p className="text-sm text-muted-foreground">
-                            Happy login ke toko dummy ini atas nama kamu
-                            setiap transaksi. Isi username &amp; password
-                            baru — sistem otomatis buatkan akun baru di toko
-                            itu — atau pakai salah satu akun demo di bawah.
+                            Happy login ke toko-toko dummy ini atas nama kamu
+                            setiap transaksi. Gak punya akun? Pakai tombol
+                            demo di bawah buat daftar otomatis di kedua toko
+                            sekaligus — gak perlu isi apa-apa.
                         </p>
-                        <div className="rounded-lg bg-muted p-3 space-y-1.5 text-xs">
-                            {DEMO_ACCOUNTS.map((acc) => (
-                                <div
-                                    key={acc.label}
-                                    className="flex items-center justify-between"
-                                >
-                                    <span className="text-muted-foreground">
-                                        {acc.label}
-                                    </span>
-                                    <span className="font-mono text-foreground">
-                                        {acc.username} / {acc.password}
-                                    </span>
-                                </div>
-                            ))}
-                        </div>
                         <StatusBadge
                             done={ecomDone}
                             doneLabel="Akun e-commerce terhubung"
                             pendingLabel="Belum ada akun terhubung"
                         />
+                        {!ecomDone && (
+                            <Button
+                                className="w-full"
+                                onClick={handleQuickDemoLink}
+                                disabled={isLinkingDemo}
+                            >
+                                <Store size={16} />
+                                {isLinkingDemo
+                                    ? "Menghubungkan..."
+                                    : `Tidak punya akun? Pakai demo di ${ECOMMERCE_STORES.map(
+                                          (s) => s.label,
+                                      ).join(" & ")}`}
+                            </Button>
+                        )}
+                        {demoError && (
+                            <p className="text-xs text-destructive">{demoError}</p>
+                        )}
                         <Button
                             className="w-full"
                             variant="secondary"
                             onClick={() => setShowEcomDialog(true)}
                         >
-                            <Store size={16} />
-                            Isi Akun E-commerce
+                            Isi akun sendiri / toko lain
                         </Button>
                         <EcommerceAccountLink
                             token={token}

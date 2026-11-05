@@ -13,7 +13,7 @@ import cv2
 import numpy as np
 from insightface.utils import face_align
 
-from face_recognition.arcface_model import ArcFaceModel
+from face_recognition.arcface_model import ArcFaceModel, select_primary_face
 
 
 def decode_image(image_bytes: bytes) -> np.ndarray:
@@ -48,9 +48,7 @@ def extract_face_trace(model: ArcFaceModel, img: np.ndarray, *, source_file: str
     faces = model.app.get(img)
     if len(faces) == 0:
         raise ValueError("Tidak ada wajah terdeteksi pada gambar.")
-    if len(faces) > 1:
-        raise ValueError("Terdeteksi lebih dari satu wajah. Gunakan gambar dengan satu wajah saja.")
-    face = faces[0]
+    face = select_primary_face(faces) if len(faces) > 1 else faces[0]
 
     aligned = face_align.norm_crop(img, landmark=face.kps, image_size=112, mode="arcface")
     embedding = face.embedding.astype(np.float32)

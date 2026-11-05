@@ -47,6 +47,17 @@ def _preload_cuda_libs() -> bool:
     return loaded_any
 
 
+def select_primary_face(faces):
+    """When more than one face is detected, assume the person actually
+    using the camera is the one closest to it — which, in a 2D projection,
+    is whichever face has the largest bounding box area — rather than
+    rejecting the whole capture just because someone walked into frame in
+    the background. Shared with face_trace.py so the /pipeline explainer
+    page picks the same face the real enroll/verify endpoints do.
+    """
+    return max(faces, key=lambda f: (f.bbox[2] - f.bbox[0]) * (f.bbox[3] - f.bbox[1]))
+
+
 class ArcFaceModel:
     def __init__(self):
         available_providers = ort.get_available_providers()
@@ -75,10 +86,9 @@ class ArcFaceModel:
         if len(faces) == 0:
             raise ValueError("Tidak ada wajah terdeteksi pada gambar.")
 
-        if len(faces) > 1:
-            raise ValueError("Terdeteksi lebih dari satu wajah. Gunakan gambar dengan satu wajah saja.")
+        face = select_primary_face(faces) if len(faces) > 1 else faces[0]
 
-        embedding = faces[0].embedding.astype(np.float32)
+        embedding = face.embedding.astype(np.float32)
 
         # Normalisasi agar cosine similarity cukup dihitung dengan dot product.
         embedding = embedding / np.linalg.norm(embedding)

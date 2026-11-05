@@ -42,17 +42,39 @@ MODEL_ID = "MelodyMachine/Deepfake-audio-detection-V2"
 _pipeline = None
 
 
-def _get_pipeline():
+def _resolve_device(device: str | None) -> str:
+    if device is None:
+        import torch
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+    # transformers==4.30.2's pipeline forward pass calls
+    # torch.cuda.set_device(self.device), which — unlike SpeakerVerifier's
+    # speechbrain backend or plain tensor.to() — rejects a bare "cuda" with
+    # no index ("Expected a torch.device with a specified index..."),
+    # confirmed by actually running inference with it. server.py passes
+    # bare "cuda", so normalize it here rather than require every caller
+    # to know about this library-specific quirk.
+    if device == "cuda":
+        return "cuda:0"
+    return device
+
+
+def _get_pipeline(device: str | None = None):
     global _pipeline
     if _pipeline is None:
         from transformers import pipeline
-        _pipeline = pipeline("audio-classification", model=MODEL_ID)
+        # Previously created with no `device` at all, which transformers
+        # defaults to CPU — this model always ran on CPU even when ECAPA
+        # (SpeakerVerifier) was on CUDA. Passing the same device string used
+        # for ECAPA keeps both models on the same hardware.
+        _pipeline = pipeline(
+            "audio-classification", model=MODEL_ID, device=_resolve_device(device)
+        )
     return _pipeline
 
 
-def warm_up():
+def warm_up(device: str | None = None):
     """Force the pretrained model to load now instead of on first request."""
-    _get_pipeline()
+    _get_pipeline(device)
 
 
 def _load_audio(path, sr=16000):

@@ -29,7 +29,7 @@ class BiometricService:
     def __init__(self, device="cpu"):
         self.speaker = SpeakerVerifier(device)
         self.policy = TrustedUpdatePolicy()
-        warm_up_asvspoof()
+        warm_up_asvspoof(device)
         print("Biometric ready.")
 
     def verify_against_multiple_embeddings(

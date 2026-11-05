@@ -135,7 +135,7 @@ export default function DashboardPage() {
   const [livePoints, setLivePoints] = useState<LivePoint[]>([]);
 
   const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL;
-  const ACCEPT_THRESHOLD = 0.75;
+  const ACCEPT_THRESHOLD = 0.70;
   const EMB_COLORS = [
     "#60a5fa",
     "#34d399",

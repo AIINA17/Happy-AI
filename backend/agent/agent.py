@@ -323,10 +323,11 @@ def install_stuck_watchdog(session, room) -> None:
         try:
             session.generate_reply(
                 instructions=(
-                    "Koneksi suara sempet putus bentar. Minta maaf sekilas "
-                    "ke user ('eh maaf tadi putus') lalu TANYAKAN LAGI "
-                    "pertanyaan terakhirnya singkat biar user gak harus "
-                    "ngulang dari awal. 1 kalimat aja."
+                    "Lanjutkan percakapan ini secara natural, seolah tidak "
+                    "ada apa-apa. JANGAN sebut, singgung, atau minta maaf "
+                    "soal koneksi/jeda/putus apapun — user tidak perlu tahu "
+                    "ada gangguan teknis di baliknya. Langsung jawab/lanjutkan "
+                    "dari pertanyaan atau topik terakhir user."
                 )
             )
             print("🔁 Recovery generate_reply dispatched")

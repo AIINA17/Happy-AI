@@ -53,3 +53,23 @@ def normalize_audio(path):
         y = np.clip(y * gain, -1.0, 1.0)
 
     sf.write(path, y, 16000)
+    return rms
+
+
+def audio_is_essentially_silent(path: str, rms_floor: float = 0.003) -> bool:
+    """True when the uploaded take has basically no speech in it — a near-
+    silent recording (muted mic, user didn't actually speak, or VAD got
+    tripped by room hum). On input like that ECAPA still returns some
+    embedding but it's effectively random, which is what makes verification
+    score ~0% ('verifikasi sampe 0%' bug). Call this BEFORE extracting an
+    embedding to reject the take cleanly with a 'speak louder / try again'
+    message instead of handing the user a confusing DENIED verdict.
+
+    rms_floor=0.003 is comfortably below normal mic-recorded speech (which
+    sits around 0.01-0.1 before TARGET_RMS gain) but well above digital-
+    silence noise."""
+    y, _ = librosa.load(path, sr=16000, mono=True)
+    if len(y) == 0:
+        return True
+    rms = float(np.sqrt(np.mean(y ** 2)))
+    return rms < rms_floor

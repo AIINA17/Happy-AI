@@ -71,6 +71,18 @@ export function useLiveKit({
 
     const [uiState, setUiState] = useState<UiState>("IDLE");
     const [isAgentSpeaking, setIsAgentSpeaking] = useState(false);
+    // Mirror of isAgentSpeaking in a ref so the VAD loop (defined in
+    // a useRef that captures values at mount time) can read the current
+    // value every frame. Critical because echo cancellation is disabled
+    // during verification recording — if the VAD loop reads agent-speaking
+    // via a stale closure value it'll happily record the agent's own voice
+    // bleeding through the speakers and the resulting ECAPA embedding
+    // scores ~0% against the user's enrollment ("verifikasi suara sampe 0%"
+    // bug).
+    const isAgentSpeakingRef = useRef(false);
+    useEffect(() => {
+        isAgentSpeakingRef.current = isAgentSpeaking;
+    }, [isAgentSpeaking]);
     const [isAgentThinking, setIsAgentThinking] = useState(false);
     // Flipped on when the backend watchdog says Happy has been silent in
     // "thinking" state longer than STUCK_TIMEOUT_SEC — i.e. likely a dead
@@ -397,7 +409,21 @@ export function useLiveKit({
             const elapsed = now - lastTick;
             lastTick = now;
 
-            if (!recording && rms > START) {
+            // Agent-speaker-bleed guard. With echoCancellation disabled for
+            // the raw-audio take (see applyConstraints above), the mic
+            // picks up Happy's own voice from the laptop speakers loud
+            // enough to cross the VAD threshold. Without this guard the
+            // VAD would start recording Happy, feed ECAPA the agent's
+            // voice, and score ~0% against the user's enrollment.
+            //
+            // Don't START recording while the agent is speaking. If we're
+            // already mid-recording and the agent starts (user asked
+            // something that triggered an immediate reply), don't count
+            // those frames as speech so the SILENCE_MS stop condition can
+            // still fire naturally once the user actually stops too.
+            const agentNow = isAgentSpeakingRef.current;
+
+            if (!recording && rms > START && !agentNow) {
                 recorder.start();
                 recording = true;
                 recordStartedAt = now;
@@ -405,7 +431,7 @@ export function useLiveKit({
             }
 
             if (recording) {
-                if (rms < STOP) {
+                if (rms < STOP || agentNow) {
                     silenceStart ??= now;
                     const paused = now - silenceStart;
                     if (paused > SILENCE_MS && speechMs >= MIN_SPEECH_MS) {

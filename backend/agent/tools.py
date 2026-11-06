@@ -138,6 +138,10 @@ async def _send_product_cards_internal(products: list):
     state = auth_state.get("agent_state", {})
     session_id = state.get("conversation_session_id")
 
+    if not products:
+        logging.error("❌ PRODUCT_CARDS CALLED WITH EMPTY LIST — skipping")
+        return
+
     # Save to DB
     if session_id:
         try:
@@ -156,21 +160,37 @@ async def _send_product_cards_internal(products: list):
 
     # Send to frontend
     room = auth_state.get("room_ref")
-    if room:
-        try:
-            await asyncio.sleep(2)
-            payload = json.dumps({
-                "type": "PRODUCT_CARDS",
-                "products": products
-            }).encode("utf-8")
-            await room.local_participant.publish_data(
-                payload,
-                reliable=True,
-                topic="PRODUCT_DATA"
-            )
-            logging.info("📤 PRODUCT_CARDS SENT REALTIME")
-        except Exception as e:
-            logging.error(f"❌ Failed realtime PRODUCT_CARDS: {e}")
+    if not room:
+        # Loud failure — this used to be a silent skip, which is how
+        # "Happy ngomong biasa tanpa nampilin kartu" happened without any
+        # log trail. If room_ref is None here, the agent entrypoint
+        # (agent.py:485 `auth_state["room_ref"] = room`) never ran or got
+        # cleared — check the agent startup logs.
+        logging.error(
+            f"❌ PRODUCT_CARDS NOT SENT: room_ref is None "
+            f"(products count={len(products)}, session={session_id})"
+        )
+        return
+
+    try:
+        # Small delay so the agent's spoken "nih kartunya..." lands before
+        # the cards animate in. 2 seconds is intentional; don't shorten
+        # without checking the voice/UI timing.
+        await asyncio.sleep(2)
+        payload = json.dumps({
+            "type": "PRODUCT_CARDS",
+            "products": products
+        }).encode("utf-8")
+        await room.local_participant.publish_data(
+            payload,
+            reliable=True,
+            topic="PRODUCT_DATA"
+        )
+        logging.info(
+            f"📤 PRODUCT_CARDS SENT REALTIME (count={len(products)})"
+        )
+    except Exception as e:
+        logging.error(f"❌ Failed realtime PRODUCT_CARDS: {e}")
 
 async def _send_review_cards_internal(product_name: str, reviews: list):
     """

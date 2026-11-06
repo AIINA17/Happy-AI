@@ -55,7 +55,11 @@ from voiceverification.db.voice_verification_logs import (
 )
 from voiceverification.core.decision_engine import DecisionConfig
 from voiceverification.services.biometric_service import BiometricService
-from voiceverification.utils.audio import normalize_audio, save_audio
+from voiceverification.utils.audio import (
+    audio_is_essentially_silent,
+    normalize_audio,
+    save_audio,
+)
 from voiceverification.utils.antispoof_worked_example import (
     build_worked_example as build_antispoof_worked_example,
 )
@@ -310,7 +314,38 @@ async def verify_voice(request: Request, audio: UploadFile = File(...)):
             audio,
             debug_capture_dir=VOICE_DEBUG_CAPTURE_DIR if capture_debug else None,
         )
+        # Reject near-silent takes BEFORE normalize_audio blows up their
+        # RMS to TARGET_RMS = 0.1. Otherwise a muted mic / room-noise take
+        # gets amplified 30x into something ECAPA will dutifully embed as
+        # "some speaker" and score ~0% against real enrollments — which
+        # the user experiences as the "verifikasi suara sampe 0%" bug,
+        # indistinguishable from a real impostor rejection.
+        if audio_is_essentially_silent(wav_path):
+            # Mirror the normal /verify-voice response shape so the agent
+            # just asks for a retry instead of hitting a DENIED lockout.
+            payload = {
+                "decision": "REPEAT",
+                "reason": "Mic terlalu pelan atau belum dengar suara — coba ngomong lagi lebih jelas",
+                "score": None,
+                "spoof_prob": None,
+                "ts": time.time(),
+            }
+            room_name = f"user-{user_id}"
+            await publish_room_result(
+                room_name=room_name,
+                topic="VOICE_RESULT",
+                payload=payload,
+            )
+            return {
+                "status": "REPEAT",
+                "decision": "REPEAT",
+                "reason": payload["reason"],
+                "score": None,
+            }
+
         normalize_audio(wav_path)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Invalid/unsupported audio upload: {e}")
 

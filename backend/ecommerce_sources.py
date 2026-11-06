@@ -23,7 +23,7 @@ ECOMMERCE_SOURCES = {
         # Confirmed against the real site: Oren's is plural "orders" (the
         # list page at {base_url}/orders is plural on both stores either
         # way — only the per-order detail page differs).
-        "order_detail_path": "orders",
+        "order_detail_path": "order",
     },
     "hijau": {
         "label": "Toko Hijau",

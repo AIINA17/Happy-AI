@@ -227,9 +227,54 @@ export function useLiveKit({
         // same device fought the live conversation's audio pipeline for the
         // mic/CPU, which is what was causing the agent's replies to stall
         // for many seconds every time verification was retried mid-call.
-        const liveMicTrack = micTrackRef.current?.mediaStreamTrack;
+        //
+        // Race-condition note: on laptop Chrome the mic-permission dialog
+        // and device enumeration take long enough that the first user turn
+        // can trigger START_RECORD *before* createLocalAudioTrack() returns
+        // in joinRoom(). On mobile the permission is usually pre-granted
+        // and this never happens, which is why verification "sometimes
+        // doesn't start on laptop but always works on phone" was the bug
+        // pattern. Poll up to 3 seconds for the track to appear instead of
+        // bailing instantly — if it still isn't there, send a FAIL result
+        // so the backend resets `is_verifying` immediately (otherwise the
+        // backend's 30-second watchdog blocks any re-trigger that whole
+        // window).
+        let liveMicTrack = micTrackRef.current?.mediaStreamTrack;
+        if (!liveMicTrack) {
+            const waitStart = performance.now();
+            while (
+                !liveMicTrack &&
+                performance.now() - waitStart < 3000
+            ) {
+                await new Promise((r) => setTimeout(r, 100));
+                liveMicTrack = micTrackRef.current?.mediaStreamTrack;
+            }
+        }
         if (!liveMicTrack) {
             onVerifyStatusRef.current("❌ Mic belum siap, coba lagi");
+            // Tell the backend we aborted so it can reset is_verifying now
+            // and try again on the next user turn (don't make it wait for
+            // the 30-second watchdog).
+            try {
+                await roomRef.current?.localParticipant.publishData(
+                    new TextEncoder().encode(
+                        JSON.stringify({
+                            type: "VOICE_ABORT",
+                            reason: "mic_not_ready",
+                            ts: Date.now(),
+                        }),
+                    ),
+                    // Separate topic from VOICE_RESULT (which backend only
+                    // accepts via server-side admin push to prevent forged
+                    // VERIFIED packets). VOICE_ABORT is just a client-side
+                    // "I couldn't start recording" hint — it can only
+                    // trigger a retry, never a VERIFIED decision — so it's
+                    // safe to accept from the browser.
+                    { reliable: true, topic: "VOICE_ABORT" },
+                );
+            } catch {
+                /* best-effort */
+            }
             return;
         }
 

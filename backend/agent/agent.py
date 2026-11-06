@@ -576,19 +576,29 @@ async def connect(ctx: agents.JobContext):
     # ================= VOICE / FACE RESULT =================
     @room.on("data_received")
     def on_data(packet):
-        if packet.topic not in ("VOICE_RESULT", "FACE_RESULT"):
+        if packet.topic not in ("VOICE_RESULT", "FACE_RESULT", "VOICE_ABORT"):
             return
 
-        # These decisions gate login/checkout, so they must come from our
-        # own backend's server-side push (voiceverification/utils/
-        # room_notify.py), never from a browser. rtc.DataPacket.participant
-        # is None only when the packet was sent via the LiveKit admin API
-        # (RoomService.send_data) rather than by any room participant's
-        # own `localParticipant.publishData` — which any client in the
-        # room (including a forged one, e.g. from devtools) could
-        # otherwise call directly to fake a VERIFIED result and bypass
-        # biometric verification entirely. Any packet with a participant
-        # attached is untrusted and dropped.
+        # VOICE_ABORT is a client-side "I couldn't start recording" hint
+        # (e.g. mic track not yet published when START_RECORD arrived on
+        # laptop Chrome, where createLocalAudioTrack() is slower than the
+        # first user turn). It can only reset is_verifying to let the next
+        # user turn retrigger — it can NEVER produce a VERIFIED decision —
+        # so it's safe to accept from the browser, unlike VOICE_RESULT.
+        if packet.topic == "VOICE_ABORT":
+            _handle_voice_abort(packet)
+            return
+
+        # VOICE_RESULT / FACE_RESULT decisions gate login/checkout, so they
+        # must come from our own backend's server-side push
+        # (voiceverification/utils/room_notify.py), never from a browser.
+        # rtc.DataPacket.participant is None only when the packet was sent
+        # via the LiveKit admin API (RoomService.send_data) rather than by
+        # any room participant's own `localParticipant.publishData` — which
+        # any client in the room (including a forged one, e.g. from
+        # devtools) could otherwise call directly to fake a VERIFIED result
+        # and bypass biometric verification entirely. Any packet with a
+        # participant attached is untrusted and dropped.
         if packet.participant is not None:
             print(
                 f"⚠️ Ignoring forged {packet.topic} from participant "
@@ -600,6 +610,19 @@ async def connect(ctx: agents.JobContext):
             _handle_voice_result(packet)
         elif packet.topic == "FACE_RESULT":
             _handle_face_result(packet)
+
+    def _handle_voice_abort(packet):
+        """Client bailed before recording started (usually mic not ready on
+        laptop Chrome). Reset is_verifying so the very next user turn can
+        retrigger start_verification() — don't make the user wait for the
+        30-second watchdog."""
+        try:
+            decoded = json.loads(packet.data.decode())
+            reason = decoded.get("reason", "unknown")
+        except Exception:
+            reason = "unparsable"
+        print(f"🔁 VOICE_ABORT from client ({reason}) — resetting is_verifying")
+        room_state["is_verifying"] = False
 
     def _handle_voice_result(packet):
         try:

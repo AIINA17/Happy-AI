@@ -37,6 +37,7 @@ class EcommerceAdapter:
         base_url: str,
         wallet_name: str,
         order_detail_path: str,
+        accepted_payment_methods: list[str] | None = None,
     ):
         self.source = source
         self.label = label
@@ -52,6 +53,26 @@ class EcommerceAdapter:
         # (orders_link, no id) is plural "orders" on both, so that one
         # method stays hardcoded.
         self.order_detail_path = order_detail_path
+        # Whitelist of payment-method strings this store's checkout API
+        # actually accepts (see ecommerce_sources.py). Both stores' APIs
+        # silently accept-but-never-pay if we send a method not in their
+        # own set — e.g. ShopeePay to Hijau, or BCA_VA (Hijau's format) to
+        # Oren (Oren wants VA_BCA). The checkout tool validates against
+        # this list before sending. Default empty = allow anything (for
+        # backward-compat if a newer source doesn't declare a list yet).
+        self.accepted_payment_methods = list(accepted_payment_methods or [])
+
+    def is_payment_method_accepted(self, method: str) -> bool:
+        """Case-insensitive whitelist check. Returns True if the list is
+        empty (unconstrained adapter). Normalization matches both stores'
+        server-side normalizers: upper-case + spaces-to-underscores."""
+        if not self.accepted_payment_methods:
+            return True
+        norm = method.upper().replace(" ", "_")
+        return any(
+            m.upper().replace(" ", "_") == norm
+            for m in self.accepted_payment_methods
+        )
 
     # ---------------------------------------------------------------- utils
 

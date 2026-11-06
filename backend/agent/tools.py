@@ -617,6 +617,85 @@ async def send_product_cards(products: list) -> str:
     return summary
 
 
+# ──────────────────────────────────────────────────────────────────────
+# Query-intent rules used by search_product() to drop cross-category
+# contamination. Dummy seed data is noisy: a laptop bag's description
+# mentions "laptop", an earbuds description mentions "iPhone/Samsung", a
+# charger's keywords mention "smartphone" etc — without these guards a
+# search for "laptop" surfaces Ransel Laptop TravelPack, a search for "hp"
+# surfaces chargers, and so on. Each rule maps:
+#   - triggers: substrings in the user's query that fire this intent
+#   - allowed_categories: whitelist of categories the result MUST be in
+#   - name_excludes: accessory words that disqualify a product-name hit
+#     even inside the allowed category
+# Keep the trigger list intent-specific (not brand-specific) so a search
+# like "samsung" still returns both phones and TVs.
+_INTENT_RULES: list[dict] = [
+    {
+        "triggers": {
+            "laptop", "notebook", "macbook", "thinkpad", "ideapad",
+            "ultrabook", "chromebook", "komputer",
+        },
+        "allowed_categories": {"gadget & tech"},
+        "name_excludes": {
+            "tas", "ransel", "backpack", "sleeve", "pouch",
+            "case", "stand", "cooler", "pad",
+        },
+    },
+    {
+        "triggers": {
+            "handphone", "smartphone", "ponsel",
+            "iphone", "galaxy", "redmi", "poco", "oppo", "vivo", "realme",
+        },
+        "allowed_categories": {"gadget & tech"},
+        "name_excludes": {
+            "case", "charger", "cable", "kabel", "holder", "stand",
+            "power bank", "powerbank",
+            "earphone", "earbuds", "headset", "headphone",
+            "smartwatch", "tablet", "ipad", "ring light", "tripod",
+        },
+    },
+    # Standalone "hp" is tricky because it matches too easily inside words
+    # ("shop", "hpv" etc.), so require a word boundary via space/edges.
+    {
+        "triggers": {" hp ", " hp", "hp "},
+        "allowed_categories": {"gadget & tech"},
+        "name_excludes": {
+            "case", "charger", "cable", "kabel", "holder", "stand",
+            "power bank", "powerbank",
+            "earphone", "earbuds", "headset", "headphone",
+            "smartwatch", "tablet", "ipad", "ring light", "tripod",
+        },
+    },
+    {
+        "triggers": {"sepatu", "sneakers", "running shoes"},
+        "allowed_categories": {"lifestyle"},
+        "name_excludes": {"rak sepatu", "pembersih sepatu"},
+    },
+    {
+        "triggers": {"headset", "headphone", "earphone", "earbuds"},
+        "allowed_categories": {"gadget & tech"},
+        "name_excludes": set(),
+    },
+    {
+        "triggers": {"televisi", " tv ", " tv", "tv "},
+        "allowed_categories": {"gadget & tech"},
+        "name_excludes": set(),
+    },
+]
+
+
+def _match_query_intent(q_lower: str) -> dict | None:
+    """Return the first matching intent rule, or None. Pad the query with
+    spaces so word-boundary triggers (e.g. ' hp ') can match at edges too."""
+    padded = f" {q_lower} "
+    for rule in _INTENT_RULES:
+        for trig in rule["triggers"]:
+            if trig in padded or trig.strip() == q_lower.strip():
+                return rule
+    return None
+
+
 @function_tool
 async def search_product(
     query: str = "",
@@ -667,31 +746,45 @@ async def search_product(
 
     if query:
         q_lower = query.lower()
+
+        # STEP 1 — Permissive substring match across name, keywords,
+        # description.
+        #
+        # We DO need description matching because some stores (e.g. Oren)
+        # have no `keywords` field and their product NAMES are brand-model
+        # strings ("Acer Nitro 5 i5 8GB RTX 3050") with no generic category
+        # word in them — so a user who says "laptop" would never match any
+        # Oren laptop if we only looked at name/keywords.
+        #
+        # Description matching is intentionally noisy; we clean it up in the
+        # intent filter below (laptop bags' descriptions mention "laptop",
+        # charger descriptions mention "handphone", etc. — these get dropped
+        # by the category + name-exclude rules).
         products = [
             p for p in products
             if q_lower in (p.get("name") or "").lower()
-            or q_lower in (p.get("description") or "").lower()
             or q_lower in (p.get("keywords") or "").lower()
+            or q_lower in (p.get("description") or "").lower()
         ]
-        phone_queries = {
-        "handphone", "hp", "smartphone", "ponsel",
-        "samsung", "iphone", "xiaomi", "oppo", "vivo", "realme", "poco",
-    }
-    if query and any(pq in query.lower() for pq in phone_queries):
-        laptop_keywords = {
-            "laptop", "notebook", "macbook", "chromebook",
-            "ultrabook", "gaming pc", "pc desktop", "monitor",
-            "keyboard", "mouse", "charger", "cable", "case",
-            "earphone", "earbuds", "headphone", "speaker",
-            "smartwatch", "watch", "tablet", "ipad",
-        }
-        products = [
-            p for p in products
-            if not any(
-                lk in (p.get("name") or "").lower()
-                for lk in laptop_keywords
-            )
-        ]
+
+        # STEP 2 — Intent-based filtering.
+        # When the user says "laptop" they mean the computer, not a laptop
+        # bag, laptop stand, laptop cooler. Each rule: triggers that detect
+        # the intent, whitelisted categories (result MUST be in one of
+        # these), and name-excludes (accessory words that disqualify a
+        # product name even inside the allowed category).
+        intent = _match_query_intent(q_lower)
+        if intent:
+            allowed_cats = intent["allowed_categories"]
+            name_excludes = intent["name_excludes"]
+            products = [
+                p for p in products
+                if (p.get("category") or "").lower() in allowed_cats
+                and not any(
+                    ex in (p.get("name") or "").lower()
+                    for ex in name_excludes
+                )
+            ]
     if category:
         cat_lower = category.lower()
         products = [
@@ -1306,18 +1399,34 @@ async def remove_from_cart(cart_id: int, source: str) -> str:
 # ==================== CHECKOUT TOOLS (PROTECTED) ====================
 
 @function_tool
-async def checkout(source: str, payment_method: str = "GoPay") -> str:
+async def checkout(source: str, payment_method: str = "") -> str:
     """
     Complete the purchase and create an order from a specific store's cart items.
-    Payment methods: VA_BCA, VA_BRI, VA_Mandiri, GoPay, OVO, ShopeePay, DANA,
-    or the store's own e-wallet — pass "ShopKuPay" for Toko Oren, "TokoKuPay"
-    for Toko Hijau (NOT interchangeable, each store only recognizes its own
-    wallet name and silently leaves the order unpaid if you send the wrong
-    one).
+
+    Payment methods ARE NOT THE SAME between stores — each store's API
+    silently accepts an unknown method and leaves the order permanently
+    unpaid (no error returned). So you MUST pick a method from the correct
+    store's list:
+
+      source="oren" (Toko Oren) accepts:
+        ShopKuPay, GoPay, OVO, DANA, VA_BCA, VA_BRI, VA_Mandiri, ShopeePay
+
+      source="hijau" (Toko Hijau) accepts:
+        TokoKuPay, BCA_VA, MANDIRI_VA, COD
+
+    Note the DIFFERENT NAMING for VAs between stores (Oren: VA_BCA,
+    VA_Mandiri; Hijau: BCA_VA, MANDIRI_VA) and that these methods only
+    exist in ONE store:
+      - ShopKuPay, GoPay, OVO, DANA, ShopeePay, VA_BRI → Oren only
+      - TokoKuPay, COD → Hijau only
+
+    If the user asks for a method not available in the target store, tell
+    them it's unavailable and offer the alternatives from that store's
+    list. Do NOT silently substitute.
 
     Args:
-        source: store code to checkout on, e.g. "oren" or "hijau"
-        payment_method: one of the payment methods listed above
+        source: store code to checkout on, "oren" or "hijau"
+        payment_method: one of the methods from the correct store's list
 
     ⚠️ This action requires voice verification for security.
     """
@@ -1331,6 +1440,22 @@ async def checkout(source: str, payment_method: str = "GoPay") -> str:
 
     if not account["is_logged_in"]:
         return f"Lo harus login dulu ke {adapter.label} sebelum checkout."
+
+    # Whitelist check BEFORE touching the real API so a mismatched method
+    # never reaches the store's permissive normalizer (which would accept
+    # it and silently leave the order unpaid — exactly how "Hijau accepted
+    # a ShopeePay order that never got paid" happens).
+    if not payment_method:
+        return (
+            f"Pilih metode bayar dulu buat {adapter.label}. Yang tersedia: "
+            f"{', '.join(adapter.accepted_payment_methods)}."
+        )
+    if not adapter.is_payment_method_accepted(payment_method):
+        return (
+            f"❌ {adapter.label} gak nerima '{payment_method}'. "
+            f"Yang tersedia di toko ini: "
+            f"{', '.join(adapter.accepted_payment_methods)}. Pilih salah satu."
+        )
 
     try:
         cart_items = await adapter.get_cart(account["token"])

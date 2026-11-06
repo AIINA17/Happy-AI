@@ -9,6 +9,7 @@ ADAPTERS: dict[str, EcommerceAdapter] = {
         base_url=cfg["base_url"],
         wallet_name=cfg["wallet_name"],
         order_detail_path=cfg["order_detail_path"],
+        accepted_payment_methods=cfg.get("accepted_payment_methods"),
     )
     for key, cfg in ECOMMERCE_SOURCES.items()
 }

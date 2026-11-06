@@ -23,12 +23,18 @@ export default function ProductCards({ products }: ProductCardsProps) {
         new Map(products.map((p) => [`${p.source ?? ""}-${p.id}`, p])).values(),
     );
 
-  const formatPrice = (price: number) => {
+  const formatPrice = (price: number | undefined | null) => {
+    // Guard against NaN / undefined — Intl.NumberFormat happily turns
+    // those into "RpNaN", which looks like a broken card to the user.
+    // Backend validation in _send_product_cards_internal should already
+    // drop these, but belt-and-braces: never render a malformed amount.
+    const n = Number(price);
+    if (!Number.isFinite(n) || n <= 0) return "—";
     return new Intl.NumberFormat("id-ID", {
       style: "currency",
       currency: "IDR",
       minimumFractionDigits: 0,
-    }).format(price);
+    }).format(n);
   };
 
     return (

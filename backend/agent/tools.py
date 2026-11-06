@@ -128,6 +128,30 @@ def _resolve_account(source: str):
 
 # ==================== INTERNAL HELPER ====================
 
+def _is_valid_card_product(p) -> bool:
+    """A product is renderable as a card only if it has the fields the
+    frontend actually displays (name, price, source). We've seen Gemini
+    hand-craft stub products like {"id": 74, "name": "..."} with no price
+    — those render as blank cards with "RpNaN" and "Link tidak tersedia",
+    which looks broken to the user. Enforce minimum shape so bad cards
+    never reach the carousel."""
+    if not isinstance(p, dict):
+        return False
+    if not p.get("name"):
+        return False
+    # Price must be a positive real number. _num() returns 0 on garbage,
+    # so a 0-price product is just as suspicious as NaN.
+    try:
+        price = float(p.get("price"))
+    except (TypeError, ValueError):
+        return False
+    if price <= 0:
+        return False
+    if not p.get("source"):
+        return False
+    return True
+
+
 async def _send_product_cards_internal(products: list):
     """
     Internal function untuk kirim product cards ke frontend dan DB.
@@ -137,6 +161,18 @@ async def _send_product_cards_internal(products: list):
 
     state = auth_state.get("agent_state", {})
     session_id = state.get("conversation_session_id")
+
+    # Shape validation — drop anything the carousel can't render. See
+    # _is_valid_card_product docstring for the "RpNaN / Link tidak tersedia"
+    # bug this prevents.
+    before = len(products)
+    products = [p for p in products if _is_valid_card_product(p)]
+    dropped = before - len(products)
+    if dropped:
+        logging.warning(
+            f"⚠️ PRODUCT_CARDS dropped {dropped}/{before} invalid product(s) "
+            "(missing name/price/source — would have rendered as blank card)"
+        )
 
     if not products:
         logging.error("❌ PRODUCT_CARDS CALLED WITH EMPTY LIST — skipping")
@@ -595,6 +631,13 @@ async def send_product_cards(products: list) -> str:
     carousel UI (showing more overwhelms the user when they're listening).
     Pass the products you consider the best matches first. After sending
     cards, only confirm that they are visible; do not read every card aloud.
+
+    Use this ONLY to re-show / narrow products from the most recent
+    search_product() results — e.g. "yang Toko Hijau aja", "yang
+    rating tertinggi dulu". Do NOT hand-craft product dicts here (name
+    + id + partial fields): the carousel renders them as blank cards
+    with 'RpNaN'. If you want different products, run search_product()
+    again with the right query.
     """
     # Normalize every item to a dict regardless of whether Gemini sent dict
     # or JSON-string. See _coerce_product's docstring for why this matters.
@@ -602,6 +645,33 @@ async def send_product_cards(products: list) -> str:
     # Drop any that failed to coerce (empty dict) so we don't send junk
     # cards to the carousel.
     normalized = [p for p in normalized if p]
+
+    # Cross-reference with the most recent search_product() results. If a
+    # product in the LLM's payload isn't in that cache, it was either
+    # hand-crafted from memory or carried over from a before-filter session
+    # — drop it. This is what stopped "search 'laptop gaming' still shows
+    # Under Armour" (the LLM was reusing a stale uncached list).
+    cached = auth_state.get("last_search_products") or []
+    cached_keys = {
+        (str(p.get("source")), str(p.get("id")))
+        for p in cached
+        if p.get("id") is not None
+    }
+    if cached_keys:
+        filtered = []
+        dropped_names = []
+        for p in normalized:
+            key = (str(p.get("source")), str(p.get("id")))
+            if key in cached_keys:
+                filtered.append(p)
+            else:
+                dropped_names.append(p.get("name") or "?")
+        if dropped_names:
+            logging.warning(
+                f"⚠️ send_product_cards dropped {len(dropped_names)} product(s) "
+                f"not in last_search_products cache: {dropped_names}"
+            )
+        normalized = filtered
 
     if not normalized:
         # Never publish an empty PRODUCT_CARDS payload — the frontend
@@ -1003,9 +1073,11 @@ async def get_product_detail(product_id: int, source: str) -> str:
             if len(reviews) > 5:
                 reviews_section += f"(ada {len(reviews) - 5} review lagi)\n"
 
-        await _send_link_card_internal(
-            f"Produk — {p.get('name', 'Unknown')}", p.get('link')
-        )
+        # Per user policy: don't push a LINK_CARD to the chat area for
+        # product browsing. Product cards (right panel) already carry the
+        # "Lihat di Toko" button, so a separate chat link is redundant.
+        # LINK_CARDs in the chat are reserved for post-checkout order
+        # confirmation and review cards.
 
         return (
             f"📦 Detail Produk ({adapter.label}):\n"
@@ -1371,10 +1443,9 @@ async def get_cart(source: str) -> str:
             result += f"  {item.get('quantity')}x Rp {price:,.0f} = Rp {subtotal:,.0f}\n"
             result += f"  (Cart ID: {item.get('id')})\n\n"
 
-        result += f"💰 Total: Rp {total:,.0f}\n\n"
-        result += f"🔗 Link Keranjang: {adapter.cart_link()}"
-
-        await _send_link_card_internal(f"Keranjang — {adapter.label}", adapter.cart_link())
+        result += f"💰 Total: Rp {total:,.0f}\n"
+        # Per user policy: no cart-link LINK_CARD in chat. LINK_CARDs are
+        # reserved for post-checkout order confirmation and review cards.
 
         return result
 
@@ -1576,9 +1647,9 @@ async def get_order_history(source: str) -> str:
             result += f"  Metode Bayar: {order.get('payment_method', '-')}\n"
             result += f"  🔗 Link: {adapter.order_link(order.get('id'))}\n\n"
 
-        result += f"🔗 Lihat Semua Pesanan: {adapter.orders_link()}"
-
-        await _send_link_card_internal(f"Semua Pesanan — {adapter.label}", adapter.orders_link())
+        # Per user policy: no orders-list LINK_CARD in chat. LINK_CARDs
+        # are reserved for post-checkout order confirmation (checkout())
+        # and per-order detail (get_order_detail()), plus review cards.
 
         return result
 
@@ -1631,11 +1702,11 @@ async def get_order_detail(order_id: int, source: str) -> str:
             result += f"• {item.get('name_snapshot', 'Unknown')}\n"
             result += f"  {item.get('quantity')}x Rp {price_at_purchase:,.0f} = Rp {subtotal:,.0f}\n"
 
-        result += f"\n🔗 Link Pesanan: {adapter.order_link(order_id)}"
-
-        await _send_link_card_internal(
-            f"Pesanan #{order_id} — {adapter.label}", adapter.order_link(order_id)
-        )
+        # Per user policy: no order-detail LINK_CARD in chat here.
+        # LINK_CARDs are reserved for post-checkout order confirmation
+        # (checkout() tool) and review cards. If the user wants to click
+        # through an existing order, they can use the "Pesanan" button in
+        # the sidebar.
 
         if order.get('status') == 'pending':
             result += f"\n\n⚠️ Pesanan ini belum dibayar. Mau bayar sekarang?"

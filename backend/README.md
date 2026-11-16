@@ -106,6 +106,29 @@ Tidak ada langkah terpisah untuk `face_recognition` — routernya sudah ikut ter
 
 Untuk detail lengkap, lihat definisi router di `voiceverification/server.py`.
 
+### Menyiapkan bukti pengujian Agent untuk C501
+
+Runner berikut tidak membuat order dan dapat dijalankan berulang dari
+`backend/`:
+
+```bash
+python -m agent.analysis.run_agent_test_matrix
+```
+
+Runner tersebut menguji matriks gerbang tool untuk status `UNKNOWN`,
+`REPEAT`, `DENIED`, `EXPIRED`, dan `VERIFIED`, serta expiry setelah interval
+verifikasi. Untuk benchmark read-only ke dua dummy store, gunakan:
+
+```bash
+python -m agent.analysis.run_agent_test_matrix --live-tools
+```
+
+Hasil ditulis ke
+`agent/analysis/agent_test_matrix.json`. Mode tersebut hanya memanggil
+`get_user_city`, pencarian, detail produk, status login, dan pembacaan
+keranjang; checkout dan pembayaran tetap harus dilakukan sebagai skenario
+manual dengan akun uji dan reset data yang dicatat.
+
 **`face_recognition` (prefix `/face`, proses & port sama dengan `voiceverification`)**
 
 - `POST /face/enroll-face` — enroll wajah user

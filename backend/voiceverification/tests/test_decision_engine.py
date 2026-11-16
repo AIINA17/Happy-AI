@@ -142,23 +142,22 @@ def test_behavior_score_ignored_outside_the_voice_accept_branch():
 
 def test_REGRESSION_voice_repeat_is_unreachable_with_default_config():
     """
-    Documents current (unintended-looking) behavior: abs_min_speaker
-    (0.35) is higher than voice_repeat (0.30), and abs_min_speaker is
-    checked first as a hard guard. So with the *default* config, any
-    speaker_score low enough to hit the voice_repeat branch has already
-    been denied by the hard guard first — "Uncertain verification,
-    please repeat" can never actually be returned as-configured.
-
-    This test isn't asserting that's correct, only pinning down today's
-    actual behavior so a future config change is a deliberate, visible
-    diff here rather than a silent shift in what users experience.
+    Documents the current configured ordering: abs_min_speaker (0.50) is
+    lower than voice_repeat (0.55), which is lower than voice_accept (0.70).
+    Scores below the absolute minimum are denied first, while scores between
+    voice_repeat and voice_accept reach the repeat branch.
+    This test pins down the actual behavior so a future config change is
+    deliberate and visible.
     """
     config = DecisionConfig()
-    assert config.abs_min_speaker > config.voice_repeat
+    assert config.abs_min_speaker < config.voice_repeat
 
-    just_above_voice_repeat = config.voice_repeat + 0.01
-    assert just_above_voice_repeat < config.abs_min_speaker
-
-    decision, reason = decide(speaker_score=just_above_voice_repeat, replay_prob=0.0)
+    below_absolute_minimum = config.abs_min_speaker - 0.01
+    decision, reason = decide(speaker_score=below_absolute_minimum, replay_prob=0.0)
     assert decision == Decision.DENIED
     assert "Speaker score too low" in reason
+
+    in_repeat_band = (config.voice_repeat + config.voice_accept) / 2
+    decision, reason = decide(speaker_score=in_repeat_band, replay_prob=0.0)
+    assert decision == Decision.REPEAT
+    assert "Uncertain verification" in reason

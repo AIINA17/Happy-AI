@@ -18,7 +18,6 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
-import os
 import sys
 import time
 from pathlib import Path
@@ -74,12 +73,12 @@ async def run_gate_matrix(records: list[dict[str, Any]]) -> None:
         for action in SENSITIVE_ACTIONS:
             error = tools.require_voice_verification(action)
             allowed = error is None
-            expected = status == "VERIFIED"
+            expected_allowed = status == "VERIFIED"
             _record(
                 records,
                 f"gate/{status}/{action}",
-                expected,
-                allowed == expected,
+                expected_allowed,
+                allowed,
                 "allowed" if allowed else error or "blocked",
             )
 

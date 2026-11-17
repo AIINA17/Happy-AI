@@ -92,6 +92,7 @@ async def verify_face(
     request: Request,
     image: UploadFile = File(...),
     liveness_token: str | None = Form(None),
+    notify_agent: bool = Form(True),
 ):
     user_id = get_user_id_from_request(request)
     image_filename = image.filename
@@ -102,6 +103,8 @@ async def verify_face(
     # the client to self-report its own FACE_RESULT over the room's data
     # channel. Mirrors /verify-voice's push in voiceverification/server.py.
     async def notify(verified: bool, similarity: float | None = None) -> None:
+        if not notify_agent:
+            return
         await publish_room_result(
             room_name=room_name,
             topic="FACE_RESULT",

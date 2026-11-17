@@ -61,6 +61,7 @@ interface Props {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     onResult?: (outcome: FaceVerifyOutcome) => void;
+    notifyAgent?: boolean;
 }
 
 type ChallengeType = "blink" | "mouth" | "turn";
@@ -190,6 +191,7 @@ export default function FaceLivenessCapture({
     open,
     onOpenChange,
     onResult,
+    notifyAgent = true,
 }: Props) {
     const SERVER_URL = `${process.env.NEXT_PUBLIC_SERVER_URL}/face`;
 
@@ -388,6 +390,7 @@ export default function FaceLivenessCapture({
             if (livenessTokenRef.current) {
                 form.append("liveness_token", livenessTokenRef.current);
             }
+            form.append("notify_agent", String(notifyAgent));
             // Single-use server-side — clear it regardless of outcome so a
             // retry after this always goes through startSession() again
             // (which fetches a fresh challenge) instead of resending a token

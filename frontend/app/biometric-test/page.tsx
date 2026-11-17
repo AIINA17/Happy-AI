@@ -302,6 +302,7 @@ export default function BiometricTestPage() {
               open={faceOpen}
               onOpenChange={setFaceOpen}
               onResult={handleFaceResult}
+              notifyAgent={false}
             />
           </section>
         </div>

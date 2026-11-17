@@ -404,8 +404,12 @@ export default function FaceLivenessCapture({
             });
 
             const result = await res.json();
+            const resultStatus =
+                typeof result.status === "string"
+                    ? result.status.toUpperCase()
+                    : "";
 
-            if (res.ok && result.status === "LIVENESS_FAILED") {
+            if (res.ok && resultStatus === "LIVENESS_FAILED") {
                 const text =
                     result.message ||
                     "Sesi liveness tidak valid atau kedaluwarsa. Coba lagi.";
@@ -421,7 +425,7 @@ export default function FaceLivenessCapture({
                         }),
                     2000,
                 );
-            } else if (res.ok && result.status === "VERIFIED") {
+            } else if (res.ok && resultStatus === "VERIFIED") {
                 const text = `Cocok — similarity ${result.similarity?.toFixed(3)}`;
                 setPhase("result");
                 setMessage(text);
@@ -434,7 +438,12 @@ export default function FaceLivenessCapture({
                         }),
                     1500,
                 );
-            } else if (res.ok && result.status === "DENIED") {
+            } else if (
+                res.ok &&
+                (resultStatus === "DENIED" ||
+                    resultStatus === "NO_FACE_ENROLLMENT" ||
+                    result.verified === false)
+            ) {
                 const text = `Tidak cocok — similarity ${result.similarity?.toFixed(3)}`;
                 setPhase("result");
                 setMessage(text);
@@ -449,7 +458,9 @@ export default function FaceLivenessCapture({
                 );
             } else {
                 const text =
-                    result.message || result.detail || "Verifikasi gagal.";
+                    result.message ||
+                    result.detail ||
+                    `Verifikasi gagal${res.status ? ` (HTTP ${res.status})` : ""}.`;
                 setPhase("result");
                 setMessage(text);
                 toast.error(text);

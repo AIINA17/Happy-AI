@@ -1,0 +1,705 @@
+torchvision is not available - cannot save figures
+INFO:     Started server process [957755]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8080 (Press CTRL+C to quit)
+Applied providers: ['CUDAExecutionProvider', 'CPUExecutionProvider'], with options: {'CPUExecutionProvider': {}, 'CUDAExecutionProvider': {'sdpa_kernel': '0', 'use_tf32': '1', 'fuse_conv_bias': '0', 'prefer_nhwc': '0', 'tunable_op_max_tuning_duration_ms': '0', 'enable_skip_layer_norm_strict_mode': '0', 'tunable_op_tuning_enable': '0', 'tunable_op_enable': '0', 'use_ep_level_unified_stream': '0', 'device_id': '0', 'has_user_compute_stream': '0', 'gpu_external_empty_cache': '0', 'cudnn_conv_algo_search': 'EXHAUSTIVE', 'cudnn_conv1d_pad_to_nc1d': '0', 'gpu_mem_limit': '18446744073709551615', 'gpu_external_alloc': '0', 'gpu_external_free': '0', 'arena_extend_strategy': 'kNextPowerOfTwo', 'do_copy_in_default_stream': '1', 'enable_cuda_graph': '0', 'user_compute_stream': '0', 'cudnn_conv_use_max_workspace': '1'}}
+find model: /home/aiteam/.insightface/models/buffalo_l/1k3d68.onnx landmark_3d_68 ['None', 3, 192, 192] 0.0 1.0
+Applied providers: ['CUDAExecutionProvider', 'CPUExecutionProvider'], with options: {'CPUExecutionProvider': {}, 'CUDAExecutionProvider': {'sdpa_kernel': '0', 'use_tf32': '1', 'fuse_conv_bias': '0', 'prefer_nhwc': '0', 'tunable_op_max_tuning_duration_ms': '0', 'enable_skip_layer_norm_strict_mode': '0', 'tunable_op_tuning_enable': '0', 'tunable_op_enable': '0', 'use_ep_level_unified_stream': '0', 'device_id': '0', 'has_user_compute_stream': '0', 'gpu_external_empty_cache': '0', 'cudnn_conv_algo_search': 'EXHAUSTIVE', 'cudnn_conv1d_pad_to_nc1d': '0', 'gpu_mem_limit': '18446744073709551615', 'gpu_external_alloc': '0', 'gpu_external_free': '0', 'arena_extend_strategy': 'kNextPowerOfTwo', 'do_copy_in_default_stream': '1', 'enable_cuda_graph': '0', 'user_compute_stream': '0', 'cudnn_conv_use_max_workspace': '1'}}
+find model: /home/aiteam/.insightface/models/buffalo_l/2d106det.onnx landmark_2d_106 ['None', 3, 192, 192] 0.0 1.0
+Applied providers: ['CUDAExecutionProvider', 'CPUExecutionProvider'], with options: {'CPUExecutionProvider': {}, 'CUDAExecutionProvider': {'sdpa_kernel': '0', 'use_tf32': '1', 'fuse_conv_bias': '0', 'prefer_nhwc': '0', 'tunable_op_max_tuning_duration_ms': '0', 'enable_skip_layer_norm_strict_mode': '0', 'tunable_op_tuning_enable': '0', 'tunable_op_enable': '0', 'use_ep_level_unified_stream': '0', 'device_id': '0', 'has_user_compute_stream': '0', 'gpu_external_empty_cache': '0', 'cudnn_conv_algo_search': 'EXHAUSTIVE', 'cudnn_conv1d_pad_to_nc1d': '0', 'gpu_mem_limit': '18446744073709551615', 'gpu_external_alloc': '0', 'gpu_external_free': '0', 'arena_extend_strategy': 'kNextPowerOfTwo', 'do_copy_in_default_stream': '1', 'enable_cuda_graph': '0', 'user_compute_stream': '0', 'cudnn_conv_use_max_workspace': '1'}}
+find model: /home/aiteam/.insightface/models/buffalo_l/det_10g.onnx detection [1, 3, '?', '?'] 127.5 128.0
+Applied providers: ['CUDAExecutionProvider', 'CPUExecutionProvider'], with options: {'CPUExecutionProvider': {}, 'CUDAExecutionProvider': {'sdpa_kernel': '0', 'use_tf32': '1', 'fuse_conv_bias': '0', 'prefer_nhwc': '0', 'tunable_op_max_tuning_duration_ms': '0', 'enable_skip_layer_norm_strict_mode': '0', 'tunable_op_tuning_enable': '0', 'tunable_op_enable': '0', 'use_ep_level_unified_stream': '0', 'device_id': '0', 'has_user_compute_stream': '0', 'gpu_external_empty_cache': '0', 'cudnn_conv_algo_search': 'EXHAUSTIVE', 'cudnn_conv1d_pad_to_nc1d': '0', 'gpu_mem_limit': '18446744073709551615', 'gpu_external_alloc': '0', 'gpu_external_free': '0', 'arena_extend_strategy': 'kNextPowerOfTwo', 'do_copy_in_default_stream': '1', 'enable_cuda_graph': '0', 'user_compute_stream': '0', 'cudnn_conv_use_max_workspace': '1'}}
+find model: /home/aiteam/.insightface/models/buffalo_l/genderage.onnx genderage ['None', 3, 96, 96] 0.0 1.0
+Applied providers: ['CUDAExecutionProvider', 'CPUExecutionProvider'], with options: {'CPUExecutionProvider': {}, 'CUDAExecutionProvider': {'sdpa_kernel': '0', 'use_tf32': '1', 'fuse_conv_bias': '0', 'prefer_nhwc': '0', 'tunable_op_max_tuning_duration_ms': '0', 'enable_skip_layer_norm_strict_mode': '0', 'tunable_op_tuning_enable': '0', 'tunable_op_enable': '0', 'use_ep_level_unified_stream': '0', 'device_id': '0', 'has_user_compute_stream': '0', 'gpu_external_empty_cache': '0', 'cudnn_conv_algo_search': 'EXHAUSTIVE', 'cudnn_conv1d_pad_to_nc1d': '0', 'gpu_mem_limit': '18446744073709551615', 'gpu_external_alloc': '0', 'gpu_external_free': '0', 'arena_extend_strategy': 'kNextPowerOfTwo', 'do_copy_in_default_stream': '1', 'enable_cuda_graph': '0', 'user_compute_stream': '0', 'cudnn_conv_use_max_workspace': '1'}}
+find model: /home/aiteam/.insightface/models/buffalo_l/w600k_r50.onnx recognition ['None', 3, 112, 112] 127.5 127.5
+set det-size: (640, 640)
+Biometric ready.
+BiometricService initialized on device: cuda
+Server startup complete.
+INFO:     157.85.211.245:0 - "OPTIONS /face/enroll-face/bab4e2c6-4cd9-42e4-adbc-fc74635bcb75 HTTP/1.1" 200 OK
+INFO:     157.85.211.245:0 - "OPTIONS /logs/sessions HTTP/1.1" 200 OK
+INFO:     157.85.211.245:0 - "OPTIONS /logs/sessions HTTP/1.1" 200 OK
+INFO:     157.85.211.245:0 - "OPTIONS /enrollments HTTP/1.1" 200 OK
+INFO:     157.85.211.245:0 - "GET /enrollments HTTP/1.1" 200 OK
+INFO:     157.85.211.245:0 - "GET /face/enroll-face/bab4e2c6-4cd9-42e4-adbc-fc74635bcb75 HTTP/1.1" 200 OK
+INFO:     157.85.211.245:0 - "GET /logs/sessions HTTP/1.1" 200 OK
+INFO:     157.85.211.245:0 - "GET /logs/sessions HTTP/1.1" 200 OK
+INFO:     157.85.211.245:0 - "OPTIONS /face/enroll-face/d95e0095-5065-4ad2-9d93-67201e765668 HTTP/1.1" 200 OK
+INFO:     157.85.211.245:0 - "GET /enrollments HTTP/1.1" 200 OK
+INFO:     157.85.211.245:0 - "GET /logs/sessions HTTP/1.1" 200 OK
+INFO:     157.85.211.245:0 - "GET /face/enroll-face/d95e0095-5065-4ad2-9d93-67201e765668 HTTP/1.1" 200 OK
+INFO:     157.85.211.245:0 - "GET /logs/sessions HTTP/1.1" 200 OK
+INFO:     157.85.211.245:0 - "OPTIONS /face/liveness-challenge HTTP/1.1" 200 OK
+INFO:     157.85.211.245:0 - "POST /face/liveness-challenge HTTP/1.1" 200 OK
+INFO:     157.85.211.245:0 - "OPTIONS /face/verify-face HTTP/1.1" 200 OK
+/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/insightface/utils/transform.py:68: FutureWarning: `rcond` parameter will change to the default of machine precision times ``max(M, N)`` where M and N are the input matrix dimensions.
+To use the future default and silence this warning we advise to pass `rcond=None`, to keep using the old, explicitly pass `rcond=-1`.
+  P = np.linalg.lstsq(X_homo, Y)[0].T # Affine matrix. 3 x 4
+Failed to publish FACE_RESULT to room user-d95e0095-5065-4ad2-9d93-67201e765668
+Traceback (most recent call last):
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/voiceverification/utils/room_notify.py", line 40, in publish_room_result
+    await lk.room.send_data(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/room_service.py", line 342, in send_data
+    return await self._client.request(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/twirp_client.py", line 129, in request
+    raise TwirpError(
+livekit.api.twirp_client.TwirpError: TwirpError(code=not_found, message=requested room does not exist, status=404)
+INFO:     157.85.211.245:0 - "POST /face/verify-face HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "OPTIONS /face/enroll-face/bab4e2c6-4cd9-42e4-adbc-fc74635bcb75 HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "OPTIONS /logs/sessions HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "OPTIONS /enrollments HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "OPTIONS /logs/sessions HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /logs/sessions HTTP/1.1" 401 Unauthorized
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /enrollments HTTP/1.1" 401 Unauthorized
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /face/enroll-face/bab4e2c6-4cd9-42e4-adbc-fc74635bcb75 HTTP/1.1" 401 Unauthorized
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /logs/sessions HTTP/1.1" 401 Unauthorized
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "OPTIONS /face/liveness-challenge HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /face/liveness-challenge HTTP/1.1" 401 Unauthorized
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /face/liveness-challenge HTTP/1.1" 401 Unauthorized
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /face/liveness-challenge HTTP/1.1" 401 Unauthorized
+INFO:     157.85.211.245:0 - "POST /face/liveness-challenge HTTP/1.1" 200 OK
+Failed to publish FACE_RESULT to room user-d95e0095-5065-4ad2-9d93-67201e765668
+Traceback (most recent call last):
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/voiceverification/utils/room_notify.py", line 40, in publish_room_result
+    await lk.room.send_data(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/room_service.py", line 342, in send_data
+    return await self._client.request(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/twirp_client.py", line 129, in request
+    raise TwirpError(
+livekit.api.twirp_client.TwirpError: TwirpError(code=not_found, message=requested room does not exist, status=404)
+INFO:     157.85.211.245:0 - "POST /face/verify-face HTTP/1.1" 200 OK
+INFO:     157.85.211.245:0 - "GET /logs/sessions HTTP/1.1" 200 OK
+INFO:     157.85.211.245:0 - "GET /face/enroll-face/d95e0095-5065-4ad2-9d93-67201e765668 HTTP/1.1" 200 OK
+INFO:     157.85.211.245:0 - "GET /enrollments HTTP/1.1" 200 OK
+INFO:     157.85.211.245:0 - "DELETE /face/enroll-face/d95e0095-5065-4ad2-9d93-67201e765668 HTTP/1.1" 200 OK
+INFO:     157.85.211.245:0 - "OPTIONS /face/enroll-face HTTP/1.1" 200 OK
+INFO:     157.85.211.245:0 - "POST /face/enroll-face HTTP/1.1" 200 OK
+INFO:     157.85.211.245:0 - "POST /face/liveness-challenge HTTP/1.1" 200 OK
+Failed to publish FACE_RESULT to room user-d95e0095-5065-4ad2-9d93-67201e765668
+Traceback (most recent call last):
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/voiceverification/utils/room_notify.py", line 40, in publish_room_result
+    await lk.room.send_data(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/room_service.py", line 342, in send_data
+    return await self._client.request(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/twirp_client.py", line 129, in request
+    raise TwirpError(
+livekit.api.twirp_client.TwirpError: TwirpError(code=not_found, message=requested room does not exist, status=404)
+INFO:     157.85.211.245:0 - "POST /face/verify-face HTTP/1.1" 200 OK
+INFO:     157.85.211.245:0 - "POST /face/liveness-challenge HTTP/1.1" 200 OK
+Failed to publish FACE_RESULT to room user-d95e0095-5065-4ad2-9d93-67201e765668
+Traceback (most recent call last):
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/voiceverification/utils/room_notify.py", line 40, in publish_room_result
+    await lk.room.send_data(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/room_service.py", line 342, in send_data
+    return await self._client.request(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/twirp_client.py", line 129, in request
+    raise TwirpError(
+livekit.api.twirp_client.TwirpError: TwirpError(code=not_found, message=requested room does not exist, status=404)
+INFO:     157.85.211.245:0 - "POST /face/verify-face HTTP/1.1" 200 OK
+INFO:     157.85.211.245:0 - "POST /face/liveness-challenge HTTP/1.1" 200 OK
+Failed to publish FACE_RESULT to room user-d95e0095-5065-4ad2-9d93-67201e765668
+Traceback (most recent call last):
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/voiceverification/utils/room_notify.py", line 40, in publish_room_result
+    await lk.room.send_data(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/room_service.py", line 342, in send_data
+    return await self._client.request(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/twirp_client.py", line 129, in request
+    raise TwirpError(
+livekit.api.twirp_client.TwirpError: TwirpError(code=not_found, message=requested room does not exist, status=404)
+INFO:     157.85.211.245:0 - "POST /face/verify-face HTTP/1.1" 200 OK
+INFO:     157.85.211.245:0 - "POST /face/liveness-challenge HTTP/1.1" 200 OK
+Failed to publish FACE_RESULT to room user-d95e0095-5065-4ad2-9d93-67201e765668
+Traceback (most recent call last):
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/voiceverification/utils/room_notify.py", line 40, in publish_room_result
+    await lk.room.send_data(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/room_service.py", line 342, in send_data
+    return await self._client.request(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/twirp_client.py", line 129, in request
+    raise TwirpError(
+livekit.api.twirp_client.TwirpError: TwirpError(code=not_found, message=requested room does not exist, status=404)
+INFO:     157.85.211.245:0 - "POST /face/verify-face HTTP/1.1" 200 OK
+INFO:     157.85.211.245:0 - "POST /face/liveness-challenge HTTP/1.1" 200 OK
+Failed to publish FACE_RESULT to room user-d95e0095-5065-4ad2-9d93-67201e765668
+Traceback (most recent call last):
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/voiceverification/utils/room_notify.py", line 40, in publish_room_result
+    await lk.room.send_data(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/room_service.py", line 342, in send_data
+    return await self._client.request(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/twirp_client.py", line 129, in request
+    raise TwirpError(
+livekit.api.twirp_client.TwirpError: TwirpError(code=not_found, message=requested room does not exist, status=404)
+INFO:     157.85.211.245:0 - "POST /face/verify-face HTTP/1.1" 200 OK
+INFO:     157.85.211.245:0 - "OPTIONS /verify-voice HTTP/1.1" 200 OK
+Failed to publish VOICE_RESULT to room user-d95e0095-5065-4ad2-9d93-67201e765668
+Traceback (most recent call last):
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/voiceverification/utils/room_notify.py", line 40, in publish_room_result
+    await lk.room.send_data(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/room_service.py", line 342, in send_data
+    return await self._client.request(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/twirp_client.py", line 129, in request
+    raise TwirpError(
+livekit.api.twirp_client.TwirpError: TwirpError(code=not_found, message=requested room does not exist, status=404)
+ASVspoof score: 0.0930 (model=MelodyMachine/Deepfake-audio-detection-V2)
+🎯 VERIFY | label='new' | score=0.618 | spoof=0.093 | decision=REPEAT
+Verify took: 1.437521
+🐞 debug capture #1/20 -> 1666067d48854ec9b9ffcf91f05df193
+INFO:     157.85.211.245:0 - "POST /verify-voice HTTP/1.1" 200 OK
+INFO:     157.85.211.245:0 - "POST /face/liveness-challenge HTTP/1.1" 200 OK
+/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/insightface/utils/transform.py:68: FutureWarning: `rcond` parameter will change to the default of machine precision times ``max(M, N)`` where M and N are the input matrix dimensions.
+To use the future default and silence this warning we advise to pass `rcond=None`, to keep using the old, explicitly pass `rcond=-1`.
+  P = np.linalg.lstsq(X_homo, Y)[0].T # Affine matrix. 3 x 4
+Failed to publish FACE_RESULT to room user-d95e0095-5065-4ad2-9d93-67201e765668
+Traceback (most recent call last):
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/voiceverification/utils/room_notify.py", line 40, in publish_room_result
+    await lk.room.send_data(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/room_service.py", line 342, in send_data
+    return await self._client.request(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/twirp_client.py", line 129, in request
+    raise TwirpError(
+livekit.api.twirp_client.TwirpError: TwirpError(code=not_found, message=requested room does not exist, status=404)
+INFO:     157.85.211.245:0 - "POST /face/verify-face HTTP/1.1" 200 OK
+Failed to publish VOICE_RESULT to room user-d95e0095-5065-4ad2-9d93-67201e765668
+Traceback (most recent call last):
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/voiceverification/utils/room_notify.py", line 40, in publish_room_result
+    await lk.room.send_data(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/room_service.py", line 342, in send_data
+    return await self._client.request(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/twirp_client.py", line 129, in request
+    raise TwirpError(
+livekit.api.twirp_client.TwirpError: TwirpError(code=not_found, message=requested room does not exist, status=404)
+ASVspoof score: 0.0000 (model=MelodyMachine/Deepfake-audio-detection-V2)
+🎯 VERIFY | label='new' | score=0.534 | spoof=0.000 | decision=DENIED
+Verify took: 0.061176
+🐞 debug capture #2/20 -> 50f32eb72c4d4d2fab3699b165e1e6bd
+INFO:     157.85.211.245:0 - "POST /verify-voice HTTP/1.1" 200 OK
+Failed to publish VOICE_RESULT to room user-d95e0095-5065-4ad2-9d93-67201e765668
+Traceback (most recent call last):
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/voiceverification/utils/room_notify.py", line 40, in publish_room_result
+    await lk.room.send_data(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/room_service.py", line 342, in send_data
+    return await self._client.request(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/twirp_client.py", line 129, in request
+    raise TwirpError(
+livekit.api.twirp_client.TwirpError: TwirpError(code=not_found, message=requested room does not exist, status=404)
+ASVspoof score: 0.0000 (model=MelodyMachine/Deepfake-audio-detection-V2)
+🎯 VERIFY | label='new' | score=0.505 | spoof=0.000 | decision=DENIED
+Verify took: 0.116881
+🐞 debug capture #3/20 -> 547e7d700e0e4608ab501b7bae42ef37
+INFO:     157.85.211.245:0 - "POST /verify-voice HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /enrollments HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /logs/sessions HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /face/enroll-face/bab4e2c6-4cd9-42e4-adbc-fc74635bcb75 HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /logs/sessions HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /face/liveness-challenge HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "OPTIONS /face/verify-face HTTP/1.1" 200 OK
+/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/insightface/utils/transform.py:68: FutureWarning: `rcond` parameter will change to the default of machine precision times ``max(M, N)`` where M and N are the input matrix dimensions.
+To use the future default and silence this warning we advise to pass `rcond=None`, to keep using the old, explicitly pass `rcond=-1`.
+  P = np.linalg.lstsq(X_homo, Y)[0].T # Affine matrix. 3 x 4
+Failed to publish FACE_RESULT to room user-bab4e2c6-4cd9-42e4-adbc-fc74635bcb75
+Traceback (most recent call last):
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/voiceverification/utils/room_notify.py", line 40, in publish_room_result
+    await lk.room.send_data(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/room_service.py", line 342, in send_data
+    return await self._client.request(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/twirp_client.py", line 129, in request
+    raise TwirpError(
+livekit.api.twirp_client.TwirpError: TwirpError(code=not_found, message=requested room does not exist, status=404)
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /face/verify-face HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "OPTIONS /verify-voice HTTP/1.1" 200 OK
+Failed to publish VOICE_RESULT to room user-bab4e2c6-4cd9-42e4-adbc-fc74635bcb75
+Traceback (most recent call last):
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/voiceverification/utils/room_notify.py", line 40, in publish_room_result
+    await lk.room.send_data(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/room_service.py", line 342, in send_data
+    return await self._client.request(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/twirp_client.py", line 129, in request
+    raise TwirpError(
+livekit.api.twirp_client.TwirpError: TwirpError(code=not_found, message=requested room does not exist, status=404)
+ASVspoof score: 0.0004 (model=MelodyMachine/Deepfake-audio-detection-V2)
+🎯 VERIFY | label='Izz' | score=0.825 | spoof=0.000 | decision=VERIFIED
+Verify took: 0.060338
+🐞 debug capture #4/20 -> 65d68883adc543cf846847f87b528b4f
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /verify-voice HTTP/1.1" 200 OK
+Failed to publish VOICE_RESULT to room user-bab4e2c6-4cd9-42e4-adbc-fc74635bcb75
+Traceback (most recent call last):
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/voiceverification/utils/room_notify.py", line 40, in publish_room_result
+    await lk.room.send_data(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/room_service.py", line 342, in send_data
+    return await self._client.request(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/twirp_client.py", line 129, in request
+    raise TwirpError(
+livekit.api.twirp_client.TwirpError: TwirpError(code=not_found, message=requested room does not exist, status=404)
+ASVspoof score: 0.0000 (model=MelodyMachine/Deepfake-audio-detection-V2)
+🎯 VERIFY | label='Izz' | score=0.797 | spoof=0.000 | decision=VERIFIED
+Verify took: 0.059211
+🐞 debug capture #5/20 -> 0cbf889f942c422e81f47c765d438284
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /verify-voice HTTP/1.1" 200 OK
+Failed to publish VOICE_RESULT to room user-bab4e2c6-4cd9-42e4-adbc-fc74635bcb75
+Traceback (most recent call last):
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/voiceverification/utils/room_notify.py", line 40, in publish_room_result
+    await lk.room.send_data(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/room_service.py", line 342, in send_data
+    return await self._client.request(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/twirp_client.py", line 129, in request
+    raise TwirpError(
+livekit.api.twirp_client.TwirpError: TwirpError(code=not_found, message=requested room does not exist, status=404)
+ASVspoof score: 0.0000 (model=MelodyMachine/Deepfake-audio-detection-V2)
+🎯 VERIFY | label='Izz' | score=0.771 | spoof=0.000 | decision=VERIFIED
+Verify took: 0.088988
+🐞 debug capture #6/20 -> 3ef0cc87bdc145258638db6a10d0c2bc
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /verify-voice HTTP/1.1" 200 OK
+Failed to publish VOICE_RESULT to room user-bab4e2c6-4cd9-42e4-adbc-fc74635bcb75
+Traceback (most recent call last):
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/voiceverification/utils/room_notify.py", line 40, in publish_room_result
+    await lk.room.send_data(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/room_service.py", line 342, in send_data
+    return await self._client.request(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/twirp_client.py", line 129, in request
+    raise TwirpError(
+livekit.api.twirp_client.TwirpError: TwirpError(code=not_found, message=requested room does not exist, status=404)
+ASVspoof score: 1.0000 (model=MelodyMachine/Deepfake-audio-detection-V2)
+🎯 VERIFY | label='Izz' | score=0.786 | spoof=1.000 | decision=REPEAT
+Verify took: 0.05702
+🐞 debug capture #7/20 -> e0e5fb59f1e4453780de02fc549d7499
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /verify-voice HTTP/1.1" 200 OK
+Failed to publish VOICE_RESULT to room user-bab4e2c6-4cd9-42e4-adbc-fc74635bcb75
+Traceback (most recent call last):
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/voiceverification/utils/room_notify.py", line 40, in publish_room_result
+    await lk.room.send_data(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/room_service.py", line 342, in send_data
+    return await self._client.request(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/twirp_client.py", line 129, in request
+    raise TwirpError(
+livekit.api.twirp_client.TwirpError: TwirpError(code=not_found, message=requested room does not exist, status=404)
+ASVspoof score: 0.0002 (model=MelodyMachine/Deepfake-audio-detection-V2)
+🎯 VERIFY | label='Izz' | score=0.754 | spoof=0.000 | decision=VERIFIED
+Verify took: 0.046780999999999996
+🐞 debug capture #8/20 -> 65d81ea2ae1d4e4396831a63e6928911
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /verify-voice HTTP/1.1" 200 OK
+Failed to publish VOICE_RESULT to room user-bab4e2c6-4cd9-42e4-adbc-fc74635bcb75
+Traceback (most recent call last):
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/voiceverification/utils/room_notify.py", line 40, in publish_room_result
+    await lk.room.send_data(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/room_service.py", line 342, in send_data
+    return await self._client.request(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/twirp_client.py", line 129, in request
+    raise TwirpError(
+livekit.api.twirp_client.TwirpError: TwirpError(code=not_found, message=requested room does not exist, status=404)
+ASVspoof score: 1.0000 (model=MelodyMachine/Deepfake-audio-detection-V2)
+🎯 VERIFY | label='Izz' | score=0.809 | spoof=1.000 | decision=REPEAT
+Verify took: 0.060306
+🐞 debug capture #9/20 -> 28415fbda4b74fcb86efd7f1fbbb02ef
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /verify-voice HTTP/1.1" 200 OK
+Failed to publish VOICE_RESULT to room user-bab4e2c6-4cd9-42e4-adbc-fc74635bcb75
+Traceback (most recent call last):
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/voiceverification/utils/room_notify.py", line 40, in publish_room_result
+    await lk.room.send_data(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/room_service.py", line 342, in send_data
+    return await self._client.request(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/twirp_client.py", line 129, in request
+    raise TwirpError(
+livekit.api.twirp_client.TwirpError: TwirpError(code=not_found, message=requested room does not exist, status=404)
+ASVspoof score: 0.0020 (model=MelodyMachine/Deepfake-audio-detection-V2)
+🎯 VERIFY | label='Izz' | score=0.723 | spoof=0.002 | decision=VERIFIED
+Verify took: 0.093391
+🐞 debug capture #10/20 -> 73f0c93af37f4413bf1318e61fa87722
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /verify-voice HTTP/1.1" 200 OK
+/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/transformers/pipelines/base.py:1081: UserWarning: You seem to be using the pipelines sequentially on GPU. In order to maximize efficiency please use a dataset
+  warnings.warn(
+Failed to publish VOICE_RESULT to room user-bab4e2c6-4cd9-42e4-adbc-fc74635bcb75
+Traceback (most recent call last):
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/voiceverification/utils/room_notify.py", line 40, in publish_room_result
+    await lk.room.send_data(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/room_service.py", line 342, in send_data
+    return await self._client.request(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/twirp_client.py", line 129, in request
+    raise TwirpError(
+livekit.api.twirp_client.TwirpError: TwirpError(code=not_found, message=requested room does not exist, status=404)
+ASVspoof score: 1.0000 (model=MelodyMachine/Deepfake-audio-detection-V2)
+🎯 VERIFY | label='Izz' | score=0.755 | spoof=1.000 | decision=REPEAT
+Verify took: 0.077943
+🐞 debug capture #11/20 -> 0323ac3d962842229b228f60c761a9a0
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /verify-voice HTTP/1.1" 200 OK
+/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/transformers/pipelines/base.py:1081: UserWarning: You seem to be using the pipelines sequentially on GPU. In order to maximize efficiency please use a dataset
+  warnings.warn(
+Failed to publish VOICE_RESULT to room user-bab4e2c6-4cd9-42e4-adbc-fc74635bcb75
+Traceback (most recent call last):
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/voiceverification/utils/room_notify.py", line 40, in publish_room_result
+    await lk.room.send_data(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/room_service.py", line 342, in send_data
+    return await self._client.request(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/twirp_client.py", line 129, in request
+    raise TwirpError(
+livekit.api.twirp_client.TwirpError: TwirpError(code=not_found, message=requested room does not exist, status=404)
+ASVspoof score: 1.0000 (model=MelodyMachine/Deepfake-audio-detection-V2)
+🎯 VERIFY | label='Izz' | score=0.820 | spoof=1.000 | decision=REPEAT
+Verify took: 0.101196
+🐞 debug capture #12/20 -> 87b6d48d35cf45a8aa3beaca54ec411f
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /verify-voice HTTP/1.1" 200 OK
+/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/transformers/pipelines/base.py:1081: UserWarning: You seem to be using the pipelines sequentially on GPU. In order to maximize efficiency please use a dataset
+  warnings.warn(
+Failed to publish VOICE_RESULT to room user-bab4e2c6-4cd9-42e4-adbc-fc74635bcb75
+Traceback (most recent call last):
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/voiceverification/utils/room_notify.py", line 40, in publish_room_result
+    await lk.room.send_data(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/room_service.py", line 342, in send_data
+    return await self._client.request(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/twirp_client.py", line 129, in request
+    raise TwirpError(
+livekit.api.twirp_client.TwirpError: TwirpError(code=not_found, message=requested room does not exist, status=404)
+ASVspoof score: 1.0000 (model=MelodyMachine/Deepfake-audio-detection-V2)
+🎯 VERIFY | label='Izz' | score=0.770 | spoof=1.000 | decision=REPEAT
+Verify took: 0.059787999999999994
+🐞 debug capture #13/20 -> eb25b509c835406b8d70c5c659201c96
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /verify-voice HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /face/liveness-challenge HTTP/1.1" 200 OK
+/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/insightface/utils/transform.py:68: FutureWarning: `rcond` parameter will change to the default of machine precision times ``max(M, N)`` where M and N are the input matrix dimensions.
+To use the future default and silence this warning we advise to pass `rcond=None`, to keep using the old, explicitly pass `rcond=-1`.
+  P = np.linalg.lstsq(X_homo, Y)[0].T # Affine matrix. 3 x 4
+Failed to publish FACE_RESULT to room user-bab4e2c6-4cd9-42e4-adbc-fc74635bcb75
+Traceback (most recent call last):
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/voiceverification/utils/room_notify.py", line 40, in publish_room_result
+    await lk.room.send_data(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/room_service.py", line 342, in send_data
+    return await self._client.request(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/twirp_client.py", line 129, in request
+    raise TwirpError(
+livekit.api.twirp_client.TwirpError: TwirpError(code=not_found, message=requested room does not exist, status=404)
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /face/verify-face HTTP/1.1" 200 OK
+/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/transformers/pipelines/base.py:1081: UserWarning: You seem to be using the pipelines sequentially on GPU. In order to maximize efficiency please use a dataset
+  warnings.warn(
+Failed to publish VOICE_RESULT to room user-bab4e2c6-4cd9-42e4-adbc-fc74635bcb75
+Traceback (most recent call last):
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/voiceverification/utils/room_notify.py", line 40, in publish_room_result
+    await lk.room.send_data(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/room_service.py", line 342, in send_data
+    return await self._client.request(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/twirp_client.py", line 129, in request
+    raise TwirpError(
+livekit.api.twirp_client.TwirpError: TwirpError(code=not_found, message=requested room does not exist, status=404)
+ASVspoof score: 1.0000 (model=MelodyMachine/Deepfake-audio-detection-V2)
+🎯 VERIFY | label='Izz' | score=0.725 | spoof=1.000 | decision=REPEAT
+Verify took: 0.055104999999999994
+🐞 debug capture #14/20 -> 06012875af644fb89529a4804748e54e
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /verify-voice HTTP/1.1" 200 OK
+/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/transformers/pipelines/base.py:1081: UserWarning: You seem to be using the pipelines sequentially on GPU. In order to maximize efficiency please use a dataset
+  warnings.warn(
+Failed to publish VOICE_RESULT to room user-bab4e2c6-4cd9-42e4-adbc-fc74635bcb75
+Traceback (most recent call last):
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/voiceverification/utils/room_notify.py", line 40, in publish_room_result
+    await lk.room.send_data(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/room_service.py", line 342, in send_data
+    return await self._client.request(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/twirp_client.py", line 129, in request
+    raise TwirpError(
+livekit.api.twirp_client.TwirpError: TwirpError(code=not_found, message=requested room does not exist, status=404)
+ASVspoof score: 0.0000 (model=MelodyMachine/Deepfake-audio-detection-V2)
+🎯 VERIFY | label='Izz' | score=0.794 | spoof=0.000 | decision=VERIFIED
+Verify took: 0.07543899999999999
+🐞 debug capture #15/20 -> cb6f0823cc8e48cca24bce817ece623d
+INFO:     114.10.151.221:0 - "POST /verify-voice HTTP/1.1" 200 OK
+/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/transformers/pipelines/base.py:1081: UserWarning: You seem to be using the pipelines sequentially on GPU. In order to maximize efficiency please use a dataset
+  warnings.warn(
+Failed to publish VOICE_RESULT to room user-bab4e2c6-4cd9-42e4-adbc-fc74635bcb75
+Traceback (most recent call last):
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/voiceverification/utils/room_notify.py", line 40, in publish_room_result
+    await lk.room.send_data(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/room_service.py", line 342, in send_data
+    return await self._client.request(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/twirp_client.py", line 129, in request
+    raise TwirpError(
+livekit.api.twirp_client.TwirpError: TwirpError(code=not_found, message=requested room does not exist, status=404)
+ASVspoof score: 0.0002 (model=MelodyMachine/Deepfake-audio-detection-V2)
+🎯 VERIFY | label='Izz' | score=0.738 | spoof=0.000 | decision=VERIFIED
+Verify took: 0.051586
+🐞 debug capture #16/20 -> 091973a4033347559c4a18716d7dce27
+INFO:     114.10.151.221:0 - "POST /verify-voice HTTP/1.1" 200 OK
+/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/transformers/pipelines/base.py:1081: UserWarning: You seem to be using the pipelines sequentially on GPU. In order to maximize efficiency please use a dataset
+  warnings.warn(
+Failed to publish VOICE_RESULT to room user-bab4e2c6-4cd9-42e4-adbc-fc74635bcb75
+Traceback (most recent call last):
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/voiceverification/utils/room_notify.py", line 40, in publish_room_result
+    await lk.room.send_data(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/room_service.py", line 342, in send_data
+    return await self._client.request(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/twirp_client.py", line 129, in request
+    raise TwirpError(
+livekit.api.twirp_client.TwirpError: TwirpError(code=not_found, message=requested room does not exist, status=404)
+ASVspoof score: 0.0000 (model=MelodyMachine/Deepfake-audio-detection-V2)
+🎯 VERIFY | label='Izz' | score=0.744 | spoof=0.000 | decision=VERIFIED
+Verify took: 0.061139000000000006
+🐞 debug capture #17/20 -> 1ef2395e30ed425b9ec2e71873a9f072
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /verify-voice HTTP/1.1" 200 OK
+/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/transformers/pipelines/base.py:1081: UserWarning: You seem to be using the pipelines sequentially on GPU. In order to maximize efficiency please use a dataset
+  warnings.warn(
+Failed to publish VOICE_RESULT to room user-bab4e2c6-4cd9-42e4-adbc-fc74635bcb75
+Traceback (most recent call last):
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/voiceverification/utils/room_notify.py", line 40, in publish_room_result
+    await lk.room.send_data(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/room_service.py", line 342, in send_data
+    return await self._client.request(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/twirp_client.py", line 129, in request
+    raise TwirpError(
+livekit.api.twirp_client.TwirpError: TwirpError(code=not_found, message=requested room does not exist, status=404)
+ASVspoof score: 0.0000 (model=MelodyMachine/Deepfake-audio-detection-V2)
+🎯 VERIFY | label='Izz' | score=0.646 | spoof=0.000 | decision=REPEAT
+Verify took: 0.053816
+🐞 debug capture #18/20 -> 76b1b1d329394ddabb003383138e06bd
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /verify-voice HTTP/1.1" 200 OK
+/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/transformers/pipelines/base.py:1081: UserWarning: You seem to be using the pipelines sequentially on GPU. In order to maximize efficiency please use a dataset
+  warnings.warn(
+Failed to publish VOICE_RESULT to room user-bab4e2c6-4cd9-42e4-adbc-fc74635bcb75
+Traceback (most recent call last):
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/voiceverification/utils/room_notify.py", line 40, in publish_room_result
+    await lk.room.send_data(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/room_service.py", line 342, in send_data
+    return await self._client.request(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/twirp_client.py", line 129, in request
+    raise TwirpError(
+livekit.api.twirp_client.TwirpError: TwirpError(code=not_found, message=requested room does not exist, status=404)
+ASVspoof score: 1.0000 (model=MelodyMachine/Deepfake-audio-detection-V2)
+🎯 VERIFY | label='Izz' | score=0.822 | spoof=1.000 | decision=REPEAT
+Verify took: 0.059703000000000006
+🐞 debug capture #19/20 -> bbfb111f9487453ebfb857e87925acbb
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /verify-voice HTTP/1.1" 200 OK
+/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/transformers/pipelines/base.py:1081: UserWarning: You seem to be using the pipelines sequentially on GPU. In order to maximize efficiency please use a dataset
+  warnings.warn(
+Failed to publish VOICE_RESULT to room user-bab4e2c6-4cd9-42e4-adbc-fc74635bcb75
+Traceback (most recent call last):
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/voiceverification/utils/room_notify.py", line 40, in publish_room_result
+    await lk.room.send_data(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/room_service.py", line 342, in send_data
+    return await self._client.request(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/twirp_client.py", line 129, in request
+    raise TwirpError(
+livekit.api.twirp_client.TwirpError: TwirpError(code=not_found, message=requested room does not exist, status=404)
+ASVspoof score: 0.9993 (model=MelodyMachine/Deepfake-audio-detection-V2)
+🎯 VERIFY | label='Izz' | score=0.798 | spoof=0.999 | decision=REPEAT
+Verify took: 0.08953900000000001
+🐞 debug capture #20/20 -> b0d1391f28ec413f837d2c9ffbe4f5e2
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /verify-voice HTTP/1.1" 200 OK
+/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/transformers/pipelines/base.py:1081: UserWarning: You seem to be using the pipelines sequentially on GPU. In order to maximize efficiency please use a dataset
+  warnings.warn(
+Failed to publish VOICE_RESULT to room user-bab4e2c6-4cd9-42e4-adbc-fc74635bcb75
+Traceback (most recent call last):
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/voiceverification/utils/room_notify.py", line 40, in publish_room_result
+    await lk.room.send_data(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/room_service.py", line 342, in send_data
+    return await self._client.request(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/twirp_client.py", line 129, in request
+    raise TwirpError(
+livekit.api.twirp_client.TwirpError: TwirpError(code=not_found, message=requested room does not exist, status=404)
+ASVspoof score: 0.0000 (model=MelodyMachine/Deepfake-audio-detection-V2)
+🎯 VERIFY | label='Izz' | score=0.822 | spoof=0.000 | decision=VERIFIED
+Verify took: 0.071983
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /verify-voice HTTP/1.1" 200 OK
+/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/transformers/pipelines/base.py:1081: UserWarning: You seem to be using the pipelines sequentially on GPU. In order to maximize efficiency please use a dataset
+  warnings.warn(
+Failed to publish VOICE_RESULT to room user-bab4e2c6-4cd9-42e4-adbc-fc74635bcb75
+Traceback (most recent call last):
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/voiceverification/utils/room_notify.py", line 40, in publish_room_result
+    await lk.room.send_data(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/room_service.py", line 342, in send_data
+    return await self._client.request(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/twirp_client.py", line 129, in request
+    raise TwirpError(
+livekit.api.twirp_client.TwirpError: TwirpError(code=not_found, message=requested room does not exist, status=404)
+ASVspoof score: 1.0000 (model=MelodyMachine/Deepfake-audio-detection-V2)
+🎯 VERIFY | label='Izz' | score=0.787 | spoof=1.000 | decision=REPEAT
+Verify took: 0.055937
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /verify-voice HTTP/1.1" 200 OK
+/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/transformers/pipelines/base.py:1081: UserWarning: You seem to be using the pipelines sequentially on GPU. In order to maximize efficiency please use a dataset
+  warnings.warn(
+Failed to publish VOICE_RESULT to room user-bab4e2c6-4cd9-42e4-adbc-fc74635bcb75
+Traceback (most recent call last):
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/voiceverification/utils/room_notify.py", line 40, in publish_room_result
+    await lk.room.send_data(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/room_service.py", line 342, in send_data
+    return await self._client.request(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/twirp_client.py", line 129, in request
+    raise TwirpError(
+livekit.api.twirp_client.TwirpError: TwirpError(code=not_found, message=requested room does not exist, status=404)
+ASVspoof score: 0.0000 (model=MelodyMachine/Deepfake-audio-detection-V2)
+🎯 VERIFY | label='Izz' | score=0.745 | spoof=0.000 | decision=VERIFIED
+Verify took: 0.10081799999999999
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /verify-voice HTTP/1.1" 200 OK
+/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/transformers/pipelines/base.py:1081: UserWarning: You seem to be using the pipelines sequentially on GPU. In order to maximize efficiency please use a dataset
+  warnings.warn(
+Failed to publish VOICE_RESULT to room user-bab4e2c6-4cd9-42e4-adbc-fc74635bcb75
+Traceback (most recent call last):
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/voiceverification/utils/room_notify.py", line 40, in publish_room_result
+    await lk.room.send_data(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/room_service.py", line 342, in send_data
+    return await self._client.request(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/twirp_client.py", line 129, in request
+    raise TwirpError(
+livekit.api.twirp_client.TwirpError: TwirpError(code=not_found, message=requested room does not exist, status=404)
+ASVspoof score: 0.0005 (model=MelodyMachine/Deepfake-audio-detection-V2)
+🎯 VERIFY | label='Izz' | score=0.771 | spoof=0.000 | decision=VERIFIED
+Verify took: 0.056485999999999995
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /verify-voice HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /face/liveness-challenge HTTP/1.1" 200 OK
+/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/insightface/utils/transform.py:68: FutureWarning: `rcond` parameter will change to the default of machine precision times ``max(M, N)`` where M and N are the input matrix dimensions.
+To use the future default and silence this warning we advise to pass `rcond=None`, to keep using the old, explicitly pass `rcond=-1`.
+  P = np.linalg.lstsq(X_homo, Y)[0].T # Affine matrix. 3 x 4
+Failed to publish FACE_RESULT to room user-bab4e2c6-4cd9-42e4-adbc-fc74635bcb75
+Traceback (most recent call last):
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/voiceverification/utils/room_notify.py", line 40, in publish_room_result
+    await lk.room.send_data(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/room_service.py", line 342, in send_data
+    return await self._client.request(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/twirp_client.py", line 129, in request
+    raise TwirpError(
+livekit.api.twirp_client.TwirpError: TwirpError(code=not_found, message=requested room does not exist, status=404)
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /face/verify-face HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /face/liveness-challenge HTTP/1.1" 200 OK
+Failed to publish FACE_RESULT to room user-bab4e2c6-4cd9-42e4-adbc-fc74635bcb75
+Traceback (most recent call last):
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/voiceverification/utils/room_notify.py", line 40, in publish_room_result
+    await lk.room.send_data(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/room_service.py", line 342, in send_data
+    return await self._client.request(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/twirp_client.py", line 129, in request
+    raise TwirpError(
+livekit.api.twirp_client.TwirpError: TwirpError(code=not_found, message=requested room does not exist, status=404)
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /face/verify-face HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /face/liveness-challenge HTTP/1.1" 200 OK
+Failed to publish FACE_RESULT to room user-bab4e2c6-4cd9-42e4-adbc-fc74635bcb75
+Traceback (most recent call last):
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/face_recognition/main.py", line 166, in verify_face
+    test_embedding = arcface_model.extract_embedding(image_bytes)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/face_recognition/arcface_model.py", line 87, in extract_embedding
+    raise ValueError("Tidak ada wajah terdeteksi pada gambar.")
+ValueError: Tidak ada wajah terdeteksi pada gambar.
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/voiceverification/utils/room_notify.py", line 40, in publish_room_result
+    await lk.room.send_data(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/room_service.py", line 342, in send_data
+    return await self._client.request(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/twirp_client.py", line 129, in request
+    raise TwirpError(
+livekit.api.twirp_client.TwirpError: TwirpError(code=not_found, message=requested room does not exist, status=404)
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /face/verify-face HTTP/1.1" 400 Bad Request
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "OPTIONS /face/liveness-challenge HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /face/liveness-challenge HTTP/1.1" 200 OK
+Failed to publish FACE_RESULT to room user-bab4e2c6-4cd9-42e4-adbc-fc74635bcb75
+Traceback (most recent call last):
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/voiceverification/utils/room_notify.py", line 40, in publish_room_result
+    await lk.room.send_data(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/room_service.py", line 342, in send_data
+    return await self._client.request(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/twirp_client.py", line 129, in request
+    raise TwirpError(
+livekit.api.twirp_client.TwirpError: TwirpError(code=not_found, message=requested room does not exist, status=404)
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /face/verify-face HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /face/liveness-challenge HTTP/1.1" 200 OK
+Failed to publish FACE_RESULT to room user-bab4e2c6-4cd9-42e4-adbc-fc74635bcb75
+Traceback (most recent call last):
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/voiceverification/utils/room_notify.py", line 40, in publish_room_result
+    await lk.room.send_data(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/room_service.py", line 342, in send_data
+    return await self._client.request(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/twirp_client.py", line 129, in request
+    raise TwirpError(
+livekit.api.twirp_client.TwirpError: TwirpError(code=not_found, message=requested room does not exist, status=404)
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /face/verify-face HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /face/liveness-challenge HTTP/1.1" 200 OK
+Failed to publish FACE_RESULT to room user-bab4e2c6-4cd9-42e4-adbc-fc74635bcb75
+Traceback (most recent call last):
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/voiceverification/utils/room_notify.py", line 40, in publish_room_result
+    await lk.room.send_data(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/room_service.py", line 342, in send_data
+    return await self._client.request(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/twirp_client.py", line 129, in request
+    raise TwirpError(
+livekit.api.twirp_client.TwirpError: TwirpError(code=not_found, message=requested room does not exist, status=404)
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /face/verify-face HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /face/liveness-challenge HTTP/1.1" 200 OK
+Failed to publish FACE_RESULT to room user-bab4e2c6-4cd9-42e4-adbc-fc74635bcb75
+Traceback (most recent call last):
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/voiceverification/utils/room_notify.py", line 40, in publish_room_result
+    await lk.room.send_data(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/room_service.py", line 342, in send_data
+    return await self._client.request(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/twirp_client.py", line 129, in request
+    raise TwirpError(
+livekit.api.twirp_client.TwirpError: TwirpError(code=not_found, message=requested room does not exist, status=404)
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /face/verify-face HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /face/liveness-challenge HTTP/1.1" 200 OK
+Failed to publish FACE_RESULT to room user-bab4e2c6-4cd9-42e4-adbc-fc74635bcb75
+Traceback (most recent call last):
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/voiceverification/utils/room_notify.py", line 40, in publish_room_result
+    await lk.room.send_data(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/room_service.py", line 342, in send_data
+    return await self._client.request(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/twirp_client.py", line 129, in request
+    raise TwirpError(
+livekit.api.twirp_client.TwirpError: TwirpError(code=not_found, message=requested room does not exist, status=404)
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /face/verify-face HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /face/liveness-challenge HTTP/1.1" 200 OK
+Failed to publish FACE_RESULT to room user-bab4e2c6-4cd9-42e4-adbc-fc74635bcb75
+Traceback (most recent call last):
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/voiceverification/utils/room_notify.py", line 40, in publish_room_result
+    await lk.room.send_data(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/room_service.py", line 342, in send_data
+    return await self._client.request(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/twirp_client.py", line 129, in request
+    raise TwirpError(
+livekit.api.twirp_client.TwirpError: TwirpError(code=not_found, message=requested room does not exist, status=404)
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /face/verify-face HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "OPTIONS /logs/sessions HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "OPTIONS /logs/sessions HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "OPTIONS /face/enroll-face/bab4e2c6-4cd9-42e4-adbc-fc74635bcb75 HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "OPTIONS /enrollments HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /enrollments HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /logs/sessions HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /face/enroll-face/bab4e2c6-4cd9-42e4-adbc-fc74635bcb75 HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /logs/sessions HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "OPTIONS /face/enroll-face/d5a1b497-b646-4d00-82a2-1eff450f2d8d HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "OPTIONS /ecommerce-account HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "OPTIONS /face/enroll-face/d5a1b497-b646-4d00-82a2-1eff450f2d8d HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /enrollments HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /logs/sessions HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /logs/sessions HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /enrollments HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /face/enroll-face/d5a1b497-b646-4d00-82a2-1eff450f2d8d HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /ecommerce-account HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /face/enroll-face/d5a1b497-b646-4d00-82a2-1eff450f2d8d HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /face/enroll-face/d5a1b497-b646-4d00-82a2-1eff450f2d8d HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /enrollments HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /ecommerce-account HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /enrollments HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /face/enroll-face/d5a1b497-b646-4d00-82a2-1eff450f2d8d HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /enrollments HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /ecommerce-account HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /face/enroll-face/d5a1b497-b646-4d00-82a2-1eff450f2d8d HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /ecommerce-account HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /enrollments HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /face/enroll-face/d5a1b497-b646-4d00-82a2-1eff450f2d8d HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /face/liveness-challenge HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "OPTIONS /face/verify-face HTTP/1.1" 200 OK
+Failed to publish FACE_RESULT to room user-d5a1b497-b646-4d00-82a2-1eff450f2d8d
+Traceback (most recent call last):
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/voiceverification/utils/room_notify.py", line 40, in publish_room_result
+    await lk.room.send_data(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/room_service.py", line 342, in send_data
+    return await self._client.request(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/twirp_client.py", line 129, in request
+    raise TwirpError(
+livekit.api.twirp_client.TwirpError: TwirpError(code=not_found, message=requested room does not exist, status=404)
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /face/verify-face HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /face/liveness-challenge HTTP/1.1" 200 OK
+Failed to publish FACE_RESULT to room user-d5a1b497-b646-4d00-82a2-1eff450f2d8d
+Traceback (most recent call last):
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/voiceverification/utils/room_notify.py", line 40, in publish_room_result
+    await lk.room.send_data(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/room_service.py", line 342, in send_data
+    return await self._client.request(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/api/twirp_client.py", line 129, in request
+    raise TwirpError(
+livekit.api.twirp_client.TwirpError: TwirpError(code=not_found, message=requested room does not exist, status=404)
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /face/verify-face HTTP/1.1" 200 OK

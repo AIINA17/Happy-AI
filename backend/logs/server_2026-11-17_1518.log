@@ -1,0 +1,96 @@
+torchvision is not available - cannot save figures
+INFO:     Started server process [961537]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8080 (Press CTRL+C to quit)
+Applied providers: ['CUDAExecutionProvider', 'CPUExecutionProvider'], with options: {'CPUExecutionProvider': {}, 'CUDAExecutionProvider': {'sdpa_kernel': '0', 'use_tf32': '1', 'fuse_conv_bias': '0', 'prefer_nhwc': '0', 'tunable_op_max_tuning_duration_ms': '0', 'enable_skip_layer_norm_strict_mode': '0', 'tunable_op_tuning_enable': '0', 'tunable_op_enable': '0', 'use_ep_level_unified_stream': '0', 'device_id': '0', 'has_user_compute_stream': '0', 'gpu_external_empty_cache': '0', 'cudnn_conv_algo_search': 'EXHAUSTIVE', 'cudnn_conv1d_pad_to_nc1d': '0', 'gpu_mem_limit': '18446744073709551615', 'gpu_external_alloc': '0', 'gpu_external_free': '0', 'arena_extend_strategy': 'kNextPowerOfTwo', 'do_copy_in_default_stream': '1', 'enable_cuda_graph': '0', 'user_compute_stream': '0', 'cudnn_conv_use_max_workspace': '1'}}
+find model: /home/aiteam/.insightface/models/buffalo_l/1k3d68.onnx landmark_3d_68 ['None', 3, 192, 192] 0.0 1.0
+Applied providers: ['CUDAExecutionProvider', 'CPUExecutionProvider'], with options: {'CPUExecutionProvider': {}, 'CUDAExecutionProvider': {'sdpa_kernel': '0', 'use_tf32': '1', 'fuse_conv_bias': '0', 'prefer_nhwc': '0', 'tunable_op_max_tuning_duration_ms': '0', 'enable_skip_layer_norm_strict_mode': '0', 'tunable_op_tuning_enable': '0', 'tunable_op_enable': '0', 'use_ep_level_unified_stream': '0', 'device_id': '0', 'has_user_compute_stream': '0', 'gpu_external_empty_cache': '0', 'cudnn_conv_algo_search': 'EXHAUSTIVE', 'cudnn_conv1d_pad_to_nc1d': '0', 'gpu_mem_limit': '18446744073709551615', 'gpu_external_alloc': '0', 'gpu_external_free': '0', 'arena_extend_strategy': 'kNextPowerOfTwo', 'do_copy_in_default_stream': '1', 'enable_cuda_graph': '0', 'user_compute_stream': '0', 'cudnn_conv_use_max_workspace': '1'}}
+find model: /home/aiteam/.insightface/models/buffalo_l/2d106det.onnx landmark_2d_106 ['None', 3, 192, 192] 0.0 1.0
+Applied providers: ['CUDAExecutionProvider', 'CPUExecutionProvider'], with options: {'CPUExecutionProvider': {}, 'CUDAExecutionProvider': {'sdpa_kernel': '0', 'use_tf32': '1', 'fuse_conv_bias': '0', 'prefer_nhwc': '0', 'tunable_op_max_tuning_duration_ms': '0', 'enable_skip_layer_norm_strict_mode': '0', 'tunable_op_tuning_enable': '0', 'tunable_op_enable': '0', 'use_ep_level_unified_stream': '0', 'device_id': '0', 'has_user_compute_stream': '0', 'gpu_external_empty_cache': '0', 'cudnn_conv_algo_search': 'EXHAUSTIVE', 'cudnn_conv1d_pad_to_nc1d': '0', 'gpu_mem_limit': '18446744073709551615', 'gpu_external_alloc': '0', 'gpu_external_free': '0', 'arena_extend_strategy': 'kNextPowerOfTwo', 'do_copy_in_default_stream': '1', 'enable_cuda_graph': '0', 'user_compute_stream': '0', 'cudnn_conv_use_max_workspace': '1'}}
+find model: /home/aiteam/.insightface/models/buffalo_l/det_10g.onnx detection [1, 3, '?', '?'] 127.5 128.0
+Applied providers: ['CUDAExecutionProvider', 'CPUExecutionProvider'], with options: {'CPUExecutionProvider': {}, 'CUDAExecutionProvider': {'sdpa_kernel': '0', 'use_tf32': '1', 'fuse_conv_bias': '0', 'prefer_nhwc': '0', 'tunable_op_max_tuning_duration_ms': '0', 'enable_skip_layer_norm_strict_mode': '0', 'tunable_op_tuning_enable': '0', 'tunable_op_enable': '0', 'use_ep_level_unified_stream': '0', 'device_id': '0', 'has_user_compute_stream': '0', 'gpu_external_empty_cache': '0', 'cudnn_conv_algo_search': 'EXHAUSTIVE', 'cudnn_conv1d_pad_to_nc1d': '0', 'gpu_mem_limit': '18446744073709551615', 'gpu_external_alloc': '0', 'gpu_external_free': '0', 'arena_extend_strategy': 'kNextPowerOfTwo', 'do_copy_in_default_stream': '1', 'enable_cuda_graph': '0', 'user_compute_stream': '0', 'cudnn_conv_use_max_workspace': '1'}}
+find model: /home/aiteam/.insightface/models/buffalo_l/genderage.onnx genderage ['None', 3, 96, 96] 0.0 1.0
+Applied providers: ['CUDAExecutionProvider', 'CPUExecutionProvider'], with options: {'CPUExecutionProvider': {}, 'CUDAExecutionProvider': {'sdpa_kernel': '0', 'use_tf32': '1', 'fuse_conv_bias': '0', 'prefer_nhwc': '0', 'tunable_op_max_tuning_duration_ms': '0', 'enable_skip_layer_norm_strict_mode': '0', 'tunable_op_tuning_enable': '0', 'tunable_op_enable': '0', 'use_ep_level_unified_stream': '0', 'device_id': '0', 'has_user_compute_stream': '0', 'gpu_external_empty_cache': '0', 'cudnn_conv_algo_search': 'EXHAUSTIVE', 'cudnn_conv1d_pad_to_nc1d': '0', 'gpu_mem_limit': '18446744073709551615', 'gpu_external_alloc': '0', 'gpu_external_free': '0', 'arena_extend_strategy': 'kNextPowerOfTwo', 'do_copy_in_default_stream': '1', 'enable_cuda_graph': '0', 'user_compute_stream': '0', 'cudnn_conv_use_max_workspace': '1'}}
+find model: /home/aiteam/.insightface/models/buffalo_l/w600k_r50.onnx recognition ['None', 3, 112, 112] 127.5 127.5
+set det-size: (640, 640)
+Biometric ready.
+BiometricService initialized on device: cuda
+Server startup complete.
+INFO:     157.85.211.245:0 - "POST /join-token HTTP/1.1" 200 OK
+INFO:     157.85.211.245:0 - "OPTIONS /verify-voice HTTP/1.1" 200 OK
+ASVspoof score: 1.0000 (model=MelodyMachine/Deepfake-audio-detection-V2)
+🎯 VERIFY | label='Izz' | score=0.664 | spoof=1.000 | decision=REPEAT
+Verify took: 1.600875
+🐞 debug capture #1/20 -> 54870166a0754a0d844208cab795e180
+INFO:     157.85.211.245:0 - "POST /verify-voice HTTP/1.1" 200 OK
+INFO:     157.85.211.245:0 - "OPTIONS /join-token HTTP/1.1" 200 OK
+INFO:     157.85.211.245:0 - "POST /join-token HTTP/1.1" 401 Unauthorized
+INFO:     157.85.211.245:0 - "POST /join-token HTTP/1.1" 401 Unauthorized
+INFO:     157.85.211.245:0 - "GET /enrollments HTTP/1.1" 401 Unauthorized
+INFO:     157.85.211.245:0 - "GET /face/enroll-face/d5a1b497-b646-4d00-82a2-1eff450f2d8d HTTP/1.1" 401 Unauthorized
+INFO:     157.85.211.245:0 - "GET /logs/sessions HTTP/1.1" 401 Unauthorized
+INFO:     157.85.211.245:0 - "GET /logs/sessions HTTP/1.1" 401 Unauthorized
+INFO:     157.85.211.245:0 - "POST /join-token HTTP/1.1" 401 Unauthorized
+INFO:     157.85.211.245:0 - "POST /join-token HTTP/1.1" 401 Unauthorized
+INFO:     157.85.211.245:0 - "POST /join-token HTTP/1.1" 401 Unauthorized
+INFO:     157.85.211.245:0 - "POST /join-token HTTP/1.1" 401 Unauthorized
+INFO:     157.85.211.245:0 - "POST /join-token HTTP/1.1" 401 Unauthorized
+INFO:     157.85.211.245:0 - "POST /join-token HTTP/1.1" 401 Unauthorized
+INFO:     157.85.211.245:0 - "POST /join-token HTTP/1.1" 401 Unauthorized
+INFO:     157.85.211.245:0 - "GET /logs/sessions HTTP/1.1" 200 OK
+INFO:     157.85.211.245:0 - "POST /join-token HTTP/1.1" 401 Unauthorized
+INFO:     157.85.211.245:0 - "POST /join-token HTTP/1.1" 401 Unauthorized
+INFO:     157.85.211.245:0 - "POST /join-token HTTP/1.1" 401 Unauthorized
+INFO:     157.85.211.245:0 - "GET /logs/sessions HTTP/1.1" 200 OK
+INFO:     157.85.211.245:0 - "GET /enrollments HTTP/1.1" 401 Unauthorized
+INFO:     157.85.211.245:0 - "GET /logs/sessions HTTP/1.1" 401 Unauthorized
+INFO:     157.85.211.245:0 - "GET /face/enroll-face/d5a1b497-b646-4d00-82a2-1eff450f2d8d HTTP/1.1" 401 Unauthorized
+INFO:     157.85.211.245:0 - "GET /logs/sessions HTTP/1.1" 401 Unauthorized
+INFO:     157.85.211.245:0 - "POST /join-token HTTP/1.1" 401 Unauthorized
+INFO:     157.85.211.245:0 - "POST /join-token HTTP/1.1" 401 Unauthorized
+INFO:     157.85.211.245:0 - "GET /logs/sessions HTTP/1.1" 401 Unauthorized
+INFO:     157.85.211.245:0 - "POST /join-token HTTP/1.1" 401 Unauthorized
+INFO:     157.85.211.245:0 - "GET /logs/sessions HTTP/1.1" 401 Unauthorized
+INFO:     157.85.211.245:0 - "GET /logs/sessions HTTP/1.1" 401 Unauthorized
+INFO:     157.85.211.245:0 - "GET /enrollments HTTP/1.1" 401 Unauthorized
+INFO:     157.85.211.245:0 - "GET /face/enroll-face/d5a1b497-b646-4d00-82a2-1eff450f2d8d HTTP/1.1" 401 Unauthorized
+INFO:     157.85.211.245:0 - "GET /logs/sessions HTTP/1.1" 401 Unauthorized
+INFO:     157.85.211.245:0 - "GET /logs/sessions HTTP/1.1" 401 Unauthorized
+INFO:     157.85.211.245:0 - "GET /enrollments HTTP/1.1" 401 Unauthorized
+INFO:     157.85.211.245:0 - "GET /face/enroll-face/d5a1b497-b646-4d00-82a2-1eff450f2d8d HTTP/1.1" 401 Unauthorized
+INFO:     157.85.211.245:0 - "GET /logs/sessions HTTP/1.1" 401 Unauthorized
+INFO:     157.85.211.245:0 - "POST /join-token HTTP/1.1" 401 Unauthorized
+INFO:     157.85.211.245:0 - "OPTIONS /face/enroll-face/d95e0095-5065-4ad2-9d93-67201e765668 HTTP/1.1" 200 OK
+INFO:     157.85.211.245:0 - "GET /logs/sessions HTTP/1.1" 200 OK
+INFO:     157.85.211.245:0 - "GET /enrollments HTTP/1.1" 200 OK
+INFO:     157.85.211.245:0 - "GET /face/enroll-face/d95e0095-5065-4ad2-9d93-67201e765668 HTTP/1.1" 200 OK
+INFO:     157.85.211.245:0 - "GET /logs/sessions HTTP/1.1" 200 OK
+INFO:     157.85.211.245:0 - "POST /join-token HTTP/1.1" 200 OK
+INFO:     157.85.211.245:0 - "POST /join-token HTTP/1.1" 200 OK
+ASVspoof score: 0.0000 (model=MelodyMachine/Deepfake-audio-detection-V2)
+🎯 VERIFY | label='Izz' | score=0.252 | spoof=0.000 | decision=DENIED
+Verify took: 0.118407
+🐞 debug capture #2/20 -> ce7a293cca8d48149c7bc6578a9f8616
+INFO:     157.85.211.245:0 - "POST /verify-voice HTTP/1.1" 200 OK
+ASVspoof score: 1.0000 (model=MelodyMachine/Deepfake-audio-detection-V2)
+🎯 VERIFY | label='Izz' | score=0.174 | spoof=1.000 | decision=DENIED
+Verify took: 0.099191
+🐞 debug capture #3/20 -> 7fa8d83ae981415f81bf25dfa12c6d72
+INFO:     157.85.211.245:0 - "POST /verify-voice HTTP/1.1" 200 OK
+ASVspoof score: 0.0000 (model=MelodyMachine/Deepfake-audio-detection-V2)
+🎯 VERIFY | label='Izz' | score=0.250 | spoof=0.000 | decision=DENIED
+Verify took: 0.112551
+🐞 debug capture #4/20 -> ff743c7d3a9a44368faccb0c3f2356b4
+INFO:     157.85.211.245:0 - "POST /verify-voice HTTP/1.1" 200 OK
+INFO:     157.85.211.245:0 - "OPTIONS /face/liveness-challenge HTTP/1.1" 200 OK
+INFO:     157.85.211.245:0 - "POST /face/liveness-challenge HTTP/1.1" 200 OK
+INFO:     157.85.211.245:0 - "OPTIONS /face/verify-face HTTP/1.1" 200 OK
+/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/insightface/utils/transform.py:68: FutureWarning: `rcond` parameter will change to the default of machine precision times ``max(M, N)`` where M and N are the input matrix dimensions.
+To use the future default and silence this warning we advise to pass `rcond=None`, to keep using the old, explicitly pass `rcond=-1`.
+  P = np.linalg.lstsq(X_homo, Y)[0].T # Affine matrix. 3 x 4
+INFO:     157.85.211.245:0 - "POST /face/verify-face HTTP/1.1" 200 OK
+INFO:     157.85.211.245:0 - "GET /logs/sessions HTTP/1.1" 200 OK
+INFO:     157.85.211.245:0 - "GET /logs/sessions HTTP/1.1" 200 OK
+INFO:     157.85.211.245:0 - "GET /logs/sessions HTTP/1.1" 200 OK
+INFO:     157.85.211.245:0 - "GET /logs/sessions HTTP/1.1" 200 OK

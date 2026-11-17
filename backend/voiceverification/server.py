@@ -330,7 +330,8 @@ async def verify_voice(request: Request, audio: UploadFile = File(...)):
             behavior_profiles=behavior_profiles,
         )
 
-        print("Verify took:", time.time() - start)
+        verification_duration_ms = round((time.time() - start) * 1000, 3)
+        print("Verify took:", verification_duration_ms / 1000)
 
         matched_label: str | None = result.get("best_label")
         updated_profile: BehaviorProfile | None = result.get("updated_behavior_profile")
@@ -440,6 +441,7 @@ async def verify_voice(request: Request, audio: UploadFile = File(...)):
             "reason": result["reason"],
             "score": result["score"],
             "spoof_prob": result["spoof_prob"],
+            "verification_duration_ms": verification_duration_ms,
             "best_index": result["best_index"],
             "all_scores": result["all_scores"],
             "matched_label": matched_label,

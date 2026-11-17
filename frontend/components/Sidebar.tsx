@@ -4,8 +4,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import {
   ChevronLeft,
+  FlaskConical,
   LogOut,
   MoreVertical,
   Pencil,
@@ -72,6 +74,7 @@ export default function Sidebar({
   isMobileOpen = false,
   onCloseMobile,
 }: SidebarProps) {
+  const router = useRouter();
   const [showEnrollmentList, setShowEnrollmentList] = useState(false);
   const [showEcommerceAccount, setShowEcommerceAccount] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -508,6 +511,14 @@ export default function Sidebar({
               setShowEnrollmentList={setShowEnrollmentList}
             />
             <FaceEnrollment userId={userId} setVerifyStatus={setVerifyStatus} />
+            <Button
+              onClick={() => router.push("/biometric-test")}
+              variant="outline"
+              className="w-full h-auto rounded-xl py-3"
+            >
+              <FlaskConical size={18} />
+              <span>Uji Biometrik Mandiri</span>
+            </Button>
             {/* Test Face Recognition — dev button, disabled per user request.
                 Keep the component + import so it's trivial to re-enable later
                 (e.g. debugging a face verification regression). Just drop the

@@ -1,0 +1,473 @@
+torchvision is not available - cannot save figures
+INFO:     Started server process [955190]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8080 (Press CTRL+C to quit)
+Applied providers: ['CUDAExecutionProvider', 'CPUExecutionProvider'], with options: {'CPUExecutionProvider': {}, 'CUDAExecutionProvider': {'sdpa_kernel': '0', 'use_tf32': '1', 'fuse_conv_bias': '0', 'prefer_nhwc': '0', 'tunable_op_max_tuning_duration_ms': '0', 'enable_skip_layer_norm_strict_mode': '0', 'tunable_op_tuning_enable': '0', 'tunable_op_enable': '0', 'use_ep_level_unified_stream': '0', 'device_id': '0', 'has_user_compute_stream': '0', 'gpu_external_empty_cache': '0', 'cudnn_conv_algo_search': 'EXHAUSTIVE', 'cudnn_conv1d_pad_to_nc1d': '0', 'gpu_mem_limit': '18446744073709551615', 'gpu_external_alloc': '0', 'gpu_external_free': '0', 'arena_extend_strategy': 'kNextPowerOfTwo', 'do_copy_in_default_stream': '1', 'enable_cuda_graph': '0', 'user_compute_stream': '0', 'cudnn_conv_use_max_workspace': '1'}}
+find model: /home/aiteam/.insightface/models/buffalo_l/1k3d68.onnx landmark_3d_68 ['None', 3, 192, 192] 0.0 1.0
+Applied providers: ['CUDAExecutionProvider', 'CPUExecutionProvider'], with options: {'CPUExecutionProvider': {}, 'CUDAExecutionProvider': {'sdpa_kernel': '0', 'use_tf32': '1', 'fuse_conv_bias': '0', 'prefer_nhwc': '0', 'tunable_op_max_tuning_duration_ms': '0', 'enable_skip_layer_norm_strict_mode': '0', 'tunable_op_tuning_enable': '0', 'tunable_op_enable': '0', 'use_ep_level_unified_stream': '0', 'device_id': '0', 'has_user_compute_stream': '0', 'gpu_external_empty_cache': '0', 'cudnn_conv_algo_search': 'EXHAUSTIVE', 'cudnn_conv1d_pad_to_nc1d': '0', 'gpu_mem_limit': '18446744073709551615', 'gpu_external_alloc': '0', 'gpu_external_free': '0', 'arena_extend_strategy': 'kNextPowerOfTwo', 'do_copy_in_default_stream': '1', 'enable_cuda_graph': '0', 'user_compute_stream': '0', 'cudnn_conv_use_max_workspace': '1'}}
+find model: /home/aiteam/.insightface/models/buffalo_l/2d106det.onnx landmark_2d_106 ['None', 3, 192, 192] 0.0 1.0
+Applied providers: ['CUDAExecutionProvider', 'CPUExecutionProvider'], with options: {'CPUExecutionProvider': {}, 'CUDAExecutionProvider': {'sdpa_kernel': '0', 'use_tf32': '1', 'fuse_conv_bias': '0', 'prefer_nhwc': '0', 'tunable_op_max_tuning_duration_ms': '0', 'enable_skip_layer_norm_strict_mode': '0', 'tunable_op_tuning_enable': '0', 'tunable_op_enable': '0', 'use_ep_level_unified_stream': '0', 'device_id': '0', 'has_user_compute_stream': '0', 'gpu_external_empty_cache': '0', 'cudnn_conv_algo_search': 'EXHAUSTIVE', 'cudnn_conv1d_pad_to_nc1d': '0', 'gpu_mem_limit': '18446744073709551615', 'gpu_external_alloc': '0', 'gpu_external_free': '0', 'arena_extend_strategy': 'kNextPowerOfTwo', 'do_copy_in_default_stream': '1', 'enable_cuda_graph': '0', 'user_compute_stream': '0', 'cudnn_conv_use_max_workspace': '1'}}
+find model: /home/aiteam/.insightface/models/buffalo_l/det_10g.onnx detection [1, 3, '?', '?'] 127.5 128.0
+Applied providers: ['CUDAExecutionProvider', 'CPUExecutionProvider'], with options: {'CPUExecutionProvider': {}, 'CUDAExecutionProvider': {'sdpa_kernel': '0', 'use_tf32': '1', 'fuse_conv_bias': '0', 'prefer_nhwc': '0', 'tunable_op_max_tuning_duration_ms': '0', 'enable_skip_layer_norm_strict_mode': '0', 'tunable_op_tuning_enable': '0', 'tunable_op_enable': '0', 'use_ep_level_unified_stream': '0', 'device_id': '0', 'has_user_compute_stream': '0', 'gpu_external_empty_cache': '0', 'cudnn_conv_algo_search': 'EXHAUSTIVE', 'cudnn_conv1d_pad_to_nc1d': '0', 'gpu_mem_limit': '18446744073709551615', 'gpu_external_alloc': '0', 'gpu_external_free': '0', 'arena_extend_strategy': 'kNextPowerOfTwo', 'do_copy_in_default_stream': '1', 'enable_cuda_graph': '0', 'user_compute_stream': '0', 'cudnn_conv_use_max_workspace': '1'}}
+find model: /home/aiteam/.insightface/models/buffalo_l/genderage.onnx genderage ['None', 3, 96, 96] 0.0 1.0
+Applied providers: ['CUDAExecutionProvider', 'CPUExecutionProvider'], with options: {'CPUExecutionProvider': {}, 'CUDAExecutionProvider': {'sdpa_kernel': '0', 'use_tf32': '1', 'fuse_conv_bias': '0', 'prefer_nhwc': '0', 'tunable_op_max_tuning_duration_ms': '0', 'enable_skip_layer_norm_strict_mode': '0', 'tunable_op_tuning_enable': '0', 'tunable_op_enable': '0', 'use_ep_level_unified_stream': '0', 'device_id': '0', 'has_user_compute_stream': '0', 'gpu_external_empty_cache': '0', 'cudnn_conv_algo_search': 'EXHAUSTIVE', 'cudnn_conv1d_pad_to_nc1d': '0', 'gpu_mem_limit': '18446744073709551615', 'gpu_external_alloc': '0', 'gpu_external_free': '0', 'arena_extend_strategy': 'kNextPowerOfTwo', 'do_copy_in_default_stream': '1', 'enable_cuda_graph': '0', 'user_compute_stream': '0', 'cudnn_conv_use_max_workspace': '1'}}
+find model: /home/aiteam/.insightface/models/buffalo_l/w600k_r50.onnx recognition ['None', 3, 112, 112] 127.5 127.5
+set det-size: (640, 640)
+Biometric ready.
+BiometricService initialized on device: cuda
+Server startup complete.
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "OPTIONS /enrollments HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "OPTIONS /ecommerce-account HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "OPTIONS /logs/sessions HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "OPTIONS /face/enroll-face/bab4e2c6-4cd9-42e4-adbc-fc74635bcb75 HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "OPTIONS /enrollments HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "OPTIONS /logs/sessions HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "OPTIONS /face/enroll-face/bab4e2c6-4cd9-42e4-adbc-fc74635bcb75 HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /face/enroll-face/bab4e2c6-4cd9-42e4-adbc-fc74635bcb75 HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /logs/sessions HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /enrollments HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /ecommerce-account HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /enrollments HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /logs/sessions HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /face/enroll-face/bab4e2c6-4cd9-42e4-adbc-fc74635bcb75 HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /enrollments HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /enrollments HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /ecommerce-account HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /face/enroll-face/bab4e2c6-4cd9-42e4-adbc-fc74635bcb75 HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /face/enroll-face/bab4e2c6-4cd9-42e4-adbc-fc74635bcb75 HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /enrollments HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /ecommerce-account HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /enrollments HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /ecommerce-account HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /face/enroll-face/bab4e2c6-4cd9-42e4-adbc-fc74635bcb75 HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /enrollments HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /ecommerce-account HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /face/enroll-face/bab4e2c6-4cd9-42e4-adbc-fc74635bcb75 HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /enrollments HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /face/enroll-face/bab4e2c6-4cd9-42e4-adbc-fc74635bcb75 HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /ecommerce-account HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /enrollments HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /face/enroll-face/bab4e2c6-4cd9-42e4-adbc-fc74635bcb75 HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /ecommerce-account HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /enrollments HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /ecommerce-account HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /face/enroll-face/bab4e2c6-4cd9-42e4-adbc-fc74635bcb75 HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "OPTIONS /enroll-voice HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /enrollments HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /face/enroll-face/bab4e2c6-4cd9-42e4-adbc-fc74635bcb75 HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /ecommerce-account HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /face/enroll-face/bab4e2c6-4cd9-42e4-adbc-fc74635bcb75 HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /ecommerce-account HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /enrollments HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /enroll-voice HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /enrollments HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /enrollments HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /face/enroll-face/bab4e2c6-4cd9-42e4-adbc-fc74635bcb75 HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /ecommerce-account HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /enrollments HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /ecommerce-account HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /face/enroll-face/bab4e2c6-4cd9-42e4-adbc-fc74635bcb75 HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /face/enroll-face/bab4e2c6-4cd9-42e4-adbc-fc74635bcb75 HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /enrollments HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /ecommerce-account HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /face/enroll-face/bab4e2c6-4cd9-42e4-adbc-fc74635bcb75 HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /enrollments HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /ecommerce-account HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /face/enroll-face/bab4e2c6-4cd9-42e4-adbc-fc74635bcb75 HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "OPTIONS /face/enroll-face HTTP/1.1" 200 OK
+/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/insightface/utils/transform.py:68: FutureWarning: `rcond` parameter will change to the default of machine precision times ``max(M, N)`` where M and N are the input matrix dimensions.
+To use the future default and silence this warning we advise to pass `rcond=None`, to keep using the old, explicitly pass `rcond=-1`.
+  P = np.linalg.lstsq(X_homo, Y)[0].T # Affine matrix. 3 x 4
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /face/enroll-face HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /enrollments HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /ecommerce-account HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /face/enroll-face/bab4e2c6-4cd9-42e4-adbc-fc74635bcb75 HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /enrollments HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /face/enroll-face/bab4e2c6-4cd9-42e4-adbc-fc74635bcb75 HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /ecommerce-account HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /enrollments HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /ecommerce-account HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /face/enroll-face/bab4e2c6-4cd9-42e4-adbc-fc74635bcb75 HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "OPTIONS /ecommerce-account HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "OPTIONS /ecommerce-account HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /face/enroll-face/bab4e2c6-4cd9-42e4-adbc-fc74635bcb75 HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /enrollments HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /ecommerce-account HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /ecommerce-account HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /ecommerce-account HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /ecommerce-account HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /enrollments HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /face/enroll-face/bab4e2c6-4cd9-42e4-adbc-fc74635bcb75 HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /ecommerce-account HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /face/enroll-face/bab4e2c6-4cd9-42e4-adbc-fc74635bcb75 HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /enrollments HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /ecommerce-account HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /enrollments HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /ecommerce-account HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /face/enroll-face/bab4e2c6-4cd9-42e4-adbc-fc74635bcb75 HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /enrollments HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /face/enroll-face/bab4e2c6-4cd9-42e4-adbc-fc74635bcb75 HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /ecommerce-account HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /enrollments HTTP/1.1" 500 Internal Server Error
+ERROR:    Exception in ASGI application
+Traceback (most recent call last):
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpx/_transports/default.py", line 101, in map_httpcore_exceptions
+    yield
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpx/_transports/default.py", line 250, in handle_request
+    resp = self._pool.handle_request(req)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpcore/_sync/connection_pool.py", line 256, in handle_request
+    raise exc from None
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpcore/_sync/connection_pool.py", line 236, in handle_request
+    response = connection.handle_request(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpcore/_sync/connection.py", line 103, in handle_request
+    return self._connection.handle_request(request)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpcore/_sync/http2.py", line 187, in handle_request
+    raise exc
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpcore/_sync/http2.py", line 150, in handle_request
+    status, headers = self._receive_response(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpcore/_sync/http2.py", line 294, in _receive_response
+    event = self._receive_stream_event(request, stream_id)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpcore/_sync/http2.py", line 336, in _receive_stream_event
+    self._receive_events(request, stream_id)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpcore/_sync/http2.py", line 364, in _receive_events
+    events = self._read_incoming_data(request)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpcore/_sync/http2.py", line 438, in _read_incoming_data
+    raise self._read_exception  # pragma: nocover
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpx/_transports/default.py", line 101, in map_httpcore_exceptions
+    yield
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpx/_transports/default.py", line 250, in handle_request
+    resp = self._pool.handle_request(req)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpcore/_sync/connection_pool.py", line 256, in handle_request
+    raise exc from None
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpcore/_sync/connection_pool.py", line 236, in handle_request
+    response = connection.handle_request(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpcore/_sync/connection.py", line 103, in handle_request
+    return self._connection.handle_request(request)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpcore/_sync/http2.py", line 187, in handle_request
+    raise exc
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpcore/_sync/http2.py", line 150, in handle_request
+    status, headers = self._receive_response(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpcore/_sync/http2.py", line 294, in _receive_response
+    event = self._receive_stream_event(request, stream_id)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpcore/_sync/http2.py", line 336, in _receive_stream_event
+    self._receive_events(request, stream_id)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpcore/_sync/http2.py", line 364, in _receive_events
+    events = self._read_incoming_data(request)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpcore/_sync/http2.py", line 455, in _read_incoming_data
+    raise exc
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpcore/_sync/http2.py", line 443, in _read_incoming_data
+    raise RemoteProtocolError("Server disconnected")
+httpcore.RemoteProtocolError: Server disconnected
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/uvicorn/protocols/http/httptools_impl.py", line 422, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/uvicorn/middleware/proxy_headers.py", line 63, in __call__
+    return await self.app(scope, receive, send)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/fastapi/applications.py", line 1163, in __call__
+    await super().__call__(scope, receive, send)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/starlette/applications.py", line 107, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/starlette/middleware/errors.py", line 186, in __call__
+    raise exc
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/starlette/middleware/errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/starlette/middleware/cors.py", line 93, in __call__
+    await self.simple_response(scope, receive, send, request_headers=headers)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/starlette/middleware/cors.py", line 144, in simple_response
+    await self.app(scope, receive, send)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/starlette/middleware/exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/fastapi/middleware/asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/starlette/routing.py", line 716, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/fastapi/routing.py", line 2734, in app
+    await route.handle(scope, receive, send)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/fastapi/routing.py", line 1281, in handle
+    await super().handle(scope, receive, send)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/starlette/routing.py", line 290, in handle
+    await self.app(scope, receive, send)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/fastapi/routing.py", line 158, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/fastapi/routing.py", line 144, in app
+    response = await f(request)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/fastapi/routing.py", line 706, in app
+    raw_response = await run_endpoint_function(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/fastapi/routing.py", line 352, in run_endpoint_function
+    return await dependant.call(**values)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/voiceverification/server.py", line 801, in get_enrollments
+    res = await asyncio.to_thread(query.execute)
+  File "/usr/lib/python3.10/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+  File "/usr/lib/python3.10/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/postgrest/_sync/request_builder.py", line 90, in execute
+    r = send_with_retry(self.request)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/postgrest/_sync/request_builder.py", line 51, in send_with_retry
+    resp = req.send(headers)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/postgrest/base_request_builder.py", line 90, in send
+    return self.session.request(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpx/_client.py", line 825, in request
+    return self.send(request, auth=auth, follow_redirects=follow_redirects)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpx/_client.py", line 914, in send
+    response = self._send_handling_auth(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpx/_client.py", line 942, in _send_handling_auth
+    response = self._send_handling_redirects(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpx/_client.py", line 979, in _send_handling_redirects
+    response = self._send_single_request(request)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpx/_client.py", line 1014, in _send_single_request
+    response = transport.handle_request(request)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpx/_transports/default.py", line 249, in handle_request
+    with map_httpcore_exceptions():
+  File "/usr/lib/python3.10/contextlib.py", line 153, in __exit__
+    self.gen.throw(typ, value, traceback)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpx/_transports/default.py", line 118, in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+httpx.RemoteProtocolError: Server disconnected
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /ecommerce-account HTTP/1.1" 500 Internal Server Error
+ERROR:    Exception in ASGI application
+Traceback (most recent call last):
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpx/_transports/default.py", line 101, in map_httpcore_exceptions
+    yield
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpx/_transports/default.py", line 250, in handle_request
+    resp = self._pool.handle_request(req)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpcore/_sync/connection_pool.py", line 256, in handle_request
+    raise exc from None
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpcore/_sync/connection_pool.py", line 236, in handle_request
+    response = connection.handle_request(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpcore/_sync/connection.py", line 103, in handle_request
+    return self._connection.handle_request(request)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpcore/_sync/http2.py", line 187, in handle_request
+    raise exc
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpcore/_sync/http2.py", line 150, in handle_request
+    status, headers = self._receive_response(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpcore/_sync/http2.py", line 294, in _receive_response
+    event = self._receive_stream_event(request, stream_id)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpcore/_sync/http2.py", line 336, in _receive_stream_event
+    self._receive_events(request, stream_id)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpcore/_sync/http2.py", line 364, in _receive_events
+    events = self._read_incoming_data(request)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpcore/_sync/http2.py", line 438, in _read_incoming_data
+    raise self._read_exception  # pragma: nocover
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpx/_transports/default.py", line 101, in map_httpcore_exceptions
+    yield
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpx/_transports/default.py", line 250, in handle_request
+    resp = self._pool.handle_request(req)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpcore/_sync/connection_pool.py", line 256, in handle_request
+    raise exc from None
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpcore/_sync/connection_pool.py", line 236, in handle_request
+    response = connection.handle_request(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpcore/_sync/connection.py", line 103, in handle_request
+    return self._connection.handle_request(request)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpcore/_sync/http2.py", line 187, in handle_request
+    raise exc
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpcore/_sync/http2.py", line 150, in handle_request
+    status, headers = self._receive_response(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpcore/_sync/http2.py", line 294, in _receive_response
+    event = self._receive_stream_event(request, stream_id)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpcore/_sync/http2.py", line 336, in _receive_stream_event
+    self._receive_events(request, stream_id)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpcore/_sync/http2.py", line 364, in _receive_events
+    events = self._read_incoming_data(request)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpcore/_sync/http2.py", line 455, in _read_incoming_data
+    raise exc
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpcore/_sync/http2.py", line 443, in _read_incoming_data
+    raise RemoteProtocolError("Server disconnected")
+httpcore.RemoteProtocolError: Server disconnected
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/uvicorn/protocols/http/httptools_impl.py", line 422, in run_asgi
+    result = await app(  # type: ignore[func-returns-value]
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/uvicorn/middleware/proxy_headers.py", line 63, in __call__
+    return await self.app(scope, receive, send)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/fastapi/applications.py", line 1163, in __call__
+    await super().__call__(scope, receive, send)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/starlette/applications.py", line 107, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/starlette/middleware/errors.py", line 186, in __call__
+    raise exc
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/starlette/middleware/errors.py", line 164, in __call__
+    await self.app(scope, receive, _send)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/starlette/middleware/cors.py", line 93, in __call__
+    await self.simple_response(scope, receive, send, request_headers=headers)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/starlette/middleware/cors.py", line 144, in simple_response
+    await self.app(scope, receive, send)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/starlette/middleware/exceptions.py", line 63, in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/fastapi/middleware/asyncexitstack.py", line 18, in __call__
+    await self.app(scope, receive, send)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/starlette/routing.py", line 716, in __call__
+    await self.middleware_stack(scope, receive, send)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/fastapi/routing.py", line 2734, in app
+    await route.handle(scope, receive, send)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/fastapi/routing.py", line 1281, in handle
+    await super().handle(scope, receive, send)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/starlette/routing.py", line 290, in handle
+    await self.app(scope, receive, send)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/fastapi/routing.py", line 158, in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/starlette/_exception_handler.py", line 53, in wrapped_app
+    raise exc
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/starlette/_exception_handler.py", line 42, in wrapped_app
+    await app(scope, receive, sender)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/fastapi/routing.py", line 144, in app
+    response = await f(request)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/fastapi/routing.py", line 706, in app
+    raw_response = await run_endpoint_function(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/fastapi/routing.py", line 352, in run_endpoint_function
+    return await dependant.call(**values)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/voiceverification/server.py", line 1147, in get_ecommerce_account
+    account = await asyncio.to_thread(has_ecommerce_account, user_id, source)
+  File "/usr/lib/python3.10/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+  File "/usr/lib/python3.10/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/voiceverification/db/ecommerce_repo.py", line 44, in has_ecommerce_account
+    .execute()
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/postgrest/_sync/request_builder.py", line 90, in execute
+    r = send_with_retry(self.request)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/postgrest/_sync/request_builder.py", line 51, in send_with_retry
+    resp = req.send(headers)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/postgrest/base_request_builder.py", line 90, in send
+    return self.session.request(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpx/_client.py", line 825, in request
+    return self.send(request, auth=auth, follow_redirects=follow_redirects)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpx/_client.py", line 914, in send
+    response = self._send_handling_auth(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpx/_client.py", line 942, in _send_handling_auth
+    response = self._send_handling_redirects(
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpx/_client.py", line 979, in _send_handling_redirects
+    response = self._send_single_request(request)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpx/_client.py", line 1014, in _send_single_request
+    response = transport.handle_request(request)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpx/_transports/default.py", line 249, in handle_request
+    with map_httpcore_exceptions():
+  File "/usr/lib/python3.10/contextlib.py", line 153, in __exit__
+    self.gen.throw(typ, value, traceback)
+  File "/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/httpx/_transports/default.py", line 118, in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+httpx.RemoteProtocolError: Server disconnected
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /face/enroll-face/bab4e2c6-4cd9-42e4-adbc-fc74635bcb75 HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /enrollments HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /ecommerce-account HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /face/enroll-face/bab4e2c6-4cd9-42e4-adbc-fc74635bcb75 HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "OPTIONS /join-token HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /join-token HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "OPTIONS /verify-voice HTTP/1.1" 200 OK
+ASVspoof score: 1.0000 (model=MelodyMachine/Deepfake-audio-detection-V2)
+🎯 VERIFY | label='Izz' | score=0.119 | spoof=1.000 | decision=DENIED
+Verify took: 0.2216506004333496
+🐞 debug capture #1/20 -> 8da42d73720043f6a663edc3cd521b95
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /verify-voice HTTP/1.1" 200 OK
+ASVspoof score: 0.0001 (model=MelodyMachine/Deepfake-audio-detection-V2)
+🎯 VERIFY | label='Izz' | score=0.798 | spoof=0.000 | decision=VERIFIED
+Verify took: 0.0862278938293457
+🐞 debug capture #2/20 -> 4ed6724941854f1eb12fc0c3303ea0f9
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /verify-voice HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /logs/sessions HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /logs/sessions HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "OPTIONS /logs/sessions/6d36a116-5c46-4c46-b496-83f2d1835e47 HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "OPTIONS /logs/sessions/6d36a116-5c46-4c46-b496-83f2d1835e47 HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /face/enroll-face/bab4e2c6-4cd9-42e4-adbc-fc74635bcb75 HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /enrollments HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /logs/sessions/6d36a116-5c46-4c46-b496-83f2d1835e47 HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /logs/sessions/6d36a116-5c46-4c46-b496-83f2d1835e47 HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /logs/sessions HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /logs/sessions HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /enrollments HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /face/enroll-face/bab4e2c6-4cd9-42e4-adbc-fc74635bcb75 HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /join-token HTTP/1.1" 200 OK
+ASVspoof score: 0.0000 (model=MelodyMachine/Deepfake-audio-detection-V2)
+🎯 VERIFY | label='Izz' | score=0.788 | spoof=0.000 | decision=VERIFIED
+Verify took: 0.06361246109008789
+🐞 debug capture #3/20 -> c573a5bb5eba44f4b8f07aa965d44420
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /verify-voice HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "OPTIONS /logs/sessions HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /logs/sessions HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /logs/sessions HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "OPTIONS /join-token HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /join-token HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "OPTIONS /verify-voice HTTP/1.1" 200 OK
+ASVspoof score: 0.0000 (model=MelodyMachine/Deepfake-audio-detection-V2)
+🎯 VERIFY | label='Izz' | score=0.338 | spoof=0.000 | decision=DENIED
+Verify took: 0.09743356704711914
+🐞 debug capture #4/20 -> 0523236f52ed4e66bea3bbac78fa1304
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /verify-voice HTTP/1.1" 200 OK
+ASVspoof score: 0.0000 (model=MelodyMachine/Deepfake-audio-detection-V2)
+🎯 VERIFY | label='Izz' | score=0.147 | spoof=0.000 | decision=DENIED
+Verify took: 0.09340643882751465
+🐞 debug capture #5/20 -> 5266b54eed544e2bb75c23ce3a59c855
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /verify-voice HTTP/1.1" 200 OK
+ASVspoof score: 0.0000 (model=MelodyMachine/Deepfake-audio-detection-V2)
+🎯 VERIFY | label='Izz' | score=0.285 | spoof=0.000 | decision=DENIED
+Verify took: 0.09972476959228516
+🐞 debug capture #6/20 -> 4ccef90980a94ebd86b6f7e5c0177779
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /verify-voice HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "OPTIONS /face/liveness-challenge HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /face/liveness-challenge HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "OPTIONS /face/verify-face HTTP/1.1" 200 OK
+/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/insightface/utils/transform.py:68: FutureWarning: `rcond` parameter will change to the default of machine precision times ``max(M, N)`` where M and N are the input matrix dimensions.
+To use the future default and silence this warning we advise to pass `rcond=None`, to keep using the old, explicitly pass `rcond=-1`.
+  P = np.linalg.lstsq(X_homo, Y)[0].T # Affine matrix. 3 x 4
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /face/verify-face HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /logs/sessions HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /logs/sessions HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /join-token HTTP/1.1" 200 OK
+ASVspoof score: 0.0000 (model=MelodyMachine/Deepfake-audio-detection-V2)
+🎯 VERIFY | label='Izz' | score=0.708 | spoof=0.000 | decision=VERIFIED
+Verify took: 0.062073707580566406
+🐞 debug capture #7/20 -> ff2f0b41eea147939e6d7a4478d2b931
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /verify-voice HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "OPTIONS /logs/sessions HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /logs/sessions HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "GET /logs/sessions HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "OPTIONS /join-token HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /join-token HTTP/1.1" 200 OK
+ASVspoof score: 0.0000 (model=MelodyMachine/Deepfake-audio-detection-V2)
+🎯 VERIFY | label='Izz' | score=0.657 | spoof=0.000 | decision=REPEAT
+Verify took: 0.06992650032043457
+🐞 debug capture #8/20 -> 38ba24093e0f494bad895b5f1a03091c
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /verify-voice HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "OPTIONS /verify-voice HTTP/1.1" 200 OK
+ASVspoof score: 1.0000 (model=MelodyMachine/Deepfake-audio-detection-V2)
+🎯 VERIFY | label='Izz' | score=0.085 | spoof=1.000 | decision=DENIED
+Verify took: 0.10844063758850098
+🐞 debug capture #9/20 -> 747b3beef56b48a898af39682467fd49
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /verify-voice HTTP/1.1" 200 OK
+ASVspoof score: 1.0000 (model=MelodyMachine/Deepfake-audio-detection-V2)
+🎯 VERIFY | label='Izz' | score=-0.090 | spoof=1.000 | decision=REPEAT
+Verify took: 0.09411239624023438
+🐞 debug capture #10/20 -> 7608ed5d7fa748d7bb8b036fd32eb139
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /verify-voice HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /face/liveness-challenge HTTP/1.1" 200 OK
+/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/transformers/pipelines/base.py:1081: UserWarning: You seem to be using the pipelines sequentially on GPU. In order to maximize efficiency please use a dataset
+  warnings.warn(
+/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/insightface/utils/transform.py:68: FutureWarning: `rcond` parameter will change to the default of machine precision times ``max(M, N)`` where M and N are the input matrix dimensions.
+To use the future default and silence this warning we advise to pass `rcond=None`, to keep using the old, explicitly pass `rcond=-1`.
+  P = np.linalg.lstsq(X_homo, Y)[0].T # Affine matrix. 3 x 4
+ASVspoof score: 1.0000 (model=MelodyMachine/Deepfake-audio-detection-V2)
+🎯 VERIFY | label='Izz' | score=0.035 | spoof=1.000 | decision=DENIED
+Verify took: 0.10858583450317383
+🐞 debug capture #11/20 -> 5a440684b0c74f9ca72aea5f13b550ef
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /verify-voice HTTP/1.1" 200 OK
+INFO:     2400:9800:6032:13d8:b4:b80c:857d:399:0 - "POST /face/verify-face HTTP/1.1" 200 OK
+INFO:     114.10.151.140:0 - "GET /logs/sessions HTTP/1.1" 200 OK
+INFO:     114.10.151.140:0 - "GET /logs/sessions HTTP/1.1" 200 OK

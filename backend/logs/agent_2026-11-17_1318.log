@@ -1,0 +1,398 @@
+/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/google/api_core/_python_version_support.py:242: FutureWarning: You are using a non-supported Python version (3.10.22). Google will not post any further updates to google.api_core supporting this Python version. Please upgrade to the latest Python version, or at least Python 3.11, and then update google.api_core.
+  warnings.warn(message, FutureWarning)
+/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/google/api_core/_python_version_support.py:242: FutureWarning: You are using a non-supported Python version (3.10.22). Google will not post any further updates to google.cloud.speech_v1 supporting this Python version. Please upgrade to the latest Python version, or at least Python 3.11, and then update google.cloud.speech_v1.
+  warnings.warn(message, FutureWarning)
+/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/google/api_core/_python_version_support.py:242: FutureWarning: You are using a non-supported Python version (3.10.22). Google will not post any further updates to google.cloud.speech_v2 supporting this Python version. Please upgrade to the latest Python version, or at least Python 3.11, and then update google.cloud.speech_v2.
+  warnings.warn(message, FutureWarning)
+/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/google/api_core/_python_version_support.py:242: FutureWarning: You are using a non-supported Python version (3.10.22). Google will not post any further updates to google.cloud.texttospeech_v1 supporting this Python version. Please upgrade to the latest Python version, or at least Python 3.11, and then update google.cloud.texttospeech_v1.
+  warnings.warn(message, FutureWarning)
+{"message": "starting worker", "level": "INFO", "name": "livekit.agents", "version": "1.3.12", "rtc-version": "1.0.23", "timestamp": "2026-11-17T06:18:10.444079+00:00"}
+{"message": "preloading plugins", "level": "INFO", "name": "livekit.agents", "packages": ["livekit.plugins.google", "av"], "timestamp": "2026-11-17T06:18:10.444185+00:00"}
+{"message": "HTTP server listening on :8081", "level": "INFO", "name": "livekit.agents", "timestamp": "2026-11-17T06:18:10.446552+00:00"}
+/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/google/api_core/_python_version_support.py:242: FutureWarning: You are using a non-supported Python version (3.10.22). Google will not post any further updates to google.api_core supporting this Python version. Please upgrade to the latest Python version, or at least Python 3.11, and then update google.api_core.
+  warnings.warn(message, FutureWarning)
+/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/google/api_core/_python_version_support.py:242: FutureWarning: You are using a non-supported Python version (3.10.22). Google will not post any further updates to google.cloud.speech_v1 supporting this Python version. Please upgrade to the latest Python version, or at least Python 3.11, and then update google.cloud.speech_v1.
+  warnings.warn(message, FutureWarning)
+/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/google/api_core/_python_version_support.py:242: FutureWarning: You are using a non-supported Python version (3.10.22). Google will not post any further updates to google.cloud.speech_v2 supporting this Python version. Please upgrade to the latest Python version, or at least Python 3.11, and then update google.cloud.speech_v2.
+  warnings.warn(message, FutureWarning)
+/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/google/api_core/_python_version_support.py:242: FutureWarning: You are using a non-supported Python version (3.10.22). Google will not post any further updates to google.cloud.texttospeech_v1 supporting this Python version. Please upgrade to the latest Python version, or at least Python 3.11, and then update google.cloud.texttospeech_v1.
+  warnings.warn(message, FutureWarning)
+{"message": "initializing process", "level": "INFO", "name": "livekit.agents", "pid": 956342, "timestamp": "2026-11-17T06:18:12.169853+00:00"}
+{"message": "initializing process", "level": "INFO", "name": "livekit.agents", "pid": 956344, "timestamp": "2026-11-17T06:18:12.173669+00:00"}
+{"message": "initializing process", "level": "INFO", "name": "livekit.agents", "pid": 956346, "timestamp": "2026-11-17T06:18:12.177679+00:00"}
+{"message": "initializing process", "level": "INFO", "name": "livekit.agents", "pid": 956357, "timestamp": "2026-11-17T06:18:12.182915+00:00"}
+{"message": "process initialized", "level": "INFO", "name": "livekit.agents", "pid": 956346, "elapsed_time": 1.05, "timestamp": "2026-11-17T06:18:13.225357+00:00"}
+{"message": "process initialized", "level": "INFO", "name": "livekit.agents", "pid": 956342, "elapsed_time": 1.06, "timestamp": "2026-11-17T06:18:13.231119+00:00"}
+{"message": "initializing process", "level": "INFO", "name": "livekit.agents", "pid": 956389, "timestamp": "2026-11-17T06:18:13.233592+00:00"}
+{"message": "process initialized", "level": "INFO", "name": "livekit.agents", "pid": 956344, "elapsed_time": 1.06, "timestamp": "2026-11-17T06:18:13.237124+00:00"}
+{"message": "initializing process", "level": "INFO", "name": "livekit.agents", "pid": 956394, "timestamp": "2026-11-17T06:18:13.240057+00:00"}
+{"message": "initializing process", "level": "INFO", "name": "livekit.agents", "pid": 956396, "timestamp": "2026-11-17T06:18:13.245760+00:00"}
+{"message": "process initialized", "level": "INFO", "name": "livekit.agents", "pid": 956357, "elapsed_time": 1.26, "timestamp": "2026-11-17T06:18:13.447198+00:00"}
+{"message": "initializing process", "level": "INFO", "name": "livekit.agents", "pid": 956427, "timestamp": "2026-11-17T06:18:13.453220+00:00"}
+{"message": "process initialized", "level": "INFO", "name": "livekit.agents", "pid": 956394, "elapsed_time": 1.04, "timestamp": "2026-11-17T06:18:14.276084+00:00"}
+{"message": "process initialized", "level": "INFO", "name": "livekit.agents", "pid": 956389, "elapsed_time": 1.06, "timestamp": "2026-11-17T06:18:14.290023+00:00"}
+{"message": "process initialized", "level": "INFO", "name": "livekit.agents", "pid": 956396, "elapsed_time": 1.04, "timestamp": "2026-11-17T06:18:14.290924+00:00"}
+{"message": "process initialized", "level": "INFO", "name": "livekit.agents", "pid": 956427, "elapsed_time": 1.01, "timestamp": "2026-11-17T06:18:14.459353+00:00"}
+{"message": "registered worker", "level": "INFO", "name": "livekit.agents", "agent_name": "happy-shopping-assistant", "id": "AW_g6tawZkaG9mf", "url": "wss://ina17-7k94iv79.livekit.cloud", "region": "India South", "protocol": 19, "timestamp": "2026-11-17T06:18:15.350977+00:00"}
+{"message": "received job request", "level": "INFO", "name": "livekit.agents", "job_id": "AJ_T2X53f7eMqJf", "dispatch_id": "AD_BkUzdKLWrHCK", "room": "user-bab4e2c6-4cd9-42e4-adbc-fc74635bcb75", "room_id": "RM_Ns9YPGnVNtEv", "agent_name": "happy-shopping-assistant", "resuming": false, "enable_recording": false, "timestamp": "2026-11-17T06:18:46.558120+00:00"}
+{"message": "initializing process", "level": "INFO", "name": "livekit.agents", "pid": 956447, "timestamp": "2026-11-17T06:18:46.788414+00:00"}
+Nvidia Encoder is supported.
+Nvidia Decoder is supported.
+{"message": "process initialized", "level": "INFO", "name": "livekit.agents", "pid": 956447, "elapsed_time": 1.0, "timestamp": "2026-11-17T06:18:47.788084+00:00"}
+{"message": "error in receive task: 1007 None. The audio content type (CONTENT_TYPE_AUDIO) is not supported for this model configuration.\nTraceback (most recent call last):\n  File \"/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/google/genai/live.py\", line 537, in _receive\n    raw_response = await self._ws.recv(decode=False)\n  File \"/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/websockets/asyncio/connection.py\", line 322, in recv\n    raise self.protocol.close_exc from self.recv_exc\nwebsockets.exceptions.ConnectionClosedError: received 1007 (invalid frame payload data) The audio content type (CONTENT_TYPE_AUDIO) is not supported for this model configuration.; then sent 1007 (invalid frame payload data) The audio content type (CONTENT_TYPE_AUDIO) is not supported for this model configuration.\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/plugins/google/realtime/realtime_api.py\", line 838, in _recv_task\n    async for response in session.receive():\n  File \"/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/google/genai/live.py\", line 456, in receive\n    while result := await self._receive():\n  File \"/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/google/genai/live.py\", line 547, in _receive\n    errors.APIError.raise_error(code, reason, None)\n  File \"/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/google/genai/errors.py\", line 206, in raise_error\n    raise cls(status_code, response_json, response)\ngoogle.genai.errors.APIError: 1007 None. The audio content type (CONTENT_TYPE_AUDIO) is not supported for this model configuration.", "level": "ERROR", "name": "livekit.plugins.google", "exc_info": "Traceback (most recent call last):\n  File \"/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/google/genai/live.py\", line 537, in _receive\n    raw_response = await self._ws.recv(decode=False)\n  File \"/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/websockets/asyncio/connection.py\", line 322, in recv\n    raise self.protocol.close_exc from self.recv_exc\nwebsockets.exceptions.ConnectionClosedError: received 1007 (invalid frame payload data) The audio content type (CONTENT_TYPE_AUDIO) is not supported for this model configuration.; then sent 1007 (invalid frame payload data) The audio content type (CONTENT_TYPE_AUDIO) is not supported for this model configuration.\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/plugins/google/realtime/realtime_api.py\", line 838, in _recv_task\n    async for response in session.receive():\n  File \"/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/google/genai/live.py\", line 456, in receive\n    while result := await self._receive():\n  File \"/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/google/genai/live.py\", line 547, in _receive\n    errors.APIError.raise_error(code, reason, None)\n  File \"/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/google/genai/errors.py\", line 206, in raise_error\n    raise cls(status_code, response_json, response)\ngoogle.genai.errors.APIError: 1007 None. The audio content type (CONTENT_TYPE_AUDIO) is not supported for this model configuration.", "pid": 956346, "job_id": "AJ_T2X53f7eMqJf", "room_id": "RM_Ns9YPGnVNtEv", "timestamp": "2026-11-17T06:18:52.055939+00:00"}
+{"message": "AFC is enabled with max remote calls: 10.", "level": "INFO", "name": "google_genai.models", "pid": 956346, "job_id": "AJ_T2X53f7eMqJf", "room_id": "RM_Ns9YPGnVNtEv", "timestamp": "2026-11-17T06:19:19.779257+00:00"}
+{"message": "Direct use of automatic function calling (AFC) in Models.generate_content is not recommended. Instead, we recommend to use AFC in Chat.send_message. Similarly, direct use of AFC in Models.generate_content_stream is not recommended. Instead, we recommend to use AFC in Chat.send_message_stream.", "level": "WARNING", "name": "google_genai.models", "pid": 956346, "job_id": "AJ_T2X53f7eMqJf", "room_id": "RM_Ns9YPGnVNtEv", "timestamp": "2026-11-17T06:19:19.779411+00:00"}
+{"message": "error in receive task: 1007 None. The audio content type (CONTENT_TYPE_AUDIO) is not supported for this model configuration.\nTraceback (most recent call last):\n  File \"/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/google/genai/live.py\", line 537, in _receive\n    raw_response = await self._ws.recv(decode=False)\n  File \"/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/websockets/asyncio/connection.py\", line 322, in recv\n    raise self.protocol.close_exc from self.recv_exc\nwebsockets.exceptions.ConnectionClosedError: received 1007 (invalid frame payload data) The audio content type (CONTENT_TYPE_AUDIO) is not supported for this model configuration.; then sent 1007 (invalid frame payload data) The audio content type (CONTENT_TYPE_AUDIO) is not supported for this model configuration.\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/plugins/google/realtime/realtime_api.py\", line 838, in _recv_task\n    async for response in session.receive():\n  File \"/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/google/genai/live.py\", line 456, in receive\n    while result := await self._receive():\n  File \"/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/google/genai/live.py\", line 547, in _receive\n    errors.APIError.raise_error(code, reason, None)\n  File \"/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/google/genai/errors.py\", line 206, in raise_error\n    raise cls(status_code, response_json, response)\ngoogle.genai.errors.APIError: 1007 None. The audio content type (CONTENT_TYPE_AUDIO) is not supported for this model configuration.", "level": "ERROR", "name": "livekit.plugins.google", "exc_info": "Traceback (most recent call last):\n  File \"/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/google/genai/live.py\", line 537, in _receive\n    raw_response = await self._ws.recv(decode=False)\n  File \"/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/websockets/asyncio/connection.py\", line 322, in recv\n    raise self.protocol.close_exc from self.recv_exc\nwebsockets.exceptions.ConnectionClosedError: received 1007 (invalid frame payload data) The audio content type (CONTENT_TYPE_AUDIO) is not supported for this model configuration.; then sent 1007 (invalid frame payload data) The audio content type (CONTENT_TYPE_AUDIO) is not supported for this model configuration.\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/plugins/google/realtime/realtime_api.py\", line 838, in _recv_task\n    async for response in session.receive():\n  File \"/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/google/genai/live.py\", line 456, in receive\n    while result := await self._receive():\n  File \"/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/google/genai/live.py\", line 547, in _receive\n    errors.APIError.raise_error(code, reason, None)\n  File \"/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/google/genai/errors.py\", line 206, in raise_error\n    raise cls(status_code, response_json, response)\ngoogle.genai.errors.APIError: 1007 None. The audio content type (CONTENT_TYPE_AUDIO) is not supported for this model configuration.", "pid": 956346, "job_id": "AJ_T2X53f7eMqJf", "room_id": "RM_Ns9YPGnVNtEv", "timestamp": "2026-11-17T06:19:39.897590+00:00"}
+{"message": "closing agent session due to participant disconnect (disable via `RoomInputOptions.close_on_disconnect=False`)", "level": "INFO", "name": "livekit.agents", "room": "user-bab4e2c6-4cd9-42e4-adbc-fc74635bcb75", "participant": "bab4e2c6-4cd9-42e4-adbc-fc74635bcb75", "reason": "CLIENT_INITIATED", "pid": 956346, "job_id": "AJ_T2X53f7eMqJf", "room_id": "RM_Ns9YPGnVNtEv", "timestamp": "2026-11-17T06:21:47.112648+00:00"}
+{"message": "process exiting", "level": "INFO", "name": "livekit.agents", "reason": "", "pid": 956346, "job_id": "AJ_T2X53f7eMqJf", "room_id": "RM_Ns9YPGnVNtEv", "timestamp": "2026-11-17T06:21:47.311810+00:00"}
+{"message": "AFC is enabled with max remote calls: 10.", "level": "INFO", "name": "google_genai.models", "pid": 956346, "job_id": "AJ_T2X53f7eMqJf", "room_id": "RM_Ns9YPGnVNtEv", "timestamp": "2026-11-17T06:21:47.312675+00:00"}
+🤖 Agent CONNECT ke room: user-bab4e2c6-4cd9-42e4-adbc-fc74635bcb75
+User city from metadata: Condongcatur
+🔄 AGENT STATE initializing -> listening
+🔄 AGENT STATE listening -> speaking
+🔄 AGENT STATE speaking -> listening
+💬 CONVERSATION ITEM role=assistant chars=43
+✅ Greeting sent
+📝 Session created: 9ef470f4-1fc4-491b-8ce4-b9cc28985f38
+🎙 USER AUDIO detected dbfs=-44.3
+🎙 USER AUDIO detected dbfs=-43.1
+🎙 USER AUDIO detected dbfs=-42.7
+🎙 USER AUDIO detected dbfs=-42.3
+🎙 USER AUDIO detected dbfs=-43.8
+🎙 USER AUDIO detected dbfs=-44.5
+🎙 USER AUDIO detected dbfs=-43.0
+🎙 USER AUDIO detected dbfs=-42.5
+🎙 USER AUDIO detected dbfs=-28.5
+🎙 USER AUDIO detected dbfs=-31.8
+🎙 USER AUDIO detected dbfs=-41.6
+📦 Voice result: VERIFIED
+🎙 USER AUDIO detected dbfs=-44.2
+🔐 Auto-login after verification: ✅ Toko Oren: login berhasil sebagai admin
+✅ Toko Hijau: login berhasil sebagai demo
+🔄 AGENT STATE listening -> speaking
+⏱ TURN #1 | last-speech->first-audio=2.48s (no tools) | est. felt=2.98s (+0.50s network) | think->speak=n/a | median=2.48s
+💬 CONVERSATION ITEM role=user chars=56
+⏱ Gemini ttft=5.12s total=18.97s
+🔄 AGENT STATE speaking -> listening
+💬 CONVERSATION ITEM role=assistant chars=193
+🏷️ Session label updated: Pengenalan Asisten Belanja Pribadi
+🎙 USER AUDIO detected dbfs=-41.7
+🔄 AGENT STATE listening -> speaking
+⏱ TURN #2 | last-speech->first-audio=0.04s (no tools) | est. felt=0.54s (+0.50s network) | think->speak=n/a | median=1.26s
+🎙 USER AUDIO detected dbfs=-43.9
+🎙 USER AUDIO detected dbfs=-41.0
+🎙 USER AUDIO detected dbfs=-42.5
+🎙 USER AUDIO detected dbfs=-35.0
+🎙 USER AUDIO detected dbfs=-36.8
+⏱ Gemini ttft=0.91s total=8.23s
+🔄 AGENT STATE speaking -> listening
+💬 CONVERSATION ITEM role=assistant chars=105
+🔄 AGENT STATE listening -> speaking
+⏱ TURN #3 | last-speech->first-audio=11.00s (no tools) | est. felt=11.50s (+0.50s network) | think->speak=n/a | median=2.48s
+💬 CONVERSATION ITEM role=user chars=6
+🔄 AGENT STATE speaking -> listening
+💬 CONVERSATION ITEM role=assistant chars=131
+🎙 USER AUDIO detected dbfs=-40.2
+🔄 AGENT STATE listening -> speaking
+⏱ TURN #4 | last-speech->first-audio=8.11s (no tools) | est. felt=8.61s (+0.50s network) | think->speak=n/a | median=5.29s
+💬 CONVERSATION ITEM role=user chars=11
+⏱ Gemini ttft=2.96s total=5.32s
+🔄 AGENT STATE speaking -> listening
+💬 CONVERSATION ITEM role=assistant chars=34
+🎙 USER AUDIO detected dbfs=-25.4
+🎙 USER AUDIO detected dbfs=-37.5
+🎙 USER AUDIO detected dbfs=-33.5
+🎙 USER AUDIO detected dbfs=-40.6
+🔄 AGENT STATE listening -> speaking
+⏱ TURN #5 | last-speech->first-audio=11.03s (no tools) | est. felt=11.53s (+0.50s network) | think->speak=n/a | median=8.11s
+💬 CONVERSATION ITEM role=user chars=56
+⏱ Gemini ttft=5.27s total=21.88s
+🔄 AGENT STATE speaking -> listening
+💬 CONVERSATION ITEM role=assistant chars=234
+🎙 USER AUDIO detected dbfs=-35.7
+🎙 USER AUDIO detected dbfs=-35.7
+🔄 AGENT STATE listening -> speaking
+⏱ TURN #6 | last-speech->first-audio=15.10s (no tools) | est. felt=15.60s (+0.50s network) | think->speak=n/a | median=9.55s
+💬 CONVERSATION ITEM role=user chars=71
+⏱ Gemini ttft=4.01s total=10.37s
+🔄 AGENT STATE speaking -> listening
+💬 CONVERSATION ITEM role=assistant chars=100
+🎙 USER AUDIO detected dbfs=-42.9
+👋 User left room: user-bab4e2c6-4cd9-42e4-adbc-fc74635bcb75, agent ikut disconnect
+🔌 Room disconnected: user-bab4e2c6-4cd9-42e4-adbc-fc74635bcb75
+🧹 Room released: user-bab4e2c6-4cd9-42e4-adbc-fc74635bcb75
+{"message": "unhandled exception while running the job task\nTraceback (most recent call last):\n  File \"/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/opentelemetry/util/_decorator.py\", line 71, in async_wrapper\n    return await func(*args, **kwargs)  # type: ignore\n  File \"/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/agents/ipc/job_proc_lazy_main.py\", line 292, in _traceable_entrypoint\n    await self._job_entrypoint_fnc(job_ctx)\n  File \"/opt/disk1/Livekit-Biometric/Happy-AI/backend/agent/agent.py\", line 970, in connect\n    await label_session_from_transcript()\n  File \"/opt/disk1/Livekit-Biometric/Happy-AI/backend/agent/agent.py\", line 925, in label_session_from_transcript\n    await asyncio.to_thread(\n  File \"/usr/lib/python3.10/asyncio/threads.py\", line 25, in to_thread\n    return await loop.run_in_executor(None, func_call)\n  File \"/usr/lib/python3.10/asyncio/base_events.py\", line 814, in run_in_executor\n    self._check_default_executor()\n  File \"/usr/lib/python3.10/asyncio/base_events.py\", line 519, in _check_default_executor\n    raise RuntimeError('Executor shutdown has been called')\nRuntimeError: Executor shutdown has been called", "level": "ERROR", "name": "livekit.agents", "exc_info": "Traceback (most recent call last):\n  File \"/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/opentelemetry/util/_decorator.py\", line 71, in async_wrapper\n    return await func(*args, **kwargs)  # type: ignore\n  File \"/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/agents/ipc/job_proc_lazy_main.py\", line 292, in _traceable_entrypoint\n    await self._job_entrypoint_fnc(job_ctx)\n  File \"/opt/disk1/Livekit-Biometric/Happy-AI/backend/agent/agent.py\", line 970, in connect\n    await label_session_from_transcript()\n  File \"/opt/disk1/Livekit-Biometric/Happy-AI/backend/agent/agent.py\", line 925, in label_session_from_transcript\n    await asyncio.to_thread(\n  File \"/usr/lib/python3.10/asyncio/threads.py\", line 25, in to_thread\n    return await loop.run_in_executor(None, func_call)\n  File \"/usr/lib/python3.10/asyncio/base_events.py\", line 814, in run_in_executor\n    self._check_default_executor()\n  File \"/usr/lib/python3.10/asyncio/base_events.py\", line 519, in _check_default_executor\n    raise RuntimeError('Executor shutdown has been called')\nRuntimeError: Executor shutdown has been called", "pid": 956346, "job_id": "AJ_T2X53f7eMqJf", "room_id": "RM_Ns9YPGnVNtEv", "timestamp": "2026-11-17T06:21:54.650451+00:00"}
+{"message": "received job request", "level": "INFO", "name": "livekit.agents", "job_id": "AJ_26p9qX6J8MyJ", "dispatch_id": "AD_4CEsKv54BjiW", "room": "user-bab4e2c6-4cd9-42e4-adbc-fc74635bcb75", "room_id": "RM_NnKCEodHid5i", "agent_name": "happy-shopping-assistant", "resuming": false, "enable_recording": false, "timestamp": "2026-11-17T06:23:17.693152+00:00"}
+Nvidia Encoder is supported.
+Nvidia Decoder is supported.
+{"message": "initializing process", "level": "INFO", "name": "livekit.agents", "pid": 956594, "timestamp": "2026-11-17T06:23:17.990735+00:00"}
+{"message": "process initialized", "level": "INFO", "name": "livekit.agents", "pid": 956594, "elapsed_time": 0.97, "timestamp": "2026-11-17T06:23:18.959466+00:00"}
+🤖 Agent CONNECT ke room: user-bab4e2c6-4cd9-42e4-adbc-fc74635bcb75
+User city from metadata: Condongcatur
+🔄 AGENT STATE initializing -> listening
+⏱ TOOL get_user_city dur=0.00s status=ok | User's detected city: Condongcatur
+{"message": "AFC is enabled with max remote calls: 10.", "level": "INFO", "name": "google_genai.models", "pid": 956342, "job_id": "AJ_26p9qX6J8MyJ", "room_id": "RM_NnKCEodHid5i", "timestamp": "2026-11-17T06:23:39.053252+00:00"}
+{"message": "Direct use of automatic function calling (AFC) in Models.generate_content is not recommended. Instead, we recommend to use AFC in Chat.send_message. Similarly, direct use of AFC in Models.generate_content_stream is not recommended. Instead, we recommend to use AFC in Chat.send_message_stream.", "level": "WARNING", "name": "google_genai.models", "pid": 956342, "job_id": "AJ_26p9qX6J8MyJ", "room_id": "RM_NnKCEodHid5i", "timestamp": "2026-11-17T06:23:39.053449+00:00"}
+🔄 AGENT STATE listening -> thinking
+✅ Greeting sent
+🎙 USER AUDIO detected dbfs=-33.9
+🎙 USER AUDIO detected dbfs=-35.7
+🎙 USER AUDIO detected dbfs=-36.8
+🎙 USER AUDIO detected dbfs=-40.0
+🎙 USER AUDIO detected dbfs=-34.3
+🔄 AGENT STATE thinking -> speaking
+⏱ TURN #1 | last-speech->first-audio=0.04s (with tools) | est. felt=0.54s (+0.50s network) | think->speak=2.14s | median=0.04s
+🎙 USER AUDIO detected dbfs=-41.5
+🎙 USER AUDIO detected dbfs=-35.3
+🎙 USER AUDIO detected dbfs=-42.0
+⏱ Gemini ttft=0.85s total=4.29s
+🔄 AGENT STATE speaking -> listening
+💬 CONVERSATION ITEM role=assistant chars=52
+📝 Session created: 0f3b9b2a-a663-438d-a14c-2b71a1d61e4c
+🎙 USER AUDIO detected dbfs=-44.1
+🎙 USER AUDIO detected dbfs=-45.0
+🎙 USER AUDIO detected dbfs=-43.3
+🎙 USER AUDIO detected dbfs=-43.9
+🎙 USER AUDIO detected dbfs=-44.9
+🎙 USER AUDIO detected dbfs=-43.8
+🎙 USER AUDIO detected dbfs=-43.0
+🎙 USER AUDIO detected dbfs=-30.9
+🎙 USER AUDIO detected dbfs=-38.5
+🎙 USER AUDIO detected dbfs=-42.2
+📦 Voice result: REPEAT
+💬 CONVERSATION ITEM role=user chars=63
+🔄 AGENT STATE listening -> thinking
+⏱ TOOL search_product dur=1.53s status=ok | Gak nemu produk untuk 'ROG'.
+🏷️ Session label updated: Cari Laptop Gaming 25 Juta
+🔄 AGENT STATE thinking -> listening
+⚠️  Turn ended without a reply — likely a swallowed realtime-socket error.
+🔁 Recovering (turn ended without a reply)
+🔄 AGENT STATE listening -> thinking
+⏱ TOOL search_product dur=0.99s status=ok | Gak nemu produk untuk 'Legion'.
+🔁 Recovery generate_reply dispatched
+🔄 AGENT STATE thinking -> listening
+⚠️  Turn ended without a reply — likely a swallowed realtime-socket error.
+🔄 AGENT STATE listening -> thinking
+⏱ TOOL search_product dur=0.88s status=ok | Gak nemu produk untuk 'Predator'.
+{"message": "✅ PRODUCT_CARDS SAVED (session=0f3b9b2a-a663-438d-a14c-2b71a1d61e4c, count=3)", "level": "INFO", "name": "root", "pid": 956342, "job_id": "AJ_26p9qX6J8MyJ", "room_id": "RM_NnKCEodHid5i", "timestamp": "2026-11-17T06:23:49.173709+00:00"}
+🎙 USER AUDIO detected dbfs=-42.7
+🔄 AGENT STATE thinking -> listening
+⚠️  Turn ended without a reply — likely a swallowed realtime-socket error.
+🔄 AGENT STATE listening -> thinking
+⏱ TOOL search_product dur=3.17s status=ok | SEARCH_RESULT_INTERNAL: Ketemu 3 produk untuk 'laptop' dari 2 toko. 3 kartu suda
+{"message": "📤 PRODUCT_CARDS SENT REALTIME", "level": "INFO", "name": "root", "pid": 956342, "job_id": "AJ_26p9qX6J8MyJ", "room_id": "RM_NnKCEodHid5i", "timestamp": "2026-11-17T06:23:51.180992+00:00"}
+{"message": "✅ PRODUCT_CARDS SAVED (session=0f3b9b2a-a663-438d-a14c-2b71a1d61e4c, count=3)", "level": "INFO", "name": "root", "pid": 956342, "job_id": "AJ_26p9qX6J8MyJ", "room_id": "RM_NnKCEodHid5i", "timestamp": "2026-11-17T06:24:19.356918+00:00"}
+⏱️ Verification timed out in room: user-bab4e2c6-4cd9-42e4-adbc-fc74635bcb75, resetting
+🔄 AGENT STATE thinking -> speaking
+⏱ TURN #2 | last-speech->first-audio=7.61s (with tools) | est. felt=8.11s (+0.50s network) | think->speak=6.47s | median=3.83s
+⏱ Gemini ttft=1.32s total=6.19s
+🔄 AGENT STATE speaking -> listening
+💬 CONVERSATION ITEM role=assistant chars=72
+🎙 USER AUDIO detected dbfs=-44.8
+🔄 AGENT STATE listening -> speaking
+⏱ TURN #3 | last-speech->first-audio=0.01s (no tools) | est. felt=0.51s (+0.50s network) | think->speak=n/a | median=0.04s
+🎙 USER AUDIO detected dbfs=-41.2
+🎙 USER AUDIO detected dbfs=-34.3
+🎙 USER AUDIO detected dbfs=-44.5
+🎙 USER AUDIO detected dbfs=-35.2
+⏱ Gemini ttft=0.83s total=5.38s
+🔄 AGENT STATE speaking -> listening
+💬 CONVERSATION ITEM role=assistant chars=72
+💬 CONVERSATION ITEM role=user chars=23
+🔄 AGENT STATE listening -> thinking
+📦 Voice result: DENIED
+⏱ TOOL search_product dur=3.39s status=ok | SEARCH_RESULT_INTERNAL: Ketemu 3 produk untuk 'laptop' dari 2 toko. 3 kartu suda
+{"message": "📤 PRODUCT_CARDS SENT REALTIME", "level": "INFO", "name": "root", "pid": 956342, "job_id": "AJ_26p9qX6J8MyJ", "room_id": "RM_NnKCEodHid5i", "timestamp": "2026-11-17T06:24:21.364481+00:00"}
+🔄 AGENT STATE thinking -> speaking
+⏱ TURN #4 | last-speech->first-audio=18.58s (with tools) | est. felt=19.08s (+0.50s network) | think->speak=5.10s | median=3.83s
+⏱ Gemini ttft=0.79s total=8.66s
+🔄 AGENT STATE speaking -> listening
+💬 CONVERSATION ITEM role=assistant chars=115
+🎙 USER AUDIO detected dbfs=-40.8
+🎙 USER AUDIO detected dbfs=-40.9
+🎙 USER AUDIO detected dbfs=-42.8
+🔄 AGENT STATE listening -> speaking
+⏱ TURN #5 | last-speech->first-audio=13.08s (no tools) | est. felt=13.58s (+0.50s network) | think->speak=n/a | median=7.61s
+💬 CONVERSATION ITEM role=user chars=3
+⏱ Gemini ttft=1.50s total=3.21s
+🔄 AGENT STATE speaking -> listening
+💬 CONVERSATION ITEM role=assistant chars=35
+⏱️ Verification timed out in room: user-bab4e2c6-4cd9-42e4-adbc-fc74635bcb75, resetting
+📦 Voice result: REPEAT
+🎙 USER AUDIO detected dbfs=-44.7
+🎙 USER AUDIO detected dbfs=-39.5
+🔄 AGENT STATE listening -> speaking
+⏱ TURN #6 | last-speech->first-audio=0.02s (no tools) | est. felt=0.52s (+0.50s network) | think->speak=n/a | median=3.83s
+🎙 USER AUDIO detected dbfs=-40.3
+🎙 USER AUDIO detected dbfs=-41.5
+🎙 USER AUDIO detected dbfs=-42.9
+🎙 USER AUDIO detected dbfs=-38.9
+🎙 USER AUDIO detected dbfs=-38.9
+🎙 USER AUDIO detected dbfs=-44.8
+🎙 USER AUDIO detected dbfs=-44.4
+🎙 USER AUDIO detected dbfs=-42.4
+🎙 USER AUDIO detected dbfs=-20.4
+⏱ Gemini ttft=0.37s total=7.40s
+🔄 AGENT STATE speaking -> listening
+💬 CONVERSATION ITEM role=assistant chars=105
+🎙 USER AUDIO detected dbfs=-41.6
+🎙 USER AUDIO detected dbfs=-30.4
+🎙 USER AUDIO detected dbfs=-34.8
+🎙 USER AUDIO detected dbfs=-43.8
+🎙 USER AUDIO detected dbfs=-39.6
+🎙 USER AUDIO detected dbfs=-39.8
+🎙 USER AUDIO detected dbfs=-42.7
+🎙 USER AUDIO detected dbfs=-40.6
+📦 Voice result: DENIED
+📦 Face result: VERIFIED
+🔐 Auto-login after verification: ✅ Toko Oren: login berhasil sebagai admin
+✅ Toko Hijau: login berhasil sebagai demo
+🔄 AGENT STATE listening -> speaking
+⏱ TURN #7 | last-speech->first-audio=5.07s (no tools) | est. felt=5.57s (+0.50s network) | think->speak=n/a | median=5.07s
+🎙 USER AUDIO detected dbfs=-44.3
+🎙 USER AUDIO detected dbfs=-39.6
+💬 CONVERSATION ITEM role=user chars=4
+⏱ TOOL get_product_from_search_index dur=0.00s status=ok | Produk nomor 1: Lenovo ThinkPad X1 Carbon Gen 11 (ID: 8, source: "oren" / Toko O
+{"message": "Error in _realtime_reply_task\nTraceback (most recent call last):\n  File \"/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/agents/utils/log.py\", line 16, in async_fn_logs\n    return await fn(*args, **kwargs)\n  File \"/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/agents/voice/agent_activity.py\", line 2227, in _realtime_reply_task\n    generation_ev = await self._rt_session.generate_reply(\nlivekit.agents.llm.realtime.RealtimeError: generate_reply timed out waiting for generation_created event.", "level": "ERROR", "name": "livekit.agents", "exc_info": "Traceback (most recent call last):\n  File \"/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/agents/utils/log.py\", line 16, in async_fn_logs\n    return await fn(*args, **kwargs)\n  File \"/opt/disk1/Livekit-Biometric/Happy-AI/backend/.venv/lib/python3.10/site-packages/livekit/agents/voice/agent_activity.py\", line 2227, in _realtime_reply_task\n    generation_ev = await self._rt_session.generate_reply(\nlivekit.agents.llm.realtime.RealtimeError: generate_reply timed out waiting for generation_created event.", "pid": 956342, "job_id": "AJ_26p9qX6J8MyJ", "room_id": "RM_NnKCEodHid5i", "timestamp": "2026-11-17T06:25:18.676895+00:00"}
+🎙 USER AUDIO detected dbfs=-39.0
+🔄 AGENT STATE speaking -> listening
+💬 CONVERSATION ITEM role=assistant chars=47
+🔄 AGENT STATE listening -> thinking
+🎙 USER AUDIO detected dbfs=-38.3
+🎙 USER AUDIO detected dbfs=-44.7
+🔄 AGENT STATE thinking -> listening
+⚠️  Turn ended without a reply — likely a swallowed realtime-socket error.
+🔁 Recovering (turn ended without a reply)
+🔄 AGENT STATE listening -> thinking
+⏱ TOOL get_product_detail dur=0.51s status=ok | 📦 Detail Produk (Toko Oren): • Nama: Lenovo ThinkPad X1 Carbon Gen 11 • Harga: R
+{"message": "📤 LINK_CARD SENT (Produk — Lenovo ThinkPad X1 Carbon Gen 11: https://dummy-ecommerce-tau.vercel.app/product/8)", "level": "INFO", "name": "root", "pid": 956342, "job_id": "AJ_26p9qX6J8MyJ", "room_id": "RM_NnKCEodHid5i", "timestamp": "2026-11-17T06:25:19.581285+00:00"}
+🎙 USER AUDIO detected dbfs=-44.4
+🔄 AGENT STATE thinking -> speaking
+⏱ TURN #8 | last-speech->first-audio=0.48s (with tools) | est. felt=0.98s (+0.50s network) | think->speak=1.80s | median=2.77s
+🔁 Recovery generate_reply dispatched
+⏱ Gemini ttft=0.36s total=16.80s
+🔄 AGENT STATE speaking -> listening
+💬 CONVERSATION ITEM role=assistant chars=221
+🔄 AGENT STATE listening -> speaking
+⏱ Gemini ttft=0.39s total=8.74s
+🔄 AGENT STATE speaking -> listening
+💬 CONVERSATION ITEM role=assistant chars=132
+🎙 USER AUDIO detected dbfs=-34.4
+🎙 USER AUDIO detected dbfs=-34.3
+🔄 AGENT STATE listening -> speaking
+⏱ TURN #9 | last-speech->first-audio=0.01s (no tools) | est. felt=0.51s (+0.50s network) | think->speak=n/a | median=0.48s
+⏱ Gemini ttft=1.06s total=3.05s
+🔄 AGENT STATE speaking -> listening
+💬 CONVERSATION ITEM role=assistant chars=33
+🎙 USER AUDIO detected dbfs=-37.9
+🎙 USER AUDIO detected dbfs=-37.7
+🎙 USER AUDIO detected dbfs=-38.0
+🎙 USER AUDIO detected dbfs=-34.5
+🔄 AGENT STATE listening -> speaking
+⏱ TURN #10 | last-speech->first-audio=13.39s (no tools) | est. felt=13.89s (+0.50s network) | think->speak=n/a | median=2.77s
+💬 CONVERSATION ITEM role=user chars=40
+⏱ Gemini ttft=3.47s total=5.74s
+🔄 AGENT STATE speaking -> listening
+💬 CONVERSATION ITEM role=assistant chars=48
+🎙 USER AUDIO detected dbfs=-43.4
+🎙 USER AUDIO detected dbfs=-39.2
+🎙 USER AUDIO detected dbfs=-44.5
+🎙 USER AUDIO detected dbfs=-43.0
+🔄 AGENT STATE listening -> speaking
+⏱ TURN #11 | last-speech->first-audio=3.42s (no tools) | est. felt=3.92s (+0.50s network) | think->speak=n/a | median=3.42s
+🎙 USER AUDIO detected dbfs=-43.0
+💬 CONVERSATION ITEM role=user chars=30
+⏱ TOOL add_to_cart dur=0.53s status=ok | Berhasil ditambahin ke keranjang Toko Oren! Added to cart
+🔄 AGENT STATE speaking -> listening
+💬 CONVERSATION ITEM role=assistant chars=84
+🔄 AGENT STATE listening -> thinking
+🔄 AGENT STATE thinking -> speaking
+⏱ TURN #12 | last-speech->first-audio=7.02s (with tools) | est. felt=7.52s (+0.50s network) | think->speak=1.13s | median=4.25s
+⏱ Gemini ttft=0.33s total=5.60s
+🔄 AGENT STATE speaking -> listening
+💬 CONVERSATION ITEM role=assistant chars=86
+🎙 USER AUDIO detected dbfs=-25.6
+🎙 USER AUDIO detected dbfs=-30.1
+🎙 USER AUDIO detected dbfs=-42.0
+🎙 USER AUDIO detected dbfs=-32.7
+🎙 USER AUDIO detected dbfs=-44.6
+🎙 USER AUDIO detected dbfs=-34.7
+🎙 USER AUDIO detected dbfs=-34.8
+🎙 USER AUDIO detected dbfs=-37.7
+🎙 USER AUDIO detected dbfs=-44.8
+🔄 AGENT STATE listening -> speaking
+⏱ TURN #13 | last-speech->first-audio=5.60s (no tools) | est. felt=6.10s (+0.50s network) | think->speak=n/a | median=5.07s
+💬 CONVERSATION ITEM role=user chars=38
+⏱ TOOL checkout dur=1.82s status=ok | 🎉 Pesanan berhasil dibuat di Toko Oren! 📦 Order ID: 112 💳 Metode Bayar: ShopKuPa
+{"message": "📤 LINK_CARD SENT (Pesanan #112 — Toko Oren: https://dummy-ecommerce-tau.vercel.app/orders/112)", "level": "INFO", "name": "root", "pid": 956342, "job_id": "AJ_26p9qX6J8MyJ", "room_id": "RM_NnKCEodHid5i", "timestamp": "2026-11-17T06:27:41.918365+00:00"}
+🔄 AGENT STATE speaking -> listening
+💬 CONVERSATION ITEM role=assistant chars=55
+🔄 AGENT STATE listening -> thinking
+🎙 USER AUDIO detected dbfs=-43.5
+🔄 AGENT STATE thinking -> speaking
+⏱ TURN #14 | last-speech->first-audio=0.92s (with tools) | est. felt=1.42s (+0.50s network) | think->speak=1.84s | median=4.25s
+⏱ Gemini ttft=0.72s total=10.76s
+🔄 AGENT STATE speaking -> listening
+💬 CONVERSATION ITEM role=assistant chars=134
+🎙 USER AUDIO detected dbfs=-39.9
+🎙 USER AUDIO detected dbfs=-44.7
+🎙 USER AUDIO detected dbfs=-41.0
+🎙 USER AUDIO detected dbfs=-44.7
+🎙 USER AUDIO detected dbfs=-41.5
+🎙 USER AUDIO detected dbfs=-35.1
+🎙 USER AUDIO detected dbfs=-41.6
+🎙 USER AUDIO detected dbfs=-33.1
+🎙 USER AUDIO detected dbfs=-43.0
+🔄 AGENT STATE listening -> speaking
+💬 CONVERSATION ITEM role=user chars=51
+⏱ Gemini ttft=3.96s total=7.91s
+🔄 AGENT STATE speaking -> listening
+💬 CONVERSATION ITEM role=assistant chars=54
+🎙 USER AUDIO detected dbfs=-42.8
+🎙 USER AUDIO detected dbfs=-40.5
+🎙 USER AUDIO detected dbfs=-41.0
+🎙 USER AUDIO detected dbfs=-20.1
+🎙 USER AUDIO detected dbfs=-42.0
+🎙 USER AUDIO detected dbfs=-44.5
+🎙 USER AUDIO detected dbfs=-42.7
+🎙 USER AUDIO detected dbfs=-25.8
+🎙 USER AUDIO detected dbfs=-39.2
+🎙 USER AUDIO detected dbfs=-44.1
+🎙 USER AUDIO detected dbfs=-43.2
+🎙 USER AUDIO detected dbfs=-42.1
+🎙 USER AUDIO detected dbfs=-44.2
+🎙 USER AUDIO detected dbfs=-43.9
+🎙 USER AUDIO detected dbfs=-40.2
+🎙 USER AUDIO detected dbfs=-43.9
+🎙 USER AUDIO detected dbfs=-43.9
+🎙 USER AUDIO detected dbfs=-45.0
+🎙 USER AUDIO detected dbfs=-39.8
+🎙 USER AUDIO detected dbfs=-43.5
+🎙 USER AUDIO detected dbfs=-42.8
+🎙 USER AUDIO detected dbfs=-42.3
+🎙 USER AUDIO detected dbfs=-42.3
+🎙 USER AUDIO detected dbfs=-44.9
+🎙 USER AUDIO detected dbfs=-44.3
+🎙 USER AUDIO detected dbfs=-42.7
+🎙 USER AUDIO detected dbfs=-44.0
+🎙 USER AUDIO detected dbfs=-33.2
+🎙 USER AUDIO detected dbfs=-35.1
+🎙 USER AUDIO detected dbfs=-41.7
+🎙 USER AUDIO detected dbfs=-41.7
+🎙 USER AUDIO detected dbfs=-44.1
+🎙 USER AUDIO detected dbfs=-44.0
+🎙 USER AUDIO detected dbfs=-44.2
+💬 CONVERSATION ITEM role=user chars=7
+🔄 AGENT STATE listening -> thinking
+⏱ TOOL get_shopkupay_balance dur=0.53s status=ok | Saldo ShopKuPay lo di Toko Oren: Rp 4,657,266,928
+{"message": "closing agent session due to participant disconnect (disable via `RoomInputOptions.close_on_disconnect=False`)", "level": "INFO", "name": "livekit.agents", "room": "user-bab4e2c6-4cd9-42e4-adbc-fc74635bcb75", "participant": "bab4e2c6-4cd9-42e4-adbc-fc74635bcb75", "reason": "CLIENT_INITIATED", "pid": 956342, "job_id": "AJ_26p9qX6J8MyJ", "room_id": "RM_NnKCEodHid5i", "timestamp": "2026-11-17T06:29:56.814659+00:00"}
+{"message": "process exiting", "level": "INFO", "name": "livekit.agents", "reason": "", "pid": 956342, "job_id": "AJ_26p9qX6J8MyJ", "room_id": "RM_NnKCEodHid5i", "timestamp": "2026-11-17T06:29:57.024651+00:00"}
+🎙 USER AUDIO detected dbfs=-43.6
+🎙 USER AUDIO detected dbfs=-39.5
+🔄 AGENT STATE thinking -> speaking
+⏱ TURN #15 | last-speech->first-audio=0.03s (with tools) | est. felt=0.53s (+0.50s network) | think->speak=1.70s | median=3.42s
+🎙 USER AUDIO detected dbfs=-43.4
+⏱ Gemini ttft=0.50s total=10.21s
+🔄 AGENT STATE speaking -> listening
+💬 CONVERSATION ITEM role=assistant chars=56
+👋 User left room: user-bab4e2c6-4cd9-42e4-adbc-fc74635bcb75, agent ikut disconnect

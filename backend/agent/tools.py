@@ -10,6 +10,33 @@ import requests
 from agent.adapters import ADAPTERS, get_adapter, list_sources
 from agent.adapters.base import _num
 
+# --- Pencatat durasi tool (pengujian Bab 5); lihat apply_timing_patch.py ---
+import functools as _functools
+
+
+def timed_tool(fn):
+    """Catat durasi tiap function tool ke stdout. Tidak mengubah perilaku tool."""
+    name = fn.__name__
+
+    @_functools.wraps(fn)
+    async def wrapper(*args, **kwargs):
+        t0 = time.perf_counter()
+        status = "ok"
+        result = None
+        try:
+            result = await fn(*args, **kwargs)
+            return result
+        except Exception as e:  # dicatat lalu dilempar ulang apa adanya
+            status = f"ERR:{type(e).__name__}"
+            raise
+        finally:
+            dur = time.perf_counter() - t0
+            head = " ".join(str(result).split())[:80] if result is not None else ""
+            print(f"⏱ TOOL {name} dur={dur:.2f}s status={status} | {head}", flush=True)
+
+    return wrapper
+# --- akhir pencatat durasi ---
+
 # Interval untuk re-verifikasi (10 menit)
 REVERIFY_INTERVAL = 600
 
@@ -502,6 +529,7 @@ def _normalize_city(raw: str | None) -> str | None:
 
 
 @function_tool
+@timed_tool
 async def get_user_city() -> str:
     """
     Get the user's current city, auto-detected from their browser's GPS.
@@ -568,6 +596,7 @@ def _coerce_product(p):
 
 
 @function_tool
+@timed_tool
 async def send_product_cards(products: list) -> str:
     """
     Explicitly send product cards to the frontend display.
@@ -618,6 +647,7 @@ async def send_product_cards(products: list) -> str:
 
 
 @function_tool
+@timed_tool
 async def search_product(
     query: str = "",
     category: str = "",
@@ -792,6 +822,7 @@ async def search_product(
     return result
 
 @function_tool
+@timed_tool
 async def send_review_cards(product_id: int, source: str) -> str:
     """
     Fetch reviews for a product and display them as cards in the chat.
@@ -847,6 +878,7 @@ async def send_review_cards(product_id: int, source: str) -> str:
         return f"Error: {str(e)}"
 
 @function_tool
+@timed_tool
 async def get_product_detail(product_id: int, source: str) -> str:
 
     adapter, _, error = _resolve_account(source)
@@ -914,6 +946,7 @@ async def get_product_detail(product_id: int, source: str) -> str:
 
 
 @function_tool
+@timed_tool
 async def get_product_from_search_index(index: int) -> str:
     """
     Get product ID and source from the last search results by index (1-based).
@@ -937,6 +970,7 @@ async def get_product_from_search_index(index: int) -> str:
 # ==================== GENERAL TOOLS ====================
 
 @function_tool
+@timed_tool
 async def get_weather(city: str) -> str:
     """Get current weather for a given city."""
     try:
@@ -960,6 +994,7 @@ WEB_SEARCH_TIMEOUT_SEC = 15.0
 
 
 @function_tool
+@timed_tool
 async def web_search(query: str) -> str:
     """Search the internet for information."""
     try:
@@ -1049,6 +1084,7 @@ async def login_with_stored_credentials(source: str = "") -> str:
 
 
 @function_tool
+@timed_tool
 async def login(source: str = "") -> str:
     """
     Log in to the user's own linked e-commerce account(s).
@@ -1067,6 +1103,7 @@ async def login(source: str = "") -> str:
 
 
 @function_tool
+@timed_tool
 async def logout(source: str = "") -> str:
     """
     Logout from one (or all) e-commerce store(s).
@@ -1098,6 +1135,7 @@ async def logout(source: str = "") -> str:
 
 
 @function_tool
+@timed_tool
 async def check_login_status(source: str = "") -> str:
     """
     Check if the user is currently logged in.
@@ -1122,6 +1160,7 @@ async def check_login_status(source: str = "") -> str:
 
 
 @function_tool
+@timed_tool
 async def check_voice_status() -> str:
     """Check current voice verification status."""
     state = auth_state.get("agent_state", {})
@@ -1153,6 +1192,7 @@ async def check_voice_status() -> str:
 # ==================== USER TOOLS ====================
 
 @function_tool
+@timed_tool
 async def get_shopkupay_balance(source: str) -> str:
     """
     Get user's e-wallet balance/saldo on a specific store. Each store brands
@@ -1190,6 +1230,7 @@ async def get_shopkupay_balance(source: str) -> str:
 # ==================== CART TOOLS ====================
 
 @function_tool
+@timed_tool
 async def add_to_cart(product_id: int, source: str, quantity: int = 1) -> str:
     """
     Add a product to the shopping cart of a specific store. Requires login
@@ -1225,6 +1266,7 @@ async def add_to_cart(product_id: int, source: str, quantity: int = 1) -> str:
 
 
 @function_tool
+@timed_tool
 async def get_cart(source: str) -> str:
     """
     Get current items in the shopping cart of a specific store, with cart link.
@@ -1271,6 +1313,7 @@ async def get_cart(source: str) -> str:
 
 
 @function_tool
+@timed_tool
 async def remove_from_cart(cart_id: int, source: str) -> str:
     """
     Remove an item from a specific store's cart using cart_id.
@@ -1306,6 +1349,7 @@ async def remove_from_cart(cart_id: int, source: str) -> str:
 # ==================== CHECKOUT TOOLS (PROTECTED) ====================
 
 @function_tool
+@timed_tool
 async def checkout(source: str, payment_method: str = "GoPay") -> str:
     """
     Complete the purchase and create an order from a specific store's cart items.
@@ -1395,6 +1439,7 @@ async def checkout(source: str, payment_method: str = "GoPay") -> str:
 # ==================== ORDER TOOLS ====================
 
 @function_tool
+@timed_tool
 async def get_order_history(source: str) -> str:
     """
     Get order history with links, for a specific store.
@@ -1443,6 +1488,7 @@ async def get_order_history(source: str) -> str:
 
 
 @function_tool
+@timed_tool
 async def get_order_detail(order_id: int, source: str) -> str:
     """
     Get detailed information about a specific order by order ID, on a
@@ -1503,6 +1549,7 @@ async def get_order_detail(order_id: int, source: str) -> str:
 
 
 @function_tool
+@timed_tool
 async def pay_order(order_id: int, source: str) -> str:
     """
     Pay for a pending order on a specific store. Only works for orders with

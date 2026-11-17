@@ -135,6 +135,7 @@ class UserSpeechTracker:
 
     def __init__(self):
         self.last_speech_at: float | None = None
+        self._speech_active = False
 
     def feed(self, samples: np.ndarray, now: float) -> None:
         if samples.size == 0:
@@ -143,6 +144,11 @@ class UserSpeechTracker:
         dbfs = 20 * math.log10(max(rms, 1.0) / 32768.0)
         if dbfs > self.THRESHOLD_DBFS:
             self.last_speech_at = now
+            if not self._speech_active:
+                print(f"🎙 USER AUDIO detected dbfs={dbfs:.1f}")
+            self._speech_active = True
+        else:
+            self._speech_active = False
 
 
 def install_turn_latency_logging(session) -> UserSpeechTracker:

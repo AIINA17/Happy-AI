@@ -352,7 +352,7 @@ balik apa pun). Halaman `/login` menampilkan dialog error.
 `Sidebar` membuka `OnboardingTour` otomatis **sekali per pengguna per browser**, ditandai di
 `localStorage` dengan kunci `happy_onboarding_done_{userId}`. Bisa dibuka lagi dari menu "Panduan Awal".
 
-Wizard 5 langkah: sambutan → daftarkan suara → daftarkan wajah → hubungkan akun toko → selesai.
+Wizard 5 tahap: sambutan → daftarkan suara → daftarkan wajah → hubungkan akun toko → selesai. Tiga tahap di tengah merupakan langkah persiapan yang ditampilkan sebagai ``Langkah 1 dari 3'' sampai ``Langkah 3 dari 3'' pada dialog onboarding.
 Selama wizard terbuka, ia **polling tiap 2,5 detik** ke tiga endpoint untuk membalik lencana "selesai":
 
 | Cek | Endpoint | Dianggap selesai jika |

@@ -167,6 +167,8 @@ def install_turn_latency_logging(session) -> UserSpeechTracker:
 
     @session.on("agent_state_changed")
     def on_agent_state_changed(ev):
+        old_state = getattr(ev, "old_state", "?")
+        print(f"🔄 AGENT STATE {old_state} -> {ev.new_state}")
         if ev.new_state == "thinking":
             state["thinking_at"] = ev.created_at
             return
@@ -678,6 +680,9 @@ async def connect(ctx: agents.JobContext):
     # ================= CONVERSATION =================
     @session.on("conversation_item_added")
     def on_conversation_item(event):
+        role = getattr(event.item, "role", "unknown")
+        text = (getattr(event.item, "text_content", "") or "").strip()
+        print(f"💬 CONVERSATION ITEM role={role} chars={len(text)}")
         asyncio.create_task(handle_conversation(event))
 
     # The DB insert now runs in a worker thread, so it yields to the loop. Two
